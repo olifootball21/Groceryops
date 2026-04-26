@@ -142,6 +142,8 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
   const [ready, setReady] = useState(false);
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [loginUser, setLoginUser] = useState(null); // null = show user picker
   const [dark, setDark]           = useState(true);
   const [lang, setLang]           = useState("fr");
   const [themeColor, setThemeColor] = useState("#C9A84C");
@@ -271,6 +273,11 @@ export default function App() {
           setScheduleDepts(newDepts);
           setSchedules(newSched);
         }
+      // Load join requests (owner only)
+      try {
+        const reqs = await sb.get("join_requests", "order=created_at.desc");
+        if(reqs?.length) setJoinRequests(reqs);
+      } catch(e) { /* table might not exist yet */ }
       } catch(e) { console.error("Load error:", e); }
       setReady(true);
     };
@@ -279,6 +286,7 @@ export default function App() {
 
   const isOwner = me.isOwner;
   const unread  = notifs.filter(n=>!n.read).length;
+  const pendingRequests = joinRequests.filter(r=>r.status==="pending").length;
   const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
 
   const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
@@ -403,7 +411,15 @@ export default function App() {
   const deleteTask = async tid => { try{await sb.del("tasks",tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast("Supprimée","warn");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");} };
 
   const saveTour = async tour => {
-    try{const res=await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:tour.issues||[]});if(res?.[0])setTourHistory(p=>[{...tour,id:res[0].id},...p]);pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`,"done");pushToast(`Tournée ${tour.shift} sauvegardée !`);setActiveTour(null);setModal(null);}catch(e){pushToast("Erreur","warn");}
+    try{
+      // Strip photos from issues to avoid payload too large
+      const safeIssues=(tour.issues||[]).map(i=>({...i,photo:null}));
+      const res=await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:safeIssues});
+      if(res?.[0])setTourHistory(p=>[{...tour,id:res[0].id},...p]);
+      pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`,"done");
+      pushToast(`Tournée ${tour.shift} sauvegardée !`);
+      setActiveTour(null);setModal(null);
+    }catch(e){console.error("Tour save error:",e);pushToast("Erreur sauvegarde tournée","warn");}
   };
 
   // Reminders disabled - handled manually
@@ -440,6 +456,33 @@ export default function App() {
   };
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
+  const sendJoinRequest = async (name, role) => {
+    try {
+      const res = await sb.insert("join_requests", {name, role, status:"pending"});
+      if(res?.[0]) pushToast("Demande envoyée ! En attente d'approbation.");
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
+  const approveRequest = async (req) => {
+    try {
+      const colors = ["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261","#84cc16"];
+      const color = colors[users.length % colors.length];
+      const newUser = await sb.insert("users",{name:req.name,role:req.role,color,is_owner:false});
+      if(newUser?.[0]) {
+        setUsers(p=>[...p,{...newUser[0],isOwner:false}]);
+        await sb.update("join_requests",req.id,{status:"approved"});
+        setJoinRequests(p=>p.map(r=>r.id===req.id?{...r,status:"approved"}:r));
+        pushToast(`${req.name} approuvé !`);
+      }
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
+  const rejectRequest = async (req) => {
+    try {
+      await sb.update("join_requests",req.id,{status:"rejected"});
+      setJoinRequests(p=>p.map(r=>r.id===req.id?{...r,status:"rejected"}:r));
+      pushToast("Demande refusée","warn");
+    } catch(e) {}
+  };
+
   const getUser = id=>users.find(u=>u.id===id);
   const getPri  = id=>PRIORITIES.find(p=>p.id===id);
   const stats = {
@@ -460,6 +503,30 @@ export default function App() {
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap'); @keyframes spin{to{transform:rotate(360deg);}}`}</style>
       <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div>
       <div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/>
+    </div>
+  );
+
+  if (!loginUser) return (
+    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:"#C9A84C",marginBottom:8}}>GroceryOps</div>
+      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:40}}>Qui es-tu ?</div>
+      <div style={{display:"flex",flexDirection:"column",gap:12,width:"100%",maxWidth:320}}>
+        {users.map(u=>(
+          <button key={u.id} onClick={()=>{setLoginUser(u);setMe(u);}}
+            style={{padding:"18px 20px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+            <div style={{width:46,height:46,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:u.id===1?"#0a0a0d":"white",flexShrink:0}}>
+              {u.name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+            </div>
+            <div style={{textAlign:"left"}}>
+              <div style={{fontSize:16,fontWeight:600,color:"#ede8df"}}>{u.name}</div>
+              <div style={{fontSize:12,color:"rgba(237,232,223,0.4)",marginTop:2}}>{u.role}</div>
+            </div>
+            <div style={{marginLeft:"auto",color:u.color,fontSize:20}}>›</div>
+          </button>
+        ))}
+        <JoinRequestForm onSend={sendJoinRequest}/>
+      </div>
     </div>
   );
 
@@ -505,7 +572,7 @@ export default function App() {
         {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onShiftReport={()=>setModal("shiftReport")}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
-        {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks}/>}
+        {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
         {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports}/>}
         {tab==="gallery"  && <GalleryTab gallery={gallery} allAppPhotos={allAppPhotos} me={me} getUser={getUser} lang={lang} themeColor={themeColor} onCreateFolder={createGalleryFolder} onDeleteFolder={deleteGalleryFolder} onAddPhoto={addPhotoToFolder} onDeletePhoto={deletePhotoFromFolder} onRenameFolder={renameGalleryFolder}/>}
         {tab==="schedule" && <ScheduleTab schedules={schedules} scheduleDepts={scheduleDepts} me={me} isOwner={isOwner} onAdd={addSchedulePhoto} onDelete={deleteSchedulePhoto} onAddDept={addScheduleDept} onRemoveDept={removeScheduleDept} onRenameDept={renameScheduleDept}/>}
@@ -883,6 +950,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
 function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedTour, setSelectedTour] = useState(null);
 
   const year=calMonth.getFullYear(); const month=calMonth.getMonth();
   const firstDay=new Date(year,month,1).getDay();
@@ -965,10 +1033,10 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div className="tag" style={{marginBottom:4}}>{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
             {selectedTours.map((t,i)=>(
-              <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)"}}>
+              <div key={i} className="card-tap" onClick={()=>setSelectedTour(t)} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
-                  <div style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</div><span style={{color:"var(--t3)"}}>›</span></div>
                 </div>
                 <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
                 {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
@@ -1005,6 +1073,47 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
                           <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
                           {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8,lineHeight:1.5}}>{issue.note}</div>}
                           {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedTour&&(
+        <div className="overlay" onClick={()=>setSelectedTour(null)}>
+          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"85vh"}}>
+            <div className="handle"/>
+            <div style={{overflowY:"auto",flex:1,padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div className="tag" style={{marginBottom:4}}>TOURNÉE · {selectedTour.date}</div>
+                  <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--gold)"}}>{selectedTour.shift}</div>
+                </div>
+                <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[{l:"FAIT PAR",v:selectedTour.doneBy},{l:"SCORE",v:`${selectedTour.score}/${selectedTour.total}`},{l:"DURÉE",v:selectedTour.duration||"—"},{l:"HEURE",v:selectedTour.startTime||"—"}].map(x=>(
+                  <div key={x.l} style={{background:"var(--s2)",borderRadius:12,padding:"10px 12px"}}>
+                    <div className="tag" style={{marginBottom:5}}>{x.l}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:"var(--gold)"}}>{x.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="tag" style={{marginBottom:10}}>PROBLÈMES ({selectedTour.issues?.length||0})</div>
+                {(!selectedTour.issues||selectedTour.issues.length===0)
+                  ? <div style={{textAlign:"center",padding:"20px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
+                  : <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {selectedTour.issues.map((issue,i)=>(
+                        <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
+                          <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
+                          {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8}}>{issue.note}</div>}
+                          {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10}}/>}
                         </div>
                       ))}
                     </div>
@@ -1236,7 +1345,7 @@ function TourConfigModal({config,onSave,onClose}){
 }
 
 // ─── TEAM TAB ─────────────────────────────────────────────────────
-function TeamTab({users,me,isOwner,onAdd,onEdit,tasks}){
+function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onReject}){
   return(
     <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
@@ -1244,6 +1353,23 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks}){
         {isOwner&&<button className="btn btn-gold" onClick={onAdd} style={{padding:"9px 16px",borderRadius:12,fontSize:13}}>+ Ajouter</button>}
       </div>
       {!isOwner&&<div className="card" style={{padding:"12px 16px",textAlign:"center",fontSize:13,color:"var(--t2)"}}>Seul le propriétaire peut gérer l'équipe</div>}
+      {isOwner&&joinRequests?.filter(r=>r.status==="pending").length>0&&(
+        <div>
+          <div className="tag" style={{marginBottom:10}}>DEMANDES D'ACCÈS EN ATTENTE</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {joinRequests.filter(r=>r.status==="pending").map(r=>(
+              <div key={r.id} className="card" style={{padding:"14px",borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{r.name}</div>
+                <div style={{fontSize:12,color:"var(--t2)",marginBottom:10}}>{r.role}</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button className="btn btn-ok" onClick={()=>onApprove(r)} style={{flex:1,padding:"10px",borderRadius:11,fontSize:13,fontWeight:700}}>✓ Approuver</button>
+                  <button className="btn btn-danger" onClick={()=>onReject(r)} style={{flex:1,padding:"10px",borderRadius:11,fontSize:13}}>✕ Refuser</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {users.map(u=>{
           const active=tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done").length;
@@ -2881,6 +3007,49 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── JOIN REQUEST FORM ────────────────────────────────────────────
+function JoinRequestForm({onSend}){
+  const [show,setShow] = useState(false);
+  const [name,setName] = useState("");
+  const [role,setRole] = useState("");
+  const [sent,setSent] = useState(false);
+
+  const handleSend = async () => {
+    if(!name.trim()) return;
+    await onSend(name.trim(), role.trim()||"Employé");
+    setSent(true);
+  };
+
+  if(sent) return(
+    <div style={{marginTop:8,padding:"16px",background:"rgba(42,157,143,0.1)",borderRadius:14,border:"1px solid rgba(42,157,143,0.2)",textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}>
+      <div style={{fontSize:20,marginBottom:6}}>✓</div>
+      <div style={{fontSize:13,color:"#2a9d8f",fontWeight:600}}>Demande envoyée !</div>
+      <div style={{fontSize:11,color:"rgba(42,157,143,0.7)",marginTop:4}}>Le propriétaire va approuver ton accès</div>
+    </div>
+  );
+
+  if(!show) return(
+    <button onClick={()=>setShow(true)}
+      style={{marginTop:8,padding:"14px",borderRadius:14,background:"transparent",border:"1.5px dashed rgba(237,232,223,0.15)",color:"rgba(237,232,223,0.35)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",width:"100%"}}>
+      + Demander l'accès
+    </button>
+  );
+
+  return(
+    <div style={{marginTop:8,padding:"16px",background:"#141418",borderRadius:14,border:"1px solid rgba(237,232,223,0.1)",fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column",gap:10}}>
+      <div style={{fontSize:13,color:"rgba(237,232,223,0.5)",marginBottom:2}}>Nouvelle demande d'accès</div>
+      <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ton nom complet"
+        style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+      <input value={role} onChange={e=>setRole(e.target.value)} placeholder="Ton poste (ex: Gérant)"
+        style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setShow(false)} style={{flex:1,padding:"12px",borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Annuler</button>
+        <button onClick={handleSend} style={{flex:2,padding:"12px",borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif"}}>Envoyer la demande</button>
       </div>
     </div>
   );
