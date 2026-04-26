@@ -311,20 +311,22 @@ export default function App() {
         }
 
         // Load schedule photos
-        const scheduleDeptsData = await db.get("schedule_depts", {order:"sort_order"});
-        const schedulePhotosData = await db.get("schedule_photos", {order:"created_at.desc"});
-        if(scheduleDeptsData?.length) {
-          const newSchedules = {};
-          const newDepts = [];
-          scheduleDeptsData.forEach(d => {
-            newDepts.push(d.name);
-            newSchedules[d.name] = (schedulePhotosData||[])
-              .filter(p=>p.dept_id===d.id)
-              .map(p=>({id:p.id, label:p.label, photo:p.photo, ts:new Date(p.created_at).getTime()}));
-          });
-          setScheduleDepts(newDepts);
-          setSchedules(newSchedules);
-        }
+        try {
+          const scheduleDeptsData = await db.get("schedule_depts", {order:"sort_order"});
+          const schedulePhotosData = await db.get("schedule_photos", {order:"created_at.desc"});
+          if(scheduleDeptsData?.length) {
+            const newSchedules = {};
+            const newDepts = [];
+            scheduleDeptsData.forEach(d => {
+              newDepts.push(d.name);
+              newSchedules[d.name] = (schedulePhotosData||[])
+                .filter(p=>p.dept_id===d.id)
+                .map(p=>({id:p.id, label:p.label, photo:p.photo||null, ts:new Date(p.created_at).getTime()}));
+            });
+            setScheduleDepts(newDepts);
+            setSchedules(newSchedules);
+          }
+        } catch(e) { console.error("Schedule error:", e); }
       } catch(e) {
         console.error("Erreur chargement données:", e);
       } finally {
