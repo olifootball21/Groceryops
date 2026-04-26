@@ -304,6 +304,30 @@ export default function App() {
           const s = storeData[0];
           setStore({name:s.name, number:s.number, address:s.address||"", logo:s.logo||null});
         }
+
+        // Load notes
+        const notesData = await db.get("notes");
+        if(notesData?.length) {
+          const notesMap = {};
+          notesData.forEach(n => { notesMap[n.user_id] = n.text; });
+          setNotes(notesMap);
+        }
+
+        // Load schedule photos
+        const scheduleDeptsData = await db.get("schedule_depts", {order:"sort_order"});
+        const schedulePhotosData = await db.get("schedule_photos", {order:"created_at.desc"});
+        if(scheduleDeptsData?.length) {
+          const newSchedules = {};
+          const newDepts = [];
+          scheduleDeptsData.forEach(d => {
+            newDepts.push(d.name);
+            newSchedules[d.name] = (schedulePhotosData||[])
+              .filter(p=>p.dept_id===d.id)
+              .map(p=>({id:p.id, label:p.label, photo:p.photo, ts:new Date(p.created_at).getTime()}));
+          });
+          setScheduleDepts(newDepts);
+          setSchedules(newSchedules);
+        }
       } catch(e) {
         console.error("Erreur chargement données:", e);
       } finally {
@@ -343,9 +367,16 @@ export default function App() {
     } catch(e) { pushToast("Erreur sauvegarde","warn"); }
   };
 
-  const editTask = data => {
-    setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
-    pushToast("Tâche modifiée !"); setModal(null); setActive(null);
+  const editTask = async data => {
+    try {
+      await db.update("tasks", data.id, {
+        title:data.title, description:data.description, assigned_to:data.assignedTo,
+        priority:data.priority, status:data.status, department:data.department,
+        due_date:data.dueDate, due_time:data.dueTime, photo:data.photo,
+        recurrence:data.recurrence, custom_days:data.customDays, pinned:data.pinned
+      });
+      setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
+      pushToast("Tâche modifiée !"); setModal(null); setActive(null);
   };
 
   const updateStatus = async (taskId,status,note,photo) => {
@@ -367,10 +398,15 @@ export default function App() {
     } catch(e) { pushToast("Erreur","warn"); }
   };
 
-  const togglePin = taskId => {
-    setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));
-    setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);
-    pushToast("Épinglée !");
+  const togglePin = async taskId => {
+    const task = tasks.find(t=>t.id===taskId);
+    if(!task) return;
+    try {
+      await db.update("tasks", taskId, {pinned:!task.pinned});
+      setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));
+      setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);
+      pushToast("Épinglée !");
+    } catch(e) { pushToast("Erreur","warn"); }
   };
 
   const addComment = async (taskId,text) => {
@@ -443,21 +479,59 @@ export default function App() {
       pushToast("Tâche archivée"); setModal(null); setActive(null);
     } catch(e) { pushToast("Erreur","warn"); }
   };
-  const addSchedulePhoto = (dept, label, photo) => {
-    setSchedules(p=>({...p,[dept]:[{id:Date.now(),label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
-    pushToast("Horaire ajouté !");
+  const addSchedulePhoto = async (dept, label, photo) => {
+    try {
+      const depts = await db.get("schedule_depts");
+      let deptRow = depts?.find(d=>d.name===dept);
+      if(!deptRow) {
+        const newDept = await db.insert("schedule_depts", {name:dept, sort_order:0});
+        deptRow = newDept?.[0];
+      }
+      if(deptRow?.id) {
+        const res = await db.insert("schedule_photos", {dept_id:deptRow.id, label, photo});
+        if(res?.[0]) setSchedules(p=>({...p,[dept]:[{id:res[0].id,label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
+      }
+      pushToast("Horaire ajouté !");
+    } catch(e) { pushToast("Erreur","warn"); }
   };
   const deleteSchedulePhoto = (dept, id) => {
     setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));
     pushToast("Horaire supprimé","warn");
   };
-  const saveNote = (userId, text) => {
-    setNotes(p=>({...p,[userId]:text}));
+  const saveNote = async (userId, text) => {
+    try {
+      const existing = await db.get("notes", {filter:`user_id=eq.${userId}`});
+      if(existing?.length) {
+        await db.update("notes", existing[0].id, {text, updated_at:new Date().toISOString()});
+      } else {
+        await db.insert("notes", {user_id:userId, text});
+      }
+      setNotes(p=>({...p,[userId]:text}));
+    } catch(e) { console.error(e); }
   };
 
-  const createUser = data=>{setUsers(p=>[...p,{...data,id:Date.now()}]);pushToast(`${data.name} ajouté !`);setModal(null);};
-  const updateUser = data=>{setUsers(p=>p.map(u=>u.id===data.id?data:u));if(me.id===data.id)setMe(data);pushToast("Profil mis à jour !");setModal(null);setEditUser(null);};
-  const deleteUser = uid=>{setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);};
+  const createUser = async data => {
+    try {
+      const res = await db.insert("users", {name:data.name, role:data.role, color:data.color, is_owner:false});
+      if(res?.[0]) setUsers(p=>[...p,{...res[0],isOwner:false}]);
+      pushToast(`${data.name} ajouté !`); setModal(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
+  const updateUser = async data => {
+    try {
+      await db.update("users", data.id, {name:data.name, role:data.role, color:data.color});
+      setUsers(p=>p.map(u=>u.id===data.id?data:u));
+      if(me.id===data.id) setMe(data);
+      pushToast("Profil mis à jour !"); setModal(null); setEditUser(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
+  const deleteUser = async uid => {
+    try {
+      await db.delete("users", uid);
+      setUsers(p=>p.filter(u=>u.id!==uid));
+      pushToast("Supprimé","warn"); setModal(null); setEditUser(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
   const deleteTask = async tid => {
     try {
       await db.delete("tasks", tid);
@@ -513,9 +587,38 @@ export default function App() {
     setModal(null);
   };
 
-  const createEvent = data => { setEvents(p=>[{...data,id:Date.now(),createdBy:me.id},...p]); pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event"); pushToast("Événement créé !"); setModal(null); };
-  const editEvent   = data => { setEvents(p=>p.map(e=>e.id===data.id?data:e)); pushToast("Événement modifié !"); setModal(null); };
-  const deleteEvent = id   => { setEvents(p=>p.filter(e=>e.id!==id)); pushToast("Événement supprimé","warn"); setModal(null); };
+  const createEvent = async data => {
+    try {
+      const res = await db.insert("events", {
+        title:data.title, description:data.description, date:data.date,
+        start_time:data.startTime, end_time:data.endTime, color:data.color,
+        category:data.category, recurrence:data.recurrence, custom_days:data.customDays,
+        reminder:data.reminder, members:data.members, created_by:me.id
+      });
+      if(res?.[0]) setEvents(p=>[{...res[0],startTime:res[0].start_time,endTime:res[0].end_time,createdBy:me.id,customDays:res[0].custom_days||[],members:res[0].members||[]},...p]);
+      pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event");
+      pushToast("Événement créé !"); setModal(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
+  const editEvent = async data => {
+    try {
+      await db.update("events", data.id, {
+        title:data.title, description:data.description, date:data.date,
+        start_time:data.startTime, end_time:data.endTime, color:data.color,
+        category:data.category, recurrence:data.recurrence, custom_days:data.customDays,
+        reminder:data.reminder, members:data.members
+      });
+      setEvents(p=>p.map(e=>e.id===data.id?data:e));
+      pushToast("Événement modifié !"); setModal(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
+  const deleteEvent = async id => {
+    try {
+      await db.delete("events", id);
+      setEvents(p=>p.filter(e=>e.id!==id));
+      pushToast("Événement supprimé","warn"); setModal(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
   const createAnnouncement = async data => {
     try {
       const res = await db.insert("announcements", {text:data.text, dept:data.dept, created_by:me.id});
@@ -524,7 +627,13 @@ export default function App() {
       pushToast("Annonce envoyée !"); setModal(null);
     } catch(e) { pushToast("Erreur","warn"); }
   };
-  const deleteAnnouncement = id => { setAnnouncements(p=>p.filter(a=>a.id!==id)); pushToast("Annonce supprimée","warn"); };
+  const deleteAnnouncement = async id => {
+    try {
+      await db.delete("announcements", id);
+      setAnnouncements(p=>p.filter(a=>a.id!==id));
+      pushToast("Annonce supprimée","warn");
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
   const getUser = id=>users.find(u=>u.id===id);
