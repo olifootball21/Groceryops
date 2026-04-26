@@ -1118,45 +1118,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig,onSelec
           </div>
         )}
       </div>
-      {selectedTour&&(
-        <div className="overlay" onClick={()=>setSelectedTour(null)}>
-          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"85vh"}}>
-            <div className="handle"/>
-            <div style={{overflowY:"auto",flex:1,padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><div className="tag" style={{marginBottom:4}}>TOURNÉE · {selectedTour.date}</div><div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--gold)"}}>{selectedTour.shift}</div></div>
-                <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {[{l:"FAIT PAR",v:selectedTour.doneBy},{l:"SCORE",v:`${selectedTour.score}/${selectedTour.total}`},{l:"DURÉE",v:selectedTour.duration||"—"},{l:"HEURE",v:selectedTour.startTime||"—"}].map(x=>(
-                  <div key={x.l} style={{background:"var(--s2)",borderRadius:12,padding:"10px 12px"}}>
-                    <div className="tag" style={{marginBottom:5}}>{x.l}</div>
-                    <div style={{fontSize:13,fontWeight:600,color:"var(--gold)"}}>{x.v}</div>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div className="tag" style={{marginBottom:10}}>PROBLÈMES SIGNALÉS ({selectedTour.issues?.length||0})</div>
-                {(!selectedTour.issues||selectedTour.issues.length===0)
-                  ? <div style={{textAlign:"center",padding:"20px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
-                  : <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      {selectedTour.issues.map((issue,i)=>(
-                        <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
-                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
-                          <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
-                          {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8,lineHeight:1.5}}>{issue.note}</div>}
-                          {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
-                        </div>
-                      ))}
-                    </div>
-                }
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-}
+      
     </div>
   );
 }
