@@ -186,10 +186,7 @@ export default function App() {
     { id:2, title:"Visite représentant Loblaws", description:"Présentation nouvelles promotions", date:"2026-04-30", startTime:"10:00", endTime:"11:30", members:[1,2], color:"#e63946", category:"Rencontre représentant", recurrence:"none", customDays:[], reminder:"1440", createdBy:1 },
     { id:3, title:"Inventaire mensuel", description:"Inventaire complet tous départements", date:"2026-04-29", startTime:"07:00", endTime:"12:00", members:[1,2,3], color:"#f4a261", category:"Inventaire", recurrence:"monthly", customDays:[], reminder:"1440", createdBy:1 },
   ]);
-  const [announcements, setAnnouncements] = useState([
-    { id:1, text:"Réunion lundi 8h — présence obligatoire pour tous les directeurs.", dept:"all", createdBy:1, ts:Date.now()-3600000 },
-    { id:2, text:"Promotion spéciale cette semaine en épicerie — bien vérifier les affichages.", dept:"Épicerie", createdBy:1, ts:Date.now()-7200000 },
-  ]);
+  const [announcements, setAnnouncements] = useState([]);
   const [showUrgency, setShowUrgency]   = useState(false);
   const [shiftReports, setShiftReports] = useState([]);
   const [showGlobalSearch, setGlobalSearch] = useState(false);
@@ -555,14 +552,17 @@ export default function App() {
     } catch(e) { pushToast("Erreur","warn"); }
   };
 
-  // Reminder check
+  // Reminder check - only run once on first load, not on every task change
+  const reminderChecked = useRef(false);
   useEffect(()=>{
+    if(reminderChecked.current || loading) return;
+    reminderChecked.current = true;
     const overdue=tasks.filter(t=>t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date());
     overdue.forEach(t=>{
       const already=notifs.find(n=>n.type==="reminder"&&n.sub?.includes(t.title));
       if(!already) pushNotif("Rappel — tâche non complétée",`${t.title} · Échéance dépassée`,"reminder");
     });
-  },[tasks]);
+  },[loading]);
 
   const saveShiftReport = async report => {
     try {
@@ -1123,6 +1123,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
                   ? <span className="pill" style={{background:"rgba(42,157,143,0.1)",color:"#2a9d8f",border:"1px solid rgba(42,157,143,0.2)"}}>✓ Fait</span>
                   : <button className="btn btn-gold" onClick={()=>onStart(shift)} style={{padding:"8px 14px",borderRadius:10,fontSize:12}}>Démarrer</button>
                 }
+                
               </div>
             );
           })}
@@ -1164,13 +1165,15 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div className="tag" style={{marginBottom:4}}>{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
             {selectedTours.map((t,i)=>(
-              <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)"}}>
+              <div key={i} className="card-tap" onClick={()=>setSelectedTour(t)}
+                style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
                   <div style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</div>
                 </div>
                 <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
                 {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
+                <div style={{fontSize:10,color:"var(--t3)",marginTop:4}}>Appuyer pour voir le détail ›</div>
               </div>
             ))}
           </div>
@@ -2416,6 +2419,58 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
                 </div>
               ))}
             </div>
+      )}
+
+      {/* TOUR DETAIL MODAL */}
+      {selectedTour&&(
+        <div className="overlay" onClick={()=>setSelectedTour(null)}>
+          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"85vh"}}>
+            <div className="handle"/>
+            <div style={{overflowY:"auto",flex:1,padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div className="tag" style={{marginBottom:4}}>TOURNÉE COMPLÉTÉE</div>
+                  <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--gold)"}}>{selectedTour.shift}</div>
+                </div>
+                <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[
+                  {label:"DATE",val:selectedTour.date},
+                  {label:"FAIT PAR",val:selectedTour.doneBy},
+                  {label:"SCORE",val:`${selectedTour.score}/${selectedTour.total}`},
+                  {label:"DURÉE",val:selectedTour.duration||"—"},
+                ].map(item=>(
+                  <div key={item.label} style={{background:"var(--s2)",borderRadius:12,padding:"10px 12px"}}>
+                    <div className="tag" style={{marginBottom:5}}>{item.label}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:"var(--gold)"}}>{item.val}</div>
+                  </div>
+                ))}
+              </div>
+              {selectedTour.issues?.length>0&&(
+                <div>
+                  <div className="tag" style={{marginBottom:10}}>PROBLÈMES SIGNALÉS</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {selectedTour.issues.map((issue,i)=>(
+                      <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                        <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>{issue.item}</div>
+                        <div style={{fontSize:11,color:"var(--t3)",marginBottom:4}}>{issue.dept}</div>
+                        {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8}}>{issue.note}</div>}
+                        {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:150,objectFit:"cover",borderRadius:10}}/>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(!selectedTour.issues||selectedTour.issues.length===0)&&(
+                <div style={{textAlign:"center",padding:"24px",color:"var(--t2)",fontSize:14}}>
+                  <div style={{fontSize:28,marginBottom:8}}>✓</div>
+                  Aucun problème signalé lors de cette tournée
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* PHOTO VIEWER */}
