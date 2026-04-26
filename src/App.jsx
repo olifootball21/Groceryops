@@ -55,11 +55,7 @@ const INIT_USERS = [
   { id:3, name:"Kevin Lavoie", role:"Dir. Opérations", color:"#2a9d8f", pin:"1111" },
 ];
 
-const INIT_TASKS = [
-  { id:1, title:"Prix circulaire à vérifier", description:"Confirmer que tous les prix du circulaire sont affichés correctement.", assignedTo:2, createdBy:1, priority:"urgent", status:"todo", department:"Épicerie", dueDate:"2026-04-24", dueTime:"09:00", photo:null, comments:[{id:1,userId:1,text:"Priorité absolue pour demain matin!",ts:Date.now()-3600000}], createdAt:Date.now()-7200000, recurrence:"none", pinned:true },
-  { id:2, title:"Nettoyage réfrigérateurs viande", description:"Nettoyage complet et désinfection des surfaces.", assignedTo:3, createdBy:1, priority:"high", status:"inprogress", department:"Viande", dueDate:"2026-04-23", dueTime:"", photo:null, comments:[], createdAt:Date.now()-86400000, recurrence:"weekly", pinned:false },
-  { id:3, title:"Commander emballages boulangerie", description:"Stock bas — commander boîtes et sacs.", assignedTo:2, createdBy:2, priority:"normal", status:"done", department:"Boulangerie", dueDate:"2026-04-22", dueTime:"", photo:null, comments:[{id:2,userId:2,text:"Commande placée ✓",ts:Date.now()-1800000}], createdAt:Date.now()-172800000, completedAt:Date.now()-3600000, recurrence:"monthly", pinned:false },
-];
+const INIT_TASKS = [];
 
 const INIT_STORE = { name:"Mon IGA", number:"IGA-001", address:"123 rue Principale, Montréal", logo:null };
 
@@ -554,7 +550,7 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
-        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onShiftReport={()=>setModal("shiftReport")}/>}
+        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
@@ -638,7 +634,7 @@ export default function App() {
             pushToast("NIP modifié !");setModal(null);
           }catch(e){pushToast("Erreur","warn");}
         }} onClose={()=>setModal(null)}/>}
-      {modal==="shiftReport"  && <ShiftReportModal me={me} onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
+  onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={s=>{setStore(s);setModal(null);pushToast("Profil mis à jour !");}} onClose={()=>setModal(null)}/>}
@@ -671,7 +667,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onShiftReport}){
+function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
     <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
