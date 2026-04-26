@@ -1,5 +1,44 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
+// ─── SUPABASE CLIENT ──────────────────────────────────────────────
+const SUPABASE_URL = "https://sbokqrubrarsngkhuxwt.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc";
+
+const db = {
+  async get(table, opts = {}) {
+    let url = `${SUPABASE_URL}/rest/v1/${table}?`;
+    if (opts.filter) url += opts.filter + "&";
+    if (opts.order) url += `order=${opts.order}&`;
+    url += "limit=1000";
+    const r = await fetch(url, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" }
+    });
+    return r.json();
+  },
+  async insert(table, data) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify(data)
+    });
+    return r.json();
+  },
+  async update(table, id, data) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: "PATCH",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify(data)
+    });
+    return r.json();
+  },
+  async delete(table, id) {
+    await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+  }
+};
+
 // ─── CONSTANTS ────────────────────────────────────────────────────
 const DEPARTMENTS = ["Vestibule","Épicerie","Fruits & Légumes","PAM","Boulangerie","Viande","Poisson","Service","Charcuterie"];
 const PRIORITY_LABELS = ["Critique","Élevée","Normale","Faible"];
@@ -129,6 +168,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
 
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
+  const [loading, setLoading]       = useState(true);
   const [dark, setDark]           = useState(true);
   const [lang, setLang]           = useState("fr");
   const [themeColor, setThemeColor] = useState("#C9A84C");
@@ -208,6 +248,71 @@ export default function App() {
   const [activeTour, setActiveTour] = useState(null);
   const [toast, setToast]         = useState(null);
 
+  // Load data from Supabase on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [usersData, tasksData, commentsData, announcementsData, eventsData, tourData, reportsData, storeData] = await Promise.all([
+          db.get("users", {order: "id"}),
+          db.get("tasks", {filter: "archived=eq.false", order: "created_at.desc"}),
+          db.get("comments", {order: "created_at"}),
+          db.get("announcements", {order: "created_at.desc"}),
+          db.get("events", {order: "date"}),
+          db.get("tour_history", {order: "created_at.desc"}),
+          db.get("shift_reports", {order: "created_at.desc"}),
+          db.get("store_profile"),
+        ]);
+
+        if (usersData?.length) {
+          const mapped = usersData.map(u => ({id:u.id, name:u.name, role:u.role, color:u.color, isOwner:u.is_owner}));
+          setUsers(mapped);
+          setMe(mapped.find(u=>u.isOwner) || mapped[0]);
+        }
+
+        if (tasksData?.length) {
+          const withComments = tasksData.map(t => ({
+            ...t,
+            assignedTo: t.assigned_to,
+            createdBy: t.created_by,
+            dueDate: t.due_date,
+            dueTime: t.due_time,
+            customDays: t.custom_days || [],
+            completedAt: t.completed_at ? new Date(t.completed_at).getTime() : null,
+            createdAt: new Date(t.created_at).getTime(),
+            comments: (commentsData || []).filter(c=>c.task_id===t.id).map(c=>({id:c.id, userId:c.user_id, text:c.text, ts:new Date(c.created_at).getTime()}))
+          }));
+          setTasks(withComments);
+        }
+
+        if (announcementsData?.length) {
+          setAnnouncements(announcementsData.map(a=>({...a, createdBy:a.created_by, ts:new Date(a.created_at).getTime()})));
+        }
+
+        if (eventsData?.length) {
+          setEvents(eventsData.map(e=>({...e, startTime:e.start_time, endTime:e.end_time, createdBy:e.created_by, customDays:e.custom_days||[], members:e.members||[]})));
+        }
+
+        if (tourData?.length) {
+          setTourHistory(tourData.map(t=>({...t, doneBy:t.done_by, startTime:t.start_time, ts:new Date(t.created_at).getTime()})));
+        }
+
+        if (reportsData?.length) {
+          setShiftReports(reportsData.map(r=>({...r, doneBy:r.done_by, createdBy:r.created_by, ts:new Date(r.created_at).getTime()})));
+        }
+
+        if (storeData?.length) {
+          const s = storeData[0];
+          setStore({name:s.name, number:s.number, address:s.address||"", logo:s.logo||null});
+        }
+      } catch(e) {
+        console.error("Erreur chargement données:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
   const isOwner = me.isOwner;
   const unread  = notifs.filter(n=>!n.read).length;
   const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
@@ -219,11 +324,23 @@ export default function App() {
 
   const openTask = t => { setSeenTasks(p=>new Set([...p,t.id])); setActive(t); setModal("taskDetail"); };
 
-  const createTask = data => {
-    const t={...data,id:Date.now(),createdBy:me.id,status:"todo",comments:[],createdAt:Date.now(),pinned:false};
-    setTasks(p=>[t,...p]);
-    pushNotif(`Nouvelle tâche par ${me.name}`,data.title,"task");
-    pushToast("Tâche créée !"); setModal(null);
+  const createTask = async data => {
+    try {
+      const res = await db.insert("tasks", {
+        title: data.title, description: data.description, assigned_to: data.assignedTo,
+        created_by: me.id, priority: data.priority, status: "todo", department: data.department,
+        due_date: data.dueDate, due_time: data.dueTime, photo: data.photo,
+        recurrence: data.recurrence, custom_days: data.customDays, pinned: false, archived: false
+      });
+      if (res?.[0]) {
+        const t = {...res[0], assignedTo:res[0].assigned_to, createdBy:res[0].created_by,
+          dueDate:res[0].due_date, dueTime:res[0].due_time, customDays:res[0].custom_days||[],
+          createdAt:new Date(res[0].created_at).getTime(), comments:[], completedAt:null};
+        setTasks(p=>[t,...p]);
+      }
+      pushNotif(`Nouvelle tâche par ${me.name}`,data.title,"task");
+      pushToast("Tâche créée !"); setModal(null);
+    } catch(e) { pushToast("Erreur sauvegarde","warn"); }
   };
 
   const editTask = data => {
@@ -231,23 +348,23 @@ export default function App() {
     pushToast("Tâche modifiée !"); setModal(null); setActive(null);
   };
 
-  const updateStatus = (taskId,status,note,photo) => {
+  const updateStatus = async (taskId,status,note,photo) => {
     const now=Date.now();
-    const update = t=>({...t,status,completedAt:status==="done"?now:null,
-      ...(status==="done"&&note?{comments:[...t.comments,{id:now,userId:me.id,text:"✓ "+note,ts:now}]}:{}),
-      ...(status==="done"&&photo?{photo}:{}),
-    });
-    setTasks(p=>p.map(t=>{
-      if(t.id!==taskId) return t;
-      const updated=update(t);
-      if(status==="done"&&t.recurrence&&t.recurrence!=="none"){
-        const next={...t,id:now+1,status:"todo",comments:[],createdAt:now,completedAt:null,dueDate:nextDue(t.recurrence,t.customDays),photo:null,pinned:false};
-        setTimeout(()=>{setTasks(p2=>[...p2,next]);pushNotif("Tâche récurrente créée",t.title,"task");},600);
+    try {
+      await db.update("tasks", taskId, {status, completed_at: status==="done"?new Date().toISOString():null, ...(photo?{photo}:{})});
+      if(status==="done"&&note) {
+        const res = await db.insert("comments", {task_id:taskId, user_id:me.id, text:"✓ "+note});
+        if(res?.[0]) {
+          const c = {id:res[0].id, userId:me.id, text:"✓ "+note, ts:now};
+          setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...t.comments,c],...(photo?{photo}:{})}:t));
+          setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...p.comments,c]}:p);
+        }
+      } else {
+        setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==="done"?now:null,...(photo?{photo}:{})}:t));
+        setActive(p=>p?.id===taskId?{...p,status,completedAt:status==="done"?now:null}:p);
       }
-      return updated;
-    }));
-    if(status==="done"){const t=tasks.find(x=>x.id===taskId);pushNotif("Tâche complétée",t?.title,"done");pushToast("Complété !");}
-    setActive(p=>p?.id===taskId?update(p):p);
+      if(status==="done"){const t=tasks.find(x=>x.id===taskId);pushNotif("Tâche complétée",t?.title,"done");pushToast("Complété !");}
+    } catch(e) { pushToast("Erreur","warn"); }
   };
 
   const togglePin = taskId => {
@@ -256,13 +373,18 @@ export default function App() {
     pushToast("Épinglée !");
   };
 
-  const addComment = (taskId,text) => {
+  const addComment = async (taskId,text) => {
     if(!text.trim()) return;
-    const c={id:Date.now(),userId:me.id,text,ts:Date.now()};
-    setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));
-    setActive(p=>p?{...p,comments:[...p.comments,c]}:p);
-    const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));
-    mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});
+    try {
+      const res = await db.insert("comments", {task_id:taskId, user_id:me.id, text});
+      if(res?.[0]) {
+        const c={id:res[0].id,userId:me.id,text,ts:new Date(res[0].created_at).getTime()};
+        setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));
+        setActive(p=>p?{...p,comments:[...p.comments,c]}:p);
+        const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));
+        mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});
+      }
+    } catch(e) { console.error(e); }
   };
 
   const createGalleryFolder = name => {
@@ -313,9 +435,13 @@ export default function App() {
     pushToast("Département renommé !");
   };
 
-  const archiveTask = tid => {
-    const t = tasks.find(x=>x.id===tid);
-    if(t){ setArchivedTasks(p=>[{...t, archivedAt:Date.now()},...p]); setTasks(p=>p.filter(x=>x.id!==tid)); pushToast("Tâche archivée"); setModal(null); setActive(null); }
+  const archiveTask = async tid => {
+    try {
+      await db.update("tasks", tid, {archived:true, archived_at:new Date().toISOString()});
+      const t = tasks.find(x=>x.id===tid);
+      if(t){ setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]); setTasks(p=>p.filter(x=>x.id!==tid)); }
+      pushToast("Tâche archivée"); setModal(null); setActive(null);
+    } catch(e) { pushToast("Erreur","warn"); }
   };
   const addSchedulePhoto = (dept, label, photo) => {
     setSchedules(p=>({...p,[dept]:[{id:Date.now(),label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
@@ -332,13 +458,26 @@ export default function App() {
   const createUser = data=>{setUsers(p=>[...p,{...data,id:Date.now()}]);pushToast(`${data.name} ajouté !`);setModal(null);};
   const updateUser = data=>{setUsers(p=>p.map(u=>u.id===data.id?data:u));if(me.id===data.id)setMe(data);pushToast("Profil mis à jour !");setModal(null);setEditUser(null);};
   const deleteUser = uid=>{setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);};
-  const deleteTask = tid=>{setTasks(p=>p.filter(t=>t.id!==tid));pushToast("Supprimée","warn");setModal(null);setActive(null);};
+  const deleteTask = async tid => {
+    try {
+      await db.delete("tasks", tid);
+      setTasks(p=>p.filter(t=>t.id!==tid));
+      pushToast("Supprimée","warn"); setModal(null); setActive(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
 
-  const saveTour = tour => {
-    setTourHistory(p=>[tour,...p]);
-    pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`, "done");
-    pushToast(`Tournée ${tour.shift} sauvegardée !`);
-    setActiveTour(null); setModal(null);
+  const saveTour = async tour => {
+    try {
+      const res = await db.insert("tour_history", {
+        shift:tour.shift, date:tour.date, done_by:tour.doneBy,
+        score:tour.score, total:tour.total, duration:tour.duration,
+        start_time:tour.startTime, issues:tour.issues||[]
+      });
+      if(res?.[0]) setTourHistory(p=>[{...tour,id:res[0].id},...p]);
+      pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`,"done");
+      pushToast(`Tournée ${tour.shift} sauvegardée !`);
+      setActiveTour(null); setModal(null);
+    } catch(e) { pushToast("Erreur","warn"); }
   };
 
   // Reminder check
@@ -350,11 +489,17 @@ export default function App() {
     });
   },[tasks]);
 
-  const saveShiftReport = report => {
-    setShiftReports(p=>[{...report, id:Date.now(), createdBy:me.id, ts:Date.now()},...p]);
-    pushNotif(`Rapport de shift — ${report.shift}`, `${me.name} · Note: ${report.rating}/5`, "report");
-    pushToast("Rapport sauvegardé !");
-    setModal(null);
+  const saveShiftReport = async report => {
+    try {
+      const res = await db.insert("shift_reports", {
+        date:report.date, traffic:report.traffic, rating:report.rating,
+        highlights:report.highlights, incidents:report.incidents, notes:report.notes,
+        done_by:me.name, created_by:me.id
+      });
+      if(res?.[0]) setShiftReports(p=>[{...res[0],doneBy:me.name,createdBy:me.id,ts:Date.now()},...p]);
+      pushNotif(`Rapport de journée`,`${me.name} · Note: ${report.rating}/5`,"report");
+      pushToast("Rapport sauvegardé !"); setModal(null);
+    } catch(e) { pushToast("Erreur","warn"); }
   };
 
   const applyTemplate = template => {
@@ -371,7 +516,14 @@ export default function App() {
   const createEvent = data => { setEvents(p=>[{...data,id:Date.now(),createdBy:me.id},...p]); pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event"); pushToast("Événement créé !"); setModal(null); };
   const editEvent   = data => { setEvents(p=>p.map(e=>e.id===data.id?data:e)); pushToast("Événement modifié !"); setModal(null); };
   const deleteEvent = id   => { setEvents(p=>p.filter(e=>e.id!==id)); pushToast("Événement supprimé","warn"); setModal(null); };
-  const createAnnouncement = data => { setAnnouncements(p=>[{...data,id:Date.now(),createdBy:me.id,ts:Date.now()},...p]); pushNotif(`Annonce de ${me.name}`,data.text.slice(0,60),"announce"); pushToast("Annonce envoyée !"); setModal(null); };
+  const createAnnouncement = async data => {
+    try {
+      const res = await db.insert("announcements", {text:data.text, dept:data.dept, created_by:me.id});
+      if(res?.[0]) setAnnouncements(p=>[{...res[0],createdBy:me.id,ts:Date.now()},...p]);
+      pushNotif(`Annonce de ${me.name}`,data.text.slice(0,60),"announce");
+      pushToast("Annonce envoyée !"); setModal(null);
+    } catch(e) { pushToast("Erreur","warn"); }
+  };
   const deleteAnnouncement = id => { setAnnouncements(p=>p.filter(a=>a.id!==id)); pushToast("Annonce supprimée","warn"); };
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
@@ -389,6 +541,16 @@ export default function App() {
   const exportPDF = () => { setShowPDFInfo(true); };
 
   const css = makeCSS(dark, themeColor);
+
+  if (loading) return (
+    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}>
+      <style>{makeCSS(true,"#C9A84C")}</style>
+      <div className="serif" style={{fontSize:48,fontWeight:700,color:"#C9A84C",letterSpacing:"-1px"}}>GroceryOps</div>
+      <div style={{fontSize:14,color:"rgba(237,232,223,0.4)"}}>Chargement en cours...</div>
+      <div style={{width:40,height:40,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+    </div>
+  );
 
   return (
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",maxWidth:430,margin:"0 auto",position:"relative"}}>
