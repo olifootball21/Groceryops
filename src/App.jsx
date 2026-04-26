@@ -1140,40 +1140,60 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
 
       {selectedTour&&(
         <div className="overlay" onClick={()=>setSelectedTour(null)}>
-          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"85vh"}}>
-            <div className="handle"/>
-            <div style={{overflowY:"auto",flex:1,padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+            <div className="handle" style={{flexShrink:0}}/>
+            {/* FIXED HEADER */}
+            <div style={{padding:"4px 18px 12px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                 <div>
                   <div className="tag" style={{marginBottom:4}}>TOURNÉE · {selectedTour.date}</div>
                   <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--gold)"}}>{selectedTour.shift}</div>
                 </div>
-                <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+                <div style={{display:"flex",gap:8}}>
+                  {isOwner&&<button className="btn btn-danger" onClick={async()=>{
+                    if(!window.confirm("Supprimer cette tournée et ses photos ?")) return;
+                    try{
+                      await sb.del("tour_history",selectedTour.id);
+                      setTourHistory(p=>p.filter(t=>t.id!==selectedTour.id));
+                      // Delete associated gallery photos
+                      const gFolders = await sb.get("gallery_folders");
+                      const tourFolder = gFolders?.find(f=>f.name==="Photos Tournées");
+                      if(tourFolder){
+                        const gPhotos = await sb.get("gallery_photos",`folder_id=eq.${tourFolder.id}`);
+                        const toDelete = gPhotos?.filter(p=>p.caption?.includes(selectedTour.date)&&p.caption?.includes(selectedTour.shift));
+                        for(const p of toDelete||[]){ await sb.del("gallery_photos",p.id); }
+                        setGallery(prev=>prev.map(f=>f.id===tourFolder.id?{...f,photos:f.photos.filter(p=>!(p.caption?.includes(selectedTour.date)&&p.caption?.includes(selectedTour.shift)))}:f));
+                      }
+                      setSelectedTour(null);
+                      pushToast("Tournée supprimée","warn");
+                    }catch(e){pushToast("Erreur","warn");}
+                  }} style={{height:32,padding:"0 12px",borderRadius:9,fontSize:12}}>Supprimer</button>}
+                  <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+                </div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {[{l:"FAIT PAR",v:selectedTour.doneBy},{l:"SCORE",v:`${selectedTour.score}/${selectedTour.total}`},{l:"DURÉE",v:selectedTour.duration||"—"},{l:"HEURE",v:selectedTour.startTime||"—"}].map(x=>(
-                  <div key={x.l} style={{background:"var(--s2)",borderRadius:12,padding:"10px 12px"}}>
-                    <div className="tag" style={{marginBottom:5}}>{x.l}</div>
-                    <div style={{fontSize:13,fontWeight:600,color:"var(--gold)"}}>{x.v}</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                {[{l:"PAR",v:selectedTour.doneBy},{l:"SCORE",v:`${selectedTour.score}/${selectedTour.total}`},{l:"DURÉE",v:selectedTour.duration||"—"},{l:"HEURE",v:selectedTour.startTime||"—"}].map(x=>(
+                  <div key={x.l} style={{background:"var(--s2)",borderRadius:10,padding:"8px 10px"}}>
+                    <div className="tag" style={{marginBottom:4,fontSize:9}}>{x.l}</div>
+                    <div style={{fontSize:11,fontWeight:600,color:"var(--gold)"}}>{x.v}</div>
                   </div>
                 ))}
               </div>
-              <div>
-                <div className="tag" style={{marginBottom:10}}>PROBLÈMES ({selectedTour.issues?.length||0})</div>
-                {(!selectedTour.issues||selectedTour.issues.length===0)
-                  ? <div style={{textAlign:"center",padding:"20px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
-                  : <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      {selectedTour.issues.map((issue,i)=>(
-                        <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
-                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
-                          <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
-                          {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8}}>{issue.note}</div>}
-                          {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10}}/>}
-                        </div>
-                      ))}
+            </div>
+            {/* SCROLLABLE CONTENT */}
+            <div style={{overflowY:"auto",flex:1,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
+              <div className="tag">PROBLÈMES ({selectedTour.issues?.length||0})</div>
+              {(!selectedTour.issues||selectedTour.issues.length===0)
+                ? <div style={{textAlign:"center",padding:"20px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
+                : selectedTour.issues.map((issue,i)=>(
+                    <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
+                      <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
+                      {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8}}>{issue.note}</div>}
+                      {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10}}/>}
                     </div>
-                }
-              </div>
+                  ))
+              }
             </div>
           </div>
         </div>
