@@ -50,9 +50,9 @@ const DEFAULT_TOUR_ITEMS = {
 };
 
 const INIT_USERS = [
-  { id:1, name:"Olivier", role:"Propriétaire", color:"#C9A84C", isOwner:true },
-  { id:2, name:"Sophie Gagnon", role:"Dir. Adjointe", color:"#3b82f6" },
-  { id:3, name:"Kevin Lavoie", role:"Dir. Opérations", color:"#2a9d8f" },
+  { id:1, name:"Olivier", role:"Propriétaire", color:"#C9A84C", isOwner:true, pin:"1111" },
+  { id:2, name:"Sophie Gagnon", role:"Dir. Adjointe", color:"#3b82f6", pin:"1111" },
+  { id:3, name:"Kevin Lavoie", role:"Dir. Opérations", color:"#2a9d8f", pin:"1111" },
 ];
 
 const INIT_TASKS = [
@@ -226,7 +226,7 @@ export default function App() {
         // Users
         const users = await sb.get("users", "order=id");
         if (users?.length) {
-          const u = users.map(x => ({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner}));
+          const u = users.map(x => ({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));
           setUsers(u);
           setMe(u.find(x=>x.isOwner)||u[0]);
         }
@@ -403,7 +403,12 @@ export default function App() {
     try{const res=await sb.insert("users",{name:data.name,role:data.role,color:data.color,is_owner:false});if(res?.[0])setUsers(p=>[...p,{...res[0],isOwner:false}]);pushToast(`${data.name} ajouté !`);setModal(null);}catch(e){pushToast("Erreur","warn");}
   };
   const updateUser = async data => {
-    try{await sb.update("users",data.id,{name:data.name,role:data.role,color:data.color});setUsers(p=>p.map(u=>u.id===data.id?data:u));if(me.id===data.id)setMe(data);pushToast("Profil mis à jour !");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}
+    try{
+      await sb.update("users",data.id,{name:data.name,role:data.role,color:data.color,pin:data.pin||"1111"});
+      setUsers(p=>p.map(u=>u.id===data.id?data:u));
+      if(me.id===data.id)setMe(data);
+      pushToast("Profil mis à jour !");setModal(null);setEditUser(null);
+    }catch(e){pushToast("Erreur","warn");}
   };
   const deleteUser = async uid => {
     try{await sb.del("users",uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}
@@ -507,27 +512,7 @@ export default function App() {
   );
 
   if (!loginUser) return (
-    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:"#C9A84C",marginBottom:8}}>GroceryOps</div>
-      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:40}}>Qui es-tu ?</div>
-      <div style={{display:"flex",flexDirection:"column",gap:12,width:"100%",maxWidth:320}}>
-        {users.map(u=>(
-          <button key={u.id} onClick={()=>{setLoginUser(u);setMe(u);}}
-            style={{padding:"18px 20px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
-            <div style={{width:46,height:46,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:u.id===1?"#0a0a0d":"white",flexShrink:0}}>
-              {u.name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-            </div>
-            <div style={{textAlign:"left"}}>
-              <div style={{fontSize:16,fontWeight:600,color:"#ede8df"}}>{u.name}</div>
-              <div style={{fontSize:12,color:"rgba(237,232,223,0.4)",marginTop:2}}>{u.role}</div>
-            </div>
-            <div style={{marginLeft:"auto",color:u.color,fontSize:20}}>›</div>
-          </button>
-        ))}
-        <JoinRequestForm onSend={sendJoinRequest}/>
-      </div>
-    </div>
+    <PinLoginScreen users={users} onLogin={(u)=>{setLoginUser(u);setMe(u);}} onJoinRequest={sendJoinRequest}/>
   );
 
   return (
@@ -989,7 +974,10 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
                   {done&&tour&&<div style={{fontSize:11,color:"var(--t2)",marginTop:1}}>Score {tour.score}/{tour.total} · {tour.doneBy} · {tour.duration}</div>}
                 </div>
                 {done
-                  ? <span className="pill" style={{background:"rgba(42,157,143,0.1)",color:"#2a9d8f",border:"1px solid rgba(42,157,143,0.2)"}}>✓ Fait</span>
+                  ? <button className="btn" onClick={()=>onStart(shift)}
+                      style={{padding:"6px 12px",borderRadius:10,fontSize:11,background:"rgba(42,157,143,0.1)",color:"#2a9d8f",border:"1px solid rgba(42,157,143,0.2)"}}>
+                      ✓ Fait · Refaire
+                    </button>
                   : <button className="btn btn-gold" onClick={()=>onStart(shift)} style={{padding:"8px 14px",borderRadius:10,fontSize:12}}>Démarrer</button>
                 }
               </div>
@@ -1731,7 +1719,7 @@ function EditTaskModal({task,users,onSave,onClose}){
 }
 
 // ─── USER MODALS ──────────────────────────────────────────────────
-function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
+function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete,isCurrentUser}){
   const [form,setForm]=useState({...initial});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const [confirmDel,setConfirmDel]=useState(false);
@@ -1749,6 +1737,15 @@ function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
             <FL label="POSTE">
               <input className="field" list="roles-list" value={form.role} onChange={e=>set("role")(e.target.value)} placeholder="Ex: Directeur, Gérant(e)..."/>
               <datalist id="roles-list">{["Directeur/Directrice","Dir. Adjoint(e)","Gérant(e)","Assistant(e) gérant"].map(r=><option key={r} value={r}/>)}</datalist>
+            </FL>
+          )}
+          {(showDelete||form.isCurrentUser)&&(
+            <FL label={showDelete?"NIP — "+(form.name||""):"Mon NIP"}>
+              <input className="field" value={form.pin||""} onChange={e=>set("pin")(e.target.value.slice(0,4).replace(/\D/g,""))}
+                placeholder="4 chiffres" maxLength={4} inputMode="numeric" type={showDelete?"text":"password"}/>
+              <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>
+                {showDelete?"Visible car vous êtes propriétaire":"Changer votre NIP personnel"}
+              </div>
             </FL>
           )}
           <FL label="COULEUR">
@@ -2951,7 +2948,7 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
   );
 }
 
-function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onClose}){
+function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onChangePin,onClose}){
   const [showSwitch,setShowSwitch] = useState(false);
   return(
     <div className="overlay" onClick={onClose}>
@@ -2970,6 +2967,7 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
             {icon:"⚙",  label:"Paramètres",                    action:onSettings},
             ...(isOwner?[{icon:"🏪", label:"Profil du magasin", action:onStoreProfile}]:[]),
             {icon:"📄", label:"Exporter en PDF",                action:onExportPDF},
+          {icon:"🔐", label:"Changer mon NIP",                  action:onChangePin},
             {icon:"🆘", label:"Alerte urgence (SOS)",           action:onSOS, danger:true},
           ].map(item=>(
             <button key={item.label} className="btn" onClick={item.action}
@@ -3051,6 +3049,96 @@ function JoinRequestForm({onSend}){
         <button onClick={()=>setShow(false)} style={{flex:1,padding:"12px",borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Annuler</button>
         <button onClick={handleSend} style={{flex:2,padding:"12px",borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif"}}>Envoyer la demande</button>
       </div>
+    </div>
+  );
+}
+
+// ─── PIN LOGIN SCREEN ─────────────────────────────────────────────
+function PinLoginScreen({users, onLogin, onJoinRequest}){
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(false);
+
+  const handlePin = (digit) => {
+    if(pin.length >= 4) return;
+    const newPin = pin + digit;
+    setPin(newPin);
+    setError(false);
+    if(newPin.length === 4){
+      const userPin = selectedUser.pin || "0000";
+      if(newPin === userPin){
+        setTimeout(()=>onLogin(selectedUser), 200);
+      } else {
+        setTimeout(()=>{ setPin(""); setError(true); }, 400);
+      }
+    }
+  };
+
+  const initials = name => name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+  return(
+    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'DM Sans',sans-serif"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}`}</style>
+
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:"#C9A84C",marginBottom:4}}>GroceryOps</div>
+
+      {!selectedUser ? (
+        <>
+          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:36}}>Qui es-tu ?</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:320}}>
+            {users.map(u=>(
+              <button key={u.id} onClick={()=>setSelectedUser(u)}
+                style={{padding:"16px 18px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:12,cursor:"pointer",width:"100%"}}>
+                <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:u.id===1?"#0a0a0d":"white",flexShrink:0}}>
+                  {initials(u.name)}
+                </div>
+                <div style={{textAlign:"left",flex:1}}>
+                  <div style={{fontSize:15,fontWeight:600,color:"#ede8df"}}>{u.name}</div>
+                  <div style={{fontSize:12,color:"rgba(237,232,223,0.4)",marginTop:1}}>{u.role}</div>
+                </div>
+                <div style={{color:u.color,fontSize:18}}>›</div>
+              </button>
+            ))}
+            <JoinRequestForm onSend={onJoinRequest}/>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:28}}>Entrez votre NIP</div>
+
+          {/* USER BADGE */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28,padding:"12px 18px",background:"#141418",borderRadius:14,border:`1px solid ${selectedUser.color}40`}}>
+            <div style={{width:36,height:36,borderRadius:10,background:selectedUser.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:selectedUser.id===1?"#0a0a0d":"white"}}>
+              {initials(selectedUser.name)}
+            </div>
+            <div style={{fontSize:14,fontWeight:600,color:"#ede8df"}}>{selectedUser.name}</div>
+          </div>
+
+          {/* PIN DOTS */}
+          <div style={{display:"flex",gap:16,marginBottom:8}}>
+            {[0,1,2,3].map(i=>(
+              <div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(error?"#e63946":"#C9A84C"):"rgba(237,232,223,0.15)",transition:"background .15s"}}/>
+            ))}
+          </div>
+          {error&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>NIP incorrect — réessaie</div>}
+          <div style={{height:16,marginBottom:28}}/>
+
+          {/* KEYPAD */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
+            {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
+              <button key={i} onClick={()=>{ if(d==="⌫"){setPin(p=>p.slice(0,-1));setError(false);} else if(d!=="") handlePin(String(d));}}
+                style={{height:64,borderRadius:14,background:d===""?"transparent":"#141418",border:d===""?"none":"1px solid rgba(237,232,223,0.08)",fontSize:d==="⌫"?20:22,fontWeight:600,color:"#ede8df",cursor:d===""?"default":"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                {d}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={()=>{setSelectedUser(null);setPin("");setError(false);}}
+            style={{marginTop:24,background:"transparent",border:"none",color:"rgba(237,232,223,0.3)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+            ← Changer de compte
+          </button>
+        </>
+      )}
     </div>
   );
 }
