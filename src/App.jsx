@@ -1138,66 +1138,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
         </div>
       )}
 
-      {selectedTour&&(
-        <div className="overlay" onClick={()=>setSelectedTour(null)}>
-          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
-            <div className="handle" style={{flexShrink:0}}/>
-            {/* FIXED HEADER */}
-            <div style={{padding:"4px 18px 12px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div>
-                  <div className="tag" style={{marginBottom:4}}>TOURNÉE · {selectedTour.date}</div>
-                  <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--gold)"}}>{selectedTour.shift}</div>
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  {isOwner&&<button className="btn btn-danger" onClick={async()=>{
-                    if(!window.confirm("Supprimer cette tournée et ses photos ?")) return;
-                    try{
-                      await sb.del("tour_history",selectedTour.id);
-                      setTourHistory(p=>p.filter(t=>t.id!==selectedTour.id));
-                      // Delete associated gallery photos
-                      const gFolders = await sb.get("gallery_folders");
-                      const tourFolder = gFolders?.find(f=>f.name==="Photos Tournées");
-                      if(tourFolder){
-                        const gPhotos = await sb.get("gallery_photos",`folder_id=eq.${tourFolder.id}`);
-                        const toDelete = gPhotos?.filter(p=>p.caption?.includes(selectedTour.date)&&p.caption?.includes(selectedTour.shift));
-                        for(const p of toDelete||[]){ await sb.del("gallery_photos",p.id); }
-                        setGallery(prev=>prev.map(f=>f.id===tourFolder.id?{...f,photos:f.photos.filter(p=>!(p.caption?.includes(selectedTour.date)&&p.caption?.includes(selectedTour.shift)))}:f));
-                      }
-                      setSelectedTour(null);
-                      pushToast("Tournée supprimée","warn");
-                    }catch(e){pushToast("Erreur","warn");}
-                  }} style={{height:32,padding:"0 12px",borderRadius:9,fontSize:12}}>Supprimer</button>}
-                  <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-                </div>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-                {[{l:"PAR",v:selectedTour.doneBy},{l:"SCORE",v:`${selectedTour.score}/${selectedTour.total}`},{l:"DURÉE",v:selectedTour.duration||"—"},{l:"HEURE",v:selectedTour.startTime||"—"}].map(x=>(
-                  <div key={x.l} style={{background:"var(--s2)",borderRadius:10,padding:"8px 10px"}}>
-                    <div className="tag" style={{marginBottom:4,fontSize:9}}>{x.l}</div>
-                    <div style={{fontSize:11,fontWeight:600,color:"var(--gold)"}}>{x.v}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* SCROLLABLE CONTENT */}
-            <div style={{overflowY:"auto",flex:1,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
-              <div className="tag">PROBLÈMES ({selectedTour.issues?.length||0})</div>
-              {(!selectedTour.issues||selectedTour.issues.length===0)
-                ? <div style={{textAlign:"center",padding:"20px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
-                : selectedTour.issues.map((issue,i)=>(
-                    <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
-                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
-                      <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
-                      {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8}}>{issue.note}</div>}
-                      {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10}}/>}
-                    </div>
-                  ))
-              }
-            </div>
-          </div>
-        </div>
-      )}
+      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} gallery={gallery} setGallery={setGallery} onClose={()=>setSelectedTour(null)} onDelete={async(t)=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));try{const gf=await sb.get("gallery_folders");const tf=gf?.find(f=>f.name==="Photos Tournées");if(tf){const gp=await sb.get("gallery_photos",`folder_id=eq.${tf.id}`);const del=gp?.filter(p=>p.caption?.includes(t.date)&&p.caption?.includes(t.shift));for(const p of del||[])await sb.del("gallery_photos",p.id);setGallery(prev=>prev.map(f=>f.id===tf.id?{...f,photos:f.photos.filter(p=>!(p.caption?.includes(t.date)&&p.caption?.includes(t.shift)))}:f));}}catch(e){}setSelectedTour(null);pushToast("Tournée supprimée","warn");}catch(e){pushToast("Erreur","warn");}}}/>}
     </div>
   );
 }
@@ -3292,6 +3233,85 @@ function ChangePinModal({me,onSave,onClose}){
               style={{marginTop:20,background:"transparent",border:"none",color:"var(--t3)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
               ← Retour
             </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TOUR DETAIL MODAL ────────────────────────────────────────────
+function TourDetailModal({tour, isOwner, gallery, setGallery, onClose, onDelete}){
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
+      <div className="slide-up" onClick={e=>e.stopPropagation()}
+        style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",maxHeight:"88vh"}}>
+        
+        {/* HANDLE */}
+        <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 0",flexShrink:0}}/>
+
+        {/* FIXED HEADER */}
+        <div style={{padding:"12px 18px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div>
+              <div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div>
+              <div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div>
+            </div>
+            <button className="btn btn-outline" onClick={onClose} style={{width:34,height:34,borderRadius:10,fontSize:18,flexShrink:0}}>×</button>
+          </div>
+
+          {/* STATS GRID */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+            {[
+              {l:"PAR",    v:tour.doneBy},
+              {l:"SCORE",  v:`${tour.score}/${tour.total}`},
+              {l:"DURÉE",  v:tour.duration||"—"},
+              {l:"HEURE",  v:tour.startTime||"—"},
+            ].map(x=>(
+              <div key={x.l} style={{background:"var(--s2)",borderRadius:10,padding:"8px 10px"}}>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:"1px",color:"var(--t3)",marginBottom:4}}>{x.l}</div>
+                <div style={{fontSize:11,fontWeight:600,color:"var(--gold)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{x.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SCROLLABLE PROBLEMS */}
+        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 24px",display:"flex",flexDirection:"column",gap:10}}>
+          <div className="tag">PROBLÈMES SIGNALÉS ({tour.issues?.length||0})</div>
+
+          {(!tour.issues||tour.issues.length===0)
+            ? <div style={{textAlign:"center",padding:"24px",color:"var(--t2)",fontSize:13}}>
+                <div style={{fontSize:28,marginBottom:8}}>✓</div>
+                Aucun problème signalé
+              </div>
+            : tour.issues.map((issue,i)=>(
+                <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
+                  <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
+                  {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
+                  {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+                </div>
+              ))
+          }
+
+          {/* DELETE BUTTON - owner only */}
+          {isOwner&&!confirmDelete&&(
+            <button className="btn btn-danger" onClick={()=>setConfirmDelete(true)}
+              style={{width:"100%",padding:"13px",borderRadius:12,fontSize:14,marginTop:8}}>
+              Supprimer cette tournée
+            </button>
+          )}
+          {isOwner&&confirmDelete&&(
+            <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:"16px",display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+              <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600}}>Supprimer cette tournée et ses photos ?</div>
+              <div style={{display:"flex",gap:8}}>
+                <button className="btn btn-ghost" onClick={()=>setConfirmDelete(false)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14}}>Annuler</button>
+                <button className="btn btn-danger" onClick={()=>onDelete(tour)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14,fontWeight:700}}>Supprimer</button>
+              </div>
+            </div>
           )}
         </div>
       </div>
