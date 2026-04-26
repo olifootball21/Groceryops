@@ -211,6 +211,7 @@ export default function App() {
   const [editUser, setEditUser]   = useState(null);
   const [editTaskData, setEditTaskData] = useState(null);
   const [activeTour, setActiveTour] = useState(null);
+  const [selectedTour, setSelectedTour] = useState(null);
   const [toast, setToast]         = useState(null);
 
   useEffect(() => {
