@@ -704,7 +704,7 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
           {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
           {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
           {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
-          {label:"Rapport de shift",  icon:"📊", action:onShiftReport, color:"#2a9d8f"},
+
 
         ].map(s=>(
           <button key={s.label} className="btn card-tap" onClick={s.action}
