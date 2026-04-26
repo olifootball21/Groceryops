@@ -606,7 +606,7 @@ export default function App() {
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
         {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
-        {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
+        {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
         {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports}/>}
         {tab==="gallery"  && <GalleryTab gallery={gallery} allAppPhotos={allAppPhotos} me={me} getUser={getUser} lang={lang} themeColor={themeColor} onCreateFolder={createGalleryFolder} onDeleteFolder={deleteGalleryFolder} onAddPhoto={addPhotoToFolder} onDeletePhoto={deletePhotoFromFolder} onRenameFolder={renameGalleryFolder}/>}
@@ -696,6 +696,24 @@ export default function App() {
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
       {/* TOAST */}
+      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} gallery={gallery} setGallery={setGallery} onClose={()=>setSelectedTour(null)} onDelete={async(t)=>{
+          try{
+            await sb.del("tour_history",t.id);
+            setTourHistory(p=>p.filter(x=>x.id!==t.id));
+            try{
+              const gf=await sb.get("gallery_folders");
+              const tf=gf?.find(f=>f.name==="Photos Tournées");
+              if(tf){
+                const gp=await sb.get("gallery_photos",`folder_id=eq.${tf.id}`);
+                const toRemove=gp?.filter(p=>p.caption?.includes(t.date)&&p.caption?.includes(t.shift));
+                for(const p of toRemove||[]) await sb.del("gallery_photos",p.id);
+                setGallery(prev=>prev.map(f=>f.id===tf.id?{...f,photos:f.photos.filter(p=>!(p.caption?.includes(t.date)&&p.caption?.includes(t.shift)))}:f));
+              }
+            }catch(e){}
+            setSelectedTour(null);
+            pushToast("Tournée supprimée","warn");
+          }catch(e){pushToast("Erreur","warn");}
+        }}/>}
       {showGlobalSearch&&(
         <GlobalSearchModal query={globalQuery} setQuery={setGlobalQuery} tasks={tasks} events={events} announcements={announcements} notes={notes} me={me} getUser={getUser} getPri={getPri} onTask={t=>{openTask(t);setGlobalSearch(false);}} onClose={()=>{setGlobalSearch(false);setGlobalQuery("");}}/>
       )}
@@ -999,10 +1017,9 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
 }
 
 // ─── TOUR TAB ─────────────────────────────────────────────────────
-function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
+function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig,onSelectTour}){
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedTour, setSelectedTour] = useState(null);
 
   const year=calMonth.getFullYear(); const month=calMonth.getMonth();
   const firstDay=new Date(year,month,1).getDay();
@@ -1088,7 +1105,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div className="tag" style={{marginBottom:4}}>{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
             {selectedTours.map((t,i)=>(
-              <div key={i} className="card-tap" onClick={()=>setSelectedTour(t)} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
+              <div key={i} className="card-tap" onClick={()=>onSelectTour(t)} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
                   <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</div><span style={{color:"var(--t3)"}}>›</span></div>
@@ -1138,7 +1155,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
         </div>
       )}
 
-      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} gallery={gallery} setGallery={setGallery} onClose={()=>setSelectedTour(null)} onDelete={async(t)=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));try{const gf=await sb.get("gallery_folders");const tf=gf?.find(f=>f.name==="Photos Tournées");if(tf){const gp=await sb.get("gallery_photos",`folder_id=eq.${tf.id}`);const del=gp?.filter(p=>p.caption?.includes(t.date)&&p.caption?.includes(t.shift));for(const p of del||[])await sb.del("gallery_photos",p.id);setGallery(prev=>prev.map(f=>f.id===tf.id?{...f,photos:f.photos.filter(p=>!(p.caption?.includes(t.date)&&p.caption?.includes(t.shift)))}:f));}}catch(e){}setSelectedTour(null);pushToast("Tournée supprimée","warn");}catch(e){pushToast("Erreur","warn");}}}/>}
+}
     </div>
   );
 }
