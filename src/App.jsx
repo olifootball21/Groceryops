@@ -440,10 +440,37 @@ export default function App() {
 
   const saveTour = async tour => {
     try{
-      // Strip photos from issues to avoid payload too large
-      const safeIssues=(tour.issues||[]).map(i=>({...i,photo:null}));
-      const res=await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:safeIssues});
-      if(res?.[0])setTourHistory(p=>[{...tour,id:res[0].id},...p]);
+      const issuesWithPhotos = tour.issues||[];
+      // Strip photos from issues for tour_history (too large)
+      const safeIssues = issuesWithPhotos.map(i=>({...i,photo:null}));
+      const res = await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:safeIssues});
+      if(res?.[0]) setTourHistory(p=>[{...tour,id:res[0].id},...p]);
+
+      // Auto-save tour photos to gallery
+      const photosToSave = issuesWithPhotos.filter(i=>i.photo);
+      if(photosToSave.length>0){
+        try{
+          // Find or create "Photos Tournées" folder
+          const existingFolders = await sb.get("gallery_folders");
+          let tourFolder = existingFolders?.find(f=>f.name==="Photos Tournées");
+          if(!tourFolder){
+            const newFolder = await sb.insert("gallery_folders",{name:"Photos Tournées",created_by:me.id});
+            tourFolder = newFolder?.[0];
+            if(tourFolder) setGallery(p=>[{id:tourFolder.id,name:"Photos Tournées",createdBy:me.id,ts:Date.now(),photos:[]},...p]);
+          }
+          if(tourFolder?.id){
+            for(const issue of photosToSave){
+              const caption = `${tour.shift} · ${tour.date} · ${issue.item}`;
+              const photoRes = await sb.insert("gallery_photos",{folder_id:tourFolder.id,photo:issue.photo,caption,added_by:me.id});
+              if(photoRes?.[0]){
+                const newPhoto = {id:photoRes[0].id,photo:issue.photo,caption,addedBy:me.id,ts:Date.now()};
+                setGallery(p=>p.map(f=>f.id===tourFolder.id?{...f,photos:[newPhoto,...f.photos]}:f));
+              }
+            }
+          }
+        }catch(e){ console.error("Tour photos to gallery error:",e); }
+      }
+
       pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`,"done");
       pushToast(`Tournée ${tour.shift} sauvegardée !`);
       setActiveTour(null);setModal(null);
@@ -1256,13 +1283,18 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                   <div style={{padding:"0 14px 12px",display:"flex",flexDirection:"column",gap:8}}>
                     <input className="field" value={notes[key]||""} onChange={e=>setNotes(p=>({...p,[key]:e.target.value}))} placeholder="Décrire le problème..." style={{fontSize:13,padding:"10px 12px"}}/>
                     <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(key)}/>
-                    {photos[key]
-                      ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}>
-                          <img src={photos[key]} alt="" style={{width:"100%",maxHeight:100,objectFit:"cover",display:"block"}}/>
-                          <button className="btn" onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:5,right:5,width:24,height:24,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:13,border:"none"}}>×</button>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}}
+                        style={{padding:"8px 12px",borderRadius:10,fontSize:12,flexShrink:0}}>
+                        📷 {photos[key]?"Changer":"Photo"}
+                      </button>
+                      {photos[key]&&(
+                        <div style={{position:"relative",borderRadius:8,overflow:"hidden",width:60,height:60,flexShrink:0}}>
+                          <img src={photos[key]} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                          <button className="btn" onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:2,right:2,width:18,height:18,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:11,border:"none",padding:0}}>×</button>
                         </div>
-                      : <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"9px",borderRadius:10,fontSize:12}}>📷 Ajouter une photo</button>
-                    }
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2728,8 +2760,12 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
             : viewMode==="grid"
               ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                   {displayPhotos.map((p,i)=>(
-                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}>
-                      <img src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1",cursor:"pointer"}}>
+                      <img src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} onClick={()=>setSelectedPhoto(p)}/>
+                      {selectedFolder!==0&&p.id&&(
+                        <button className="btn" onClick={e=>{e.stopPropagation();onDeletePhoto(selectedFolder,p.id);}}
+                          style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:12,border:"none",padding:0,zIndex:2}}>×</button>
+                      )}
                     </div>
                   ))}
                 </div>
