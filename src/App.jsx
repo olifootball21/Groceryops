@@ -627,8 +627,17 @@ export default function App() {
           onExportPDF={()=>{setShowPDFInfo(true);setModal(null);}}
           onSearch={()=>{setGlobalSearch(true);setModal(null);}}
           onSOS={()=>{setShowUrgency(true);setModal(null);}}
+          onChangePin={()=>{setModal("changePin");}}
           onClose={()=>setModal(null)}
         />}
+      {modal==="changePin" && <ChangePinModal me={me} onSave={async (newPin)=>{
+          try{
+            await sb.update("users",me.id,{pin:newPin});
+            setUsers(p=>p.map(u=>u.id===me.id?{...u,pin:newPin}:u));
+            setMe(p=>({...p,pin:newPin}));
+            pushToast("NIP modifié !");setModal(null);
+          }catch(e){pushToast("Erreur","warn");}
+        }} onClose={()=>setModal(null)}/>}
       {modal==="shiftReport"  && <ShiftReportModal me={me} onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
@@ -2979,31 +2988,7 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
               {item.label}
             </button>
           ))}
-          <button className="btn" onClick={()=>setShowSwitch(p=>!p)}
-            style={{width:"100%",padding:"14px 16px",borderRadius:13,justifyContent:"flex-start",gap:14,
-              background:"var(--gold-dim)",border:"1px solid var(--gold-b)",color:"var(--gold)",fontSize:14,fontWeight:600}}>
-            <span style={{fontSize:18}}>👤</span>
-            Changer de compte
-            <span style={{marginLeft:"auto"}}>{showSwitch?"▲":"▼"}</span>
-          </button>
-          {showSwitch&&(
-            <div style={{display:"flex",flexDirection:"column",gap:7,paddingLeft:8}}>
-              {users.map(u=>(
-                <button key={u.id} className="btn" onClick={()=>onSwitchUser(u)}
-                  style={{padding:"11px 14px",borderRadius:12,
-                    background:me.id===u.id?"var(--gold-dim)":"var(--s2)",
-                    border:me.id===u.id?"1px solid var(--gold-b)":"1px solid var(--border)",
-                    display:"flex",alignItems:"center",gap:10,width:"100%",justifyContent:"flex-start"}}>
-                  <div style={{width:32,height:32,borderRadius:9,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:u.id===1?"#0a0a0d":"white",flexShrink:0}}>{initials(u.name)}</div>
-                  <div style={{textAlign:"left",flex:1}}>
-                    <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{u.name}</div>
-                    <div style={{fontSize:11,color:"var(--t2)"}}>{u.role}</div>
-                  </div>
-                  {me.id===u.id&&<span style={{fontSize:11,color:"var(--gold)",fontWeight:700}}>Actif</span>}
-                </button>
-              ))}
-            </div>
-          )}
+
         </div>
       </div>
     </div>
@@ -3139,6 +3124,90 @@ function PinLoginScreen({users, onLogin, onJoinRequest}){
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+// ─── CHANGE PIN MODAL ─────────────────────────────────────────────
+function ChangePinModal({me,onSave,onClose}){
+  const [step,setStep] = useState("current"); // current | new | confirm
+  const [currentPin,setCurrentPin] = useState("");
+  const [newPin,setNewPin] = useState("");
+  const [confirmPin,setConfirmPin] = useState("");
+  const [error,setError] = useState("");
+
+  const handleDigit = (digit) => {
+    setError("");
+    if(step==="current"){
+      const p=currentPin+digit;
+      setCurrentPin(p);
+      if(p.length===4){
+        if(p===me.pin){setTimeout(()=>{setStep("new");setCurrentPin("");},300);}
+        else{setTimeout(()=>{setCurrentPin("");setError("NIP actuel incorrect");},400);}
+      }
+    } else if(step==="new"){
+      const p=newPin+digit;
+      setNewPin(p);
+      if(p.length===4) setTimeout(()=>setStep("confirm"),300);
+    } else {
+      const p=confirmPin+digit;
+      setConfirmPin(p);
+      if(p.length===4){
+        if(p===newPin){onSave(p);}
+        else{setTimeout(()=>{setConfirmPin("");setError("Les NIPs ne correspondent pas");},400);}
+      }
+    }
+  };
+
+  const del = () => {
+    setError("");
+    if(step==="current") setCurrentPin(p=>p.slice(0,-1));
+    else if(step==="new") setNewPin(p=>p.slice(0,-1));
+    else setConfirmPin(p=>p.slice(0,-1));
+  };
+
+  const currentVal = step==="current"?currentPin:step==="new"?newPin:confirmPin;
+  const titles = {current:"NIP actuel",new:"Nouveau NIP",confirm:"Confirmer le NIP"};
+  const subtitles = {current:"Entrez votre NIP actuel",new:"Choisissez un nouveau NIP à 4 chiffres",confirm:"Entrez à nouveau votre nouveau NIP"};
+
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
+        <div className="handle"/>
+        <div style={{padding:"4px 18px 40px",display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",marginBottom:24}}>
+            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>🔐 Changer mon NIP</div>
+            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+          </div>
+
+          <div style={{fontSize:16,fontWeight:600,color:"var(--text)",marginBottom:6}}>{titles[step]}</div>
+          <div style={{fontSize:13,color:"var(--t2)",marginBottom:24,textAlign:"center"}}>{subtitles[step]}</div>
+
+          <div style={{display:"flex",gap:14,marginBottom:8}}>
+            {[0,1,2,3].map(i=>(
+              <div key={i} style={{width:14,height:14,borderRadius:"50%",background:currentVal.length>i?"var(--gold)":"var(--s2)",border:"1.5px solid var(--border)",transition:"background .15s"}}/>
+            ))}
+          </div>
+          {error&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>{error}</div>}
+          <div style={{height:20}}/>
+
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
+            {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
+              <button key={i} onClick={()=>{ if(d==="⌫") del(); else if(d!=="") handleDigit(String(d));}}
+                style={{height:60,borderRadius:13,background:d===""?"transparent":"var(--s2)",border:d===""?"none":"1px solid var(--border)",fontSize:d==="⌫"?18:20,fontWeight:600,color:"var(--text)",cursor:d===""?"default":"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                {d}
+              </button>
+            ))}
+          </div>
+
+          {step!=="current"&&(
+            <button onClick={()=>{setStep(step==="new"?"current":"new");setNewPin("");setConfirmPin("");setError("");}}
+              style={{marginTop:20,background:"transparent",border:"none",color:"var(--t3)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+              ← Retour
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
