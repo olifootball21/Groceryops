@@ -1,42 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-// ─── SUPABASE CLIENT ──────────────────────────────────────────────
-const SUPABASE_URL = "https://sbokqrubrarsngkhuxwt.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc";
+const SURL = "https://sbokqrubrarsngkhuxwt.supabase.co";
+const SKEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc";
+const H = { apikey:SKEY, Authorization:`Bearer ${SKEY}`, "Content-Type":"application/json" };
 
-const db = {
-  async get(table, opts = {}) {
-    let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-    if (opts.filter) url += opts.filter + "&";
-    if (opts.order) url += `order=${opts.order}&`;
-    url += "limit=1000";
-    const r = await fetch(url, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" }
-    });
-    return r.json();
-  },
-  async insert(table, data) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-      method: "POST",
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
-      body: JSON.stringify(data)
-    });
-    return r.json();
-  },
-  async update(table, id, data) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-      method: "PATCH",
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
-      body: JSON.stringify(data)
-    });
-    return r.json();
-  },
-  async delete(table, id) {
-    await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-      method: "DELETE",
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-    });
-  }
+const sb = {
+  get: async (t, q="") => { const r = await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`, {headers:H}); return r.ok?r.json():[]; },
+  insert: async (t, d) => { const r = await fetch(`${SURL}/rest/v1/${t}`, {method:"POST",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)}); return r.ok?r.json():[]; },
+  update: async (t, id, d) => { const r = await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`, {method:"PATCH",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)}); return r.ok?r.json():[]; },
+  del: async (t, id) => { await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`, {method:"DELETE",headers:H}); },
+  upsert: async (t, d, on) => { const r = await fetch(`${SURL}/rest/v1/${t}`, {method:"POST",headers:{...H,Prefer:`resolution=merge-duplicates,return=representation`},body:JSON.stringify(d)}); return r.ok?r.json():[]; },
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────
@@ -168,7 +141,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
 
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
-  const [loading, setLoading]       = useState(true);
+  const [ready, setReady] = useState(false);
   const [dark, setDark]           = useState(true);
   const [lang, setLang]           = useState("fr");
   const [themeColor, setThemeColor] = useState("#C9A84C");
@@ -245,95 +218,63 @@ export default function App() {
   const [activeTour, setActiveTour] = useState(null);
   const [toast, setToast]         = useState(null);
 
-  // Load data from Supabase on mount
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
       try {
-        const [usersData, tasksData, commentsData, announcementsData, eventsData, tourData, reportsData, storeData] = await Promise.all([
-          db.get("users", {order: "id"}),
-          db.get("tasks", {filter: "archived=eq.false", order: "created_at.desc"}),
-          db.get("comments", {order: "created_at"}),
-          db.get("announcements", {order: "created_at.desc"}),
-          db.get("events", {order: "date"}),
-          db.get("tour_history", {order: "created_at.desc"}),
-          db.get("shift_reports", {order: "created_at.desc"}),
-          db.get("store_profile"),
-        ]);
-
-        if (usersData?.length) {
-          const mapped = usersData.map(u => ({id:u.id, name:u.name, role:u.role, color:u.color, isOwner:u.is_owner}));
-          setUsers(mapped);
-          setMe(mapped.find(u=>u.isOwner) || mapped[0]);
+        // Users
+        const users = await sb.get("users", "order=id");
+        if (users?.length) {
+          const u = users.map(x => ({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner}));
+          setUsers(u);
+          setMe(u.find(x=>x.isOwner)||u[0]);
         }
-
-        if (tasksData?.length) {
-          const withComments = tasksData.map(t => ({
-            ...t,
-            assignedTo: t.assigned_to,
-            createdBy: t.created_by,
-            dueDate: t.due_date,
-            dueTime: t.due_time,
-            customDays: t.custom_days || [],
-            completedAt: t.completed_at ? new Date(t.completed_at).getTime() : null,
-            createdAt: new Date(t.created_at).getTime(),
-            comments: (commentsData || []).filter(c=>c.task_id===t.id).map(c=>({id:c.id, userId:c.user_id, text:c.text, ts:new Date(c.created_at).getTime()}))
-          }));
-          setTasks(withComments);
+        // Tasks + comments
+        const tasks = await sb.get("tasks", "archived=eq.false&order=created_at.desc");
+        const comments = await sb.get("comments", "order=created_at");
+        if (tasks?.length) {
+          setTasks(tasks.map(t=>({
+            ...t, assignedTo:t.assigned_to, createdBy:t.created_by,
+            dueDate:t.due_date, dueTime:t.due_time,
+            customDays:t.custom_days||[], pinned:t.pinned||false,
+            createdAt:new Date(t.created_at).getTime(),
+            completedAt:t.completed_at?new Date(t.completed_at).getTime():null,
+            comments:(comments||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))
+          })));
         }
-
-        if (announcementsData?.length) {
-          setAnnouncements(announcementsData.map(a=>({...a, createdBy:a.created_by, ts:new Date(a.created_at).getTime()})));
+        // Announcements
+        const ann = await sb.get("announcements", "order=created_at.desc");
+        if (ann?.length) setAnnouncements(ann.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
+        // Events
+        const evts = await sb.get("events", "order=date");
+        if (evts?.length) setEvents(evts.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));
+        // Tour history
+        const tours = await sb.get("tour_history", "order=created_at.desc");
+        if (tours?.length) setTourHistory(tours.map(t=>({...t,doneBy:t.done_by,startTime:t.start_time,issues:t.issues||[],ts:new Date(t.created_at).getTime()})));
+        // Shift reports
+        const reports = await sb.get("shift_reports", "order=created_at.desc");
+        if (reports?.length) setShiftReports(reports.map(r=>({...r,doneBy:r.done_by,createdBy:r.created_by,ts:new Date(r.created_at).getTime()})));
+        // Store
+        const store = await sb.get("store_profile");
+        if (store?.length) setStore({name:store[0].name,number:store[0].number,address:store[0].address||"",logo:store[0].logo||null});
+        // Notes
+        const notes = await sb.get("notes");
+        if (notes?.length) { const m={}; notes.forEach(n=>{m[n.user_id]=n.text;}); setNotes(m); }
+        // Schedules
+        const depts = await sb.get("schedule_depts","order=sort_order");
+        const photos = await sb.get("schedule_photos","order=created_at.desc");
+        if (depts?.length) {
+          const newDepts=[], newSched={};
+          depts.forEach(d=>{
+            newDepts.push(d.name);
+            newSched[d.name]=(photos||[]).filter(p=>p.dept_id===d.id).map(p=>({id:p.id,label:p.label,photo:p.photo||null,ts:new Date(p.created_at).getTime()}));
+          });
+          setScheduleDepts(newDepts);
+          setSchedules(newSched);
         }
-
-        if (eventsData?.length) {
-          setEvents(eventsData.map(e=>({...e, startTime:e.start_time, endTime:e.end_time, createdBy:e.created_by, customDays:e.custom_days||[], members:e.members||[]})));
-        }
-
-        if (tourData?.length) {
-          setTourHistory(tourData.map(t=>({...t, doneBy:t.done_by, startTime:t.start_time, ts:new Date(t.created_at).getTime()})));
-        }
-
-        if (reportsData?.length) {
-          setShiftReports(reportsData.map(r=>({...r, doneBy:r.done_by, createdBy:r.created_by, ts:new Date(r.created_at).getTime()})));
-        }
-
-        if (storeData?.length) {
-          const s = storeData[0];
-          setStore({name:s.name, number:s.number, address:s.address||"", logo:s.logo||null});
-        }
-
-        // Load notes
-        const notesData = await db.get("notes");
-        if(notesData?.length) {
-          const notesMap = {};
-          notesData.forEach(n => { notesMap[n.user_id] = n.text; });
-          setNotes(notesMap);
-        }
-
-        // Load schedule photos
-        try {
-          const scheduleDeptsData = await db.get("schedule_depts", {order:"sort_order"});
-          const schedulePhotosData = await db.get("schedule_photos", {order:"created_at.desc"});
-          if(scheduleDeptsData?.length) {
-            const newSchedules = {};
-            const newDepts = [];
-            scheduleDeptsData.forEach(d => {
-              newDepts.push(d.name);
-              newSchedules[d.name] = (schedulePhotosData||[])
-                .filter(p=>p.dept_id===d.id)
-                .map(p=>({id:p.id, label:p.label, photo:p.photo||null, ts:new Date(p.created_at).getTime()}));
-            });
-            setScheduleDepts(newDepts);
-            setSchedules(newSchedules);
-          }
-        } catch(e) { console.error("Schedule error:", e); }
-      } catch(e) {
-        console.error("Erreur chargement données:", e);
-      } finally {
-        setLoading(false);
-      }
+      } catch(e) { console.error("Load error:", e); }
+      setReady(true);
     };
-    loadData();
+    load();
   }, []);
 
   const isOwner = me.isOwner;
@@ -349,78 +290,42 @@ export default function App() {
 
   const createTask = async data => {
     try {
-      const res = await db.insert("tasks", {
-        title: data.title, description: data.description, assigned_to: data.assignedTo,
-        created_by: me.id, priority: data.priority, status: "todo", department: data.department,
-        due_date: data.dueDate, due_time: data.dueTime, photo: data.photo,
-        recurrence: data.recurrence, custom_days: data.customDays, pinned: false, archived: false
-      });
-      if (res?.[0]) {
-        const t = {...res[0], assignedTo:res[0].assigned_to, createdBy:res[0].created_by,
-          dueDate:res[0].due_date, dueTime:res[0].due_time, customDays:res[0].custom_days||[],
-          createdAt:new Date(res[0].created_at).getTime(), comments:[], completedAt:null};
-        setTasks(p=>[t,...p]);
-      }
+      const res = await sb.insert("tasks",{title:data.title,description:data.description,assigned_to:data.assignedTo,created_by:me.id,priority:data.priority,status:"todo",department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:false,archived:false});
+      if(res?.[0]){const t={...res[0],assignedTo:res[0].assigned_to,createdBy:res[0].created_by,dueDate:res[0].due_date,dueTime:res[0].due_time,customDays:res[0].custom_days||[],createdAt:new Date(res[0].created_at).getTime(),comments:[],completedAt:null};setTasks(p=>[t,...p]);}
       pushNotif(`Nouvelle tâche par ${me.name}`,data.title,"task");
       pushToast("Tâche créée !"); setModal(null);
-    } catch(e) { pushToast("Erreur sauvegarde","warn"); }
+    } catch(e){pushToast("Erreur","warn");}
   };
 
   const editTask = async data => {
     try {
-      await db.update("tasks", data.id, {
-        title:data.title, description:data.description, assigned_to:data.assignedTo,
-        priority:data.priority, status:data.status, department:data.department,
-        due_date:data.dueDate, due_time:data.dueTime, photo:data.photo,
-        recurrence:data.recurrence, custom_days:data.customDays, pinned:data.pinned
-      });
+      await sb.update("tasks",data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned});
       setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
       pushToast("Tâche modifiée !"); setModal(null); setActive(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    } catch(e){pushToast("Erreur","warn");}
   };
-  
+
   const updateStatus = async (taskId,status,note,photo) => {
     const now=Date.now();
     try {
-      await db.update("tasks", taskId, {status, completed_at: status==="done"?new Date().toISOString():null, ...(photo?{photo}:{})});
-      if(status==="done"&&note) {
-        const res = await db.insert("comments", {task_id:taskId, user_id:me.id, text:"✓ "+note});
-        if(res?.[0]) {
-          const c = {id:res[0].id, userId:me.id, text:"✓ "+note, ts:now};
-          setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...t.comments,c],...(photo?{photo}:{})}:t));
-          setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...p.comments,c]}:p);
-        }
-      } else {
-        setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==="done"?now:null,...(photo?{photo}:{})}:t));
-        setActive(p=>p?.id===taskId?{...p,status,completedAt:status==="done"?now:null}:p);
-      }
+      await sb.update("tasks",taskId,{status,completed_at:status==="done"?new Date().toISOString():null,...(photo?{photo}:{})});
+      if(status==="done"&&note){const res=await sb.insert("comments",{task_id:taskId,user_id:me.id,text:"✓ "+note});if(res?.[0]){const c={id:res[0].id,userId:me.id,text:"✓ "+note,ts:now};setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...t.comments,c],...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...p.comments,c]}:p);}}
+      else{setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==="done"?now:null,...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:status==="done"?now:null}:p);}
       if(status==="done"){const t=tasks.find(x=>x.id===taskId);pushNotif("Tâche complétée",t?.title,"done");pushToast("Complété !");}
-    } catch(e) { pushToast("Erreur","warn"); }
+    } catch(e){pushToast("Erreur","warn");}
   };
 
   const togglePin = async taskId => {
-    const task = tasks.find(t=>t.id===taskId);
-    if(!task) return;
-    try {
-      await db.update("tasks", taskId, {pinned:!task.pinned});
-      setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));
-      setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);
-      pushToast("Épinglée !");
-    } catch(e) { pushToast("Erreur","warn"); }
+    const task=tasks.find(t=>t.id===taskId);if(!task)return;
+    try{await sb.update("tasks",taskId,{pinned:!task.pinned});setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);pushToast("Épinglée !");}catch(e){}
   };
 
   const addComment = async (taskId,text) => {
     if(!text.trim()) return;
     try {
-      const res = await db.insert("comments", {task_id:taskId, user_id:me.id, text});
-      if(res?.[0]) {
-        const c={id:res[0].id,userId:me.id,text,ts:new Date(res[0].created_at).getTime()};
-        setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));
-        setActive(p=>p?{...p,comments:[...p.comments,c]}:p);
-        const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));
-        mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});
-      }
-    } catch(e) { console.error(e); }
+      const res=await sb.insert("comments",{task_id:taskId,user_id:me.id,text});
+      if(res?.[0]){const c={id:res[0].id,userId:me.id,text,ts:new Date(res[0].created_at).getTime()};setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));setActive(p=>p?{...p,comments:[...p.comments,c]}:p);const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});}
+    } catch(e){console.error(e);}
   };
 
   const createGalleryFolder = name => {
@@ -472,111 +377,39 @@ export default function App() {
   };
 
   const archiveTask = async tid => {
-    try {
-      await db.update("tasks", tid, {archived:true, archived_at:new Date().toISOString()});
-      const t = tasks.find(x=>x.id===tid);
-      if(t){ setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]); setTasks(p=>p.filter(x=>x.id!==tid)); }
-      pushToast("Tâche archivée"); setModal(null); setActive(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{await sb.update("tasks",tid,{archived:true,archived_at:new Date().toISOString()});const t=tasks.find(x=>x.id===tid);if(t){setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]);setTasks(p=>p.filter(x=>x.id!==tid));}pushToast("Tâche archivée");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}
   };
-  const addSchedulePhoto = async (dept, label, photo) => {
-    try {
-      const depts = await db.get("schedule_depts");
-      let deptRow = depts?.find(d=>d.name===dept);
-      if(!deptRow) {
-        const newDept = await db.insert("schedule_depts", {name:dept, sort_order:0});
-        deptRow = newDept?.[0];
-      }
-      if(deptRow?.id) {
-        const res = await db.insert("schedule_photos", {dept_id:deptRow.id, label, photo});
-        if(res?.[0]) setSchedules(p=>({...p,[dept]:[{id:res[0].id,label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
-      }
-      pushToast("Horaire ajouté !");
-    } catch(e) { pushToast("Erreur","warn"); }
+  const addSchedulePhoto = async (dept,label,photo) => {
+    try{const depts=await sb.get("schedule_depts");let dr=depts?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert("schedule_depts",{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const res=await sb.insert("schedule_photos",{dept_id:dr.id,label,photo});if(res?.[0])setSchedules(p=>({...p,[dept]:[{id:res[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast("Horaire ajouté !");}catch(e){pushToast("Erreur","warn");}
   };
-  const deleteSchedulePhoto = (dept, id) => {
-    setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));
-    pushToast("Horaire supprimé","warn");
+  
+  const deleteSchedulePhoto = async (dept,id) => {
+    try{await sb.del("schedule_photos",id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast("Horaire supprimé","warn");}catch(e){}
   };
-  const saveNote = async (userId, text) => {
-    try {
-      const existing = await db.get("notes", {filter:`user_id=eq.${userId}`});
-      if(existing?.length) {
-        await db.update("notes", existing[0].id, {text, updated_at:new Date().toISOString()});
-      } else {
-        await db.insert("notes", {user_id:userId, text});
-      }
-      setNotes(p=>({...p,[userId]:text}));
-    } catch(e) { console.error(e); }
+  
+  const saveNote = async (userId,text) => {
+    try{const ex=await sb.get("notes",`user_id=eq.${userId}`);if(ex?.length){await sb.update("notes",ex[0].id,{text,updated_at:new Date().toISOString()});}else{await sb.insert("notes",{user_id:userId,text});}setNotes(p=>({...p,[userId]:text}));}catch(e){console.error(e);}
   };
 
   const createUser = async data => {
-    try {
-      const res = await db.insert("users", {name:data.name, role:data.role, color:data.color, is_owner:false});
-      if(res?.[0]) setUsers(p=>[...p,{...res[0],isOwner:false}]);
-      pushToast(`${data.name} ajouté !`); setModal(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{const res=await sb.insert("users",{name:data.name,role:data.role,color:data.color,is_owner:false});if(res?.[0])setUsers(p=>[...p,{...res[0],isOwner:false}]);pushToast(`${data.name} ajouté !`);setModal(null);}catch(e){pushToast("Erreur","warn");}
   };
   const updateUser = async data => {
-    try {
-      await db.update("users", data.id, {name:data.name, role:data.role, color:data.color});
-      setUsers(p=>p.map(u=>u.id===data.id?data:u));
-      if(me.id===data.id) setMe(data);
-      pushToast("Profil mis à jour !"); setModal(null); setEditUser(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{await sb.update("users",data.id,{name:data.name,role:data.role,color:data.color});setUsers(p=>p.map(u=>u.id===data.id?data:u));if(me.id===data.id)setMe(data);pushToast("Profil mis à jour !");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}
   };
   const deleteUser = async uid => {
-    try {
-      await db.delete("users", uid);
-      setUsers(p=>p.filter(u=>u.id!==uid));
-      pushToast("Supprimé","warn"); setModal(null); setEditUser(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{await sb.del("users",uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}
   };
-  const deleteTask = async tid => {
-    try {
-      await db.delete("tasks", tid);
-      setTasks(p=>p.filter(t=>t.id!==tid));
-      pushToast("Supprimée","warn"); setModal(null); setActive(null);
-    } catch(e) { pushToast("Erreur","warn"); }
-  };
+  const deleteTask = async tid => { try{await sb.del("tasks",tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast("Supprimée","warn");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");} };
 
   const saveTour = async tour => {
-    try {
-      const res = await db.insert("tour_history", {
-        shift:tour.shift, date:tour.date, done_by:tour.doneBy,
-        score:tour.score, total:tour.total, duration:tour.duration,
-        start_time:tour.startTime, issues:tour.issues||[]
-      });
-      if(res?.[0]) setTourHistory(p=>[{...tour,id:res[0].id},...p]);
-      pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`,"done");
-      pushToast(`Tournée ${tour.shift} sauvegardée !`);
-      setActiveTour(null); setModal(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{const res=await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:tour.issues||[]});if(res?.[0])setTourHistory(p=>[{...tour,id:res[0].id},...p]);pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`,"done");pushToast(`Tournée ${tour.shift} sauvegardée !`);setActiveTour(null);setModal(null);}catch(e){pushToast("Erreur","warn");}
   };
 
-  // Reminder check - only run once on first load, not on every task change
-  const reminderChecked = useRef(false);
-  useEffect(()=>{
-    if(reminderChecked.current || loading) return;
-    reminderChecked.current = true;
-    const overdue=tasks.filter(t=>t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date());
-    overdue.forEach(t=>{
-      const already=notifs.find(n=>n.type==="reminder"&&n.sub?.includes(t.title));
-      if(!already) pushNotif("Rappel — tâche non complétée",`${t.title} · Échéance dépassée`,"reminder");
-    });
-  },[loading]);
+  // Reminders disabled - handled manually
 
   const saveShiftReport = async report => {
-    try {
-      const res = await db.insert("shift_reports", {
-        date:report.date, traffic:report.traffic, rating:report.rating,
-        highlights:report.highlights, incidents:report.incidents, notes:report.notes,
-        done_by:me.name, created_by:me.id
-      });
-      if(res?.[0]) setShiftReports(p=>[{...res[0],doneBy:me.name,createdBy:me.id,ts:Date.now()},...p]);
-      pushNotif(`Rapport de journée`,`${me.name} · Note: ${report.rating}/5`,"report");
-      pushToast("Rapport sauvegardé !"); setModal(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{const res=await sb.insert("shift_reports",{date:report.date,traffic:report.traffic,rating:report.rating,highlights:report.highlights,incidents:report.incidents,notes:report.notes,done_by:me.name,created_by:me.id});if(res?.[0])setShiftReports(p=>[{...res[0],doneBy:me.name,createdBy:me.id,ts:Date.now()},...p]);pushNotif("Rapport de journée",`${me.name} · Note: ${report.rating}/5`,"report");pushToast("Rapport sauvegardé !");setModal(null);}catch(e){pushToast("Erreur","warn");}
   };
 
   const applyTemplate = template => {
@@ -591,51 +424,19 @@ export default function App() {
   };
 
   const createEvent = async data => {
-    try {
-      const res = await db.insert("events", {
-        title:data.title, description:data.description, date:data.date,
-        start_time:data.startTime, end_time:data.endTime, color:data.color,
-        category:data.category, recurrence:data.recurrence, custom_days:data.customDays,
-        reminder:data.reminder, members:data.members, created_by:me.id
-      });
-      if(res?.[0]) setEvents(p=>[{...res[0],startTime:res[0].start_time,endTime:res[0].end_time,createdBy:me.id,customDays:res[0].custom_days||[],members:res[0].members||[]},...p]);
-      pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event");
-      pushToast("Événement créé !"); setModal(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{const res=await sb.insert("events",{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members,created_by:me.id});if(res?.[0])setEvents(p=>[{...res[0],startTime:res[0].start_time,endTime:res[0].end_time,createdBy:me.id,customDays:res[0].custom_days||[],members:res[0].members||[]},...p]);pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event");pushToast("Événement créé !");setModal(null);}catch(e){pushToast("Erreur","warn");}
   };
   const editEvent = async data => {
-    try {
-      await db.update("events", data.id, {
-        title:data.title, description:data.description, date:data.date,
-        start_time:data.startTime, end_time:data.endTime, color:data.color,
-        category:data.category, recurrence:data.recurrence, custom_days:data.customDays,
-        reminder:data.reminder, members:data.members
-      });
-      setEvents(p=>p.map(e=>e.id===data.id?data:e));
-      pushToast("Événement modifié !"); setModal(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{await sb.update("events",data.id,{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members});setEvents(p=>p.map(e=>e.id===data.id?data:e));pushToast("Événement modifié !");setModal(null);}catch(e){pushToast("Erreur","warn");}
   };
   const deleteEvent = async id => {
-    try {
-      await db.delete("events", id);
-      setEvents(p=>p.filter(e=>e.id!==id));
-      pushToast("Événement supprimé","warn"); setModal(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{await sb.del("events",id);setEvents(p=>p.filter(e=>e.id!==id));pushToast("Événement supprimé","warn");setModal(null);}catch(e){}
   };
   const createAnnouncement = async data => {
-    try {
-      const res = await db.insert("announcements", {text:data.text, dept:data.dept, created_by:me.id});
-      if(res?.[0]) setAnnouncements(p=>[{...res[0],createdBy:me.id,ts:Date.now()},...p]);
-      pushNotif(`Annonce de ${me.name}`,data.text.slice(0,60),"announce");
-      pushToast("Annonce envoyée !"); setModal(null);
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{const res=await sb.insert("announcements",{text:data.text,dept:data.dept,created_by:me.id});if(res?.[0])setAnnouncements(p=>[{...res[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif(`Annonce de ${me.name}`,data.text.slice(0,60),"announce");pushToast("Annonce envoyée !");setModal(null);}catch(e){pushToast("Erreur","warn");}
   };
   const deleteAnnouncement = async id => {
-    try {
-      await db.delete("announcements", id);
-      setAnnouncements(p=>p.filter(a=>a.id!==id));
-      pushToast("Annonce supprimée","warn");
-    } catch(e) { pushToast("Erreur","warn"); }
+    try{await sb.del("announcements",id);setAnnouncements(p=>p.filter(a=>a.id!==id));pushToast("Annonce supprimée","warn");}catch(e){}
   };
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
@@ -654,13 +455,11 @@ export default function App() {
 
   const css = makeCSS(dark, themeColor);
 
-  if (loading) return (
-    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}>
-      <style>{makeCSS(true,"#C9A84C")}</style>
-      <div className="serif" style={{fontSize:48,fontWeight:700,color:"#C9A84C",letterSpacing:"-1px"}}>GroceryOps</div>
-      <div style={{fontSize:14,color:"rgba(237,232,223,0.4)"}}>Chargement en cours...</div>
-      <div style={{width:40,height:40,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+  if (!ready) return (
+    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap'); @keyframes spin{to{transform:rotate(360deg);}}`}</style>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div>
+      <div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/>
     </div>
   );
 
@@ -1125,7 +924,6 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
                   ? <span className="pill" style={{background:"rgba(42,157,143,0.1)",color:"#2a9d8f",border:"1px solid rgba(42,157,143,0.2)"}}>✓ Fait</span>
                   : <button className="btn btn-gold" onClick={()=>onStart(shift)} style={{padding:"8px 14px",borderRadius:10,fontSize:12}}>Démarrer</button>
                 }
-                
               </div>
             );
           })}
@@ -1167,20 +965,55 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div className="tag" style={{marginBottom:4}}>{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
             {selectedTours.map((t,i)=>(
-              <div key={i} className="card-tap" onClick={()=>setSelectedTour(t)}
-                style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
+              <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
                   <div style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</div>
                 </div>
                 <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
                 {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
-                <div style={{fontSize:10,color:"var(--t3)",marginTop:4}}>Appuyer pour voir le détail ›</div>
               </div>
             ))}
           </div>
         )}
       </div>
+      {selectedTour&&(
+        <div className="overlay" onClick={()=>setSelectedTour(null)}>
+          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"85vh"}}>
+            <div className="handle"/>
+            <div style={{overflowY:"auto",flex:1,padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div><div className="tag" style={{marginBottom:4}}>TOURNÉE · {selectedTour.date}</div><div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--gold)"}}>{selectedTour.shift}</div></div>
+                <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[{l:"FAIT PAR",v:selectedTour.doneBy},{l:"SCORE",v:`${selectedTour.score}/${selectedTour.total}`},{l:"DURÉE",v:selectedTour.duration||"—"},{l:"HEURE",v:selectedTour.startTime||"—"}].map(x=>(
+                  <div key={x.l} style={{background:"var(--s2)",borderRadius:12,padding:"10px 12px"}}>
+                    <div className="tag" style={{marginBottom:5}}>{x.l}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:"var(--gold)"}}>{x.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="tag" style={{marginBottom:10}}>PROBLÈMES SIGNALÉS ({selectedTour.issues?.length||0})</div>
+                {(!selectedTour.issues||selectedTour.issues.length===0)
+                  ? <div style={{textAlign:"center",padding:"20px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
+                  : <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {selectedTour.issues.map((issue,i)=>(
+                        <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
+                          <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
+                          {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8,lineHeight:1.5}}>{issue.note}</div>}
+                          {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2421,58 +2254,6 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
                 </div>
               ))}
             </div>
-      )}
-
-      {/* TOUR DETAIL MODAL */}
-      {selectedTour&&(
-        <div className="overlay" onClick={()=>setSelectedTour(null)}>
-          <div className="sheet slide-up" onClick={e=>e.stopPropagation()} style={{maxHeight:"85vh"}}>
-            <div className="handle"/>
-            <div style={{overflowY:"auto",flex:1,padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div className="tag" style={{marginBottom:4}}>TOURNÉE COMPLÉTÉE</div>
-                  <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--gold)"}}>{selectedTour.shift}</div>
-                </div>
-                <button className="btn btn-outline" onClick={()=>setSelectedTour(null)} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {[
-                  {label:"DATE",val:selectedTour.date},
-                  {label:"FAIT PAR",val:selectedTour.doneBy},
-                  {label:"SCORE",val:`${selectedTour.score}/${selectedTour.total}`},
-                  {label:"DURÉE",val:selectedTour.duration||"—"},
-                ].map(item=>(
-                  <div key={item.label} style={{background:"var(--s2)",borderRadius:12,padding:"10px 12px"}}>
-                    <div className="tag" style={{marginBottom:5}}>{item.label}</div>
-                    <div style={{fontSize:13,fontWeight:600,color:"var(--gold)"}}>{item.val}</div>
-                  </div>
-                ))}
-              </div>
-              {selectedTour.issues?.length>0&&(
-                <div>
-                  <div className="tag" style={{marginBottom:10}}>PROBLÈMES SIGNALÉS</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                    {selectedTour.issues.map((issue,i)=>(
-                      <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
-                        <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>{issue.item}</div>
-                        <div style={{fontSize:11,color:"var(--t3)",marginBottom:4}}>{issue.dept}</div>
-                        {issue.note&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:8}}>{issue.note}</div>}
-                        {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:150,objectFit:"cover",borderRadius:10}}/>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {(!selectedTour.issues||selectedTour.issues.length===0)&&(
-                <div style={{textAlign:"center",padding:"24px",color:"var(--t2)",fontSize:14}}>
-                  <div style={{fontSize:28,marginBottom:8}}>✓</div>
-                  Aucun problème signalé lors de cette tournée
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* PHOTO VIEWER */}
