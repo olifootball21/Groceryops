@@ -143,10 +143,7 @@ export default function App() {
   const [dark, setDark]           = useState(true);
   const [lang, setLang]           = useState("fr");
   const [themeColor, setThemeColor] = useState("#C9A84C");
-  const [gallery, setGallery]     = useState([
-    { id:1, name:"Montage été", photos:[], createdBy:1, ts:Date.now()-86400000 },
-    { id:2, name:"Inspection MAPAQ", photos:[], createdBy:1, ts:Date.now()-172800000 },
-  ]);
+  const [gallery, setGallery] = useState([]);
   const [users, setUsers]         = useState(INIT_USERS);
   const [tasks, setTasks]         = useState(INIT_TASKS);
   const [store, setStore]         = useState(INIT_STORE);
@@ -269,6 +266,18 @@ export default function App() {
           setScheduleDepts(newDepts);
           setSchedules(newSched);
         }
+      // Load gallery
+      try {
+        const gFolders = await sb.get("gallery_folders","order=created_at.desc");
+        const gPhotos = await sb.get("gallery_photos","order=created_at.desc");
+        if(gFolders?.length){
+          setGallery(gFolders.map(f=>({
+            id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),
+            photos:(gPhotos||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))
+          })));
+        }
+      } catch(e) { console.error("Gallery error:",e); }
+
       // Load join requests (owner only)
       try {
         const reqs = await sb.get("join_requests", "order=created_at.desc");
@@ -332,26 +341,44 @@ export default function App() {
     } catch(e){console.error(e);}
   };
 
-  const createGalleryFolder = name => {
+  const createGalleryFolder = async name => {
     if(!name.trim()) return;
-    setGallery(p=>[{id:Date.now(),name:name.trim(),photos:[],createdBy:me.id,ts:Date.now()},...p]);
-    pushToast(T(lang,"folderCreated"));
+    try {
+      const res = await sb.insert("gallery_folders",{name:name.trim(),created_by:me.id});
+      if(res?.[0]) setGallery(p=>[{id:res[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);
+      pushToast(T(lang,"folderCreated"));
+    } catch(e) { pushToast("Erreur","warn"); }
   };
-  const deleteGalleryFolder = id => {
-    setGallery(p=>p.filter(f=>f.id!==id));
-    pushToast(T(lang,"deleted"),"warn");
+  const deleteGalleryFolder = async id => {
+    try {
+      await sb.del("gallery_folders",id);
+      setGallery(p=>p.filter(f=>f.id!==id));
+      pushToast(T(lang,"deleted"),"warn");
+    } catch(e) { pushToast("Erreur","warn"); }
   };
-  const addPhotoToFolder = (folderId, photo, caption) => {
-    setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:Date.now(),photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));
-    pushToast(T(lang,"photoAdded"));
+  const addPhotoToFolder = async (folderId, photo, caption) => {
+    try {
+      const res = await sb.insert("gallery_photos",{folder_id:folderId,photo,caption,added_by:me.id});
+      if(res?.[0]) {
+        const newPhoto = {id:res[0].id,photo,caption,addedBy:me.id,ts:Date.now()};
+        setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[newPhoto,...f.photos]}:f));
+      }
+      pushToast(T(lang,"photoAdded"));
+    } catch(e) { pushToast("Erreur","warn"); }
   };
-  const deletePhotoFromFolder = (folderId, photoId) => {
-    setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));
-    pushToast(T(lang,"deleted"),"warn");
+  const deletePhotoFromFolder = async (folderId, photoId) => {
+    try {
+      await sb.del("gallery_photos",photoId);
+      setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));
+      pushToast(T(lang,"deleted"),"warn");
+    } catch(e) { pushToast("Erreur","warn"); }
   };
-  const renameGalleryFolder = (id, name) => {
-    setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
-    pushToast(T(lang,"saved"));
+  const renameGalleryFolder = async (id, name) => {
+    try {
+      await sb.update("gallery_folders",id,{name});
+      setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
+      pushToast(T(lang,"saved"));
+    } catch(e) { pushToast("Erreur","warn"); }
   };
 
   // Auto-collect all photos from tasks into a virtual "all" list
@@ -715,19 +742,27 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
         ))}
       </div>
 
-      {announcements?.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,3).map(a=>(
-              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{a.text}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-              </div>
-            ))}
+      {(()=>{
+        const todayAnn = announcements?.filter(a=>{
+          const d = new Date(a.ts||a.created_at);
+          const today = new Date();
+          return d.getDate()===today.getDate()&&d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();
+        })||[];
+        if(todayAnn.length===0) return null;
+        return(
+          <div className="fade-in">
+            <div className="tag" style={{marginBottom:10}}>ANNONCES DU JOUR</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {todayAnn.map(a=>(
+                <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                  <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{a.text}</div>
+                  <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
         Créer une nouvelle tâche
       </button>
