@@ -377,8 +377,9 @@ export default function App() {
       });
       setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
       pushToast("Tâche modifiée !"); setModal(null); setActive(null);
+    } catch(e) { pushToast("Erreur","warn"); }
   };
-
+  
   const updateStatus = async (taskId,status,note,photo) => {
     const now=Date.now();
     try {
