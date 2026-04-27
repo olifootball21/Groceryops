@@ -2926,7 +2926,7 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
   const [conf,setConf]=useState(false);
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",height:"85vh",display:"flex",flexDirection:"column"}}>
         
         {/* HANDLE */}
         <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 8px",flexShrink:0}}/>
