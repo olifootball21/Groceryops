@@ -135,10 +135,7 @@ export default function App() {
   const [dark, setDark]           = useState(true);
   const [lang, setLang]           = useState("fr");
   const [themeColor, setThemeColor] = useState("#C9A84C");
-  const [gallery, setGallery]     = useState([
-    { id:1, name:"Montage été", photos:[], createdBy:1, ts:Date.now()-86400000 },
-    { id:2, name:"Inspection MAPAQ", photos:[], createdBy:1, ts:Date.now()-172800000 },
-  ]);
+  const [gallery, setGallery] = useState([]);
   const [users, setUsers]         = useState(INIT_USERS);
   const [tasks, setTasks]         = useState(INIT_TASKS);
   const [store, setStore]         = useState(INIT_STORE);
@@ -256,6 +253,14 @@ export default function App() {
   const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
   const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
   const clearAllNotifs = () => setNotifs([]);
+  const deleteNotif = id => setNotifs(p=>p.filter(n=>n.id!==id));
+  const clickNotif = n => {
+    setNotifs(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));
+    if(n.type==="task"||n.type==="done"||n.type==="reminder"){
+      const t=tasks.find(x=>x.title===n.sub||n.sub?.includes(x.title));
+      if(t){setActive(t);setModal("taskDetail");setTab("tasks");}else setTab("tasks");
+    } else setTab("comm");
+  };
   const markAllRead = () => setNotifs(p=>p.map(n=>({...n,read:true})));
 
   const openTask = t => { setSeenTasks(p=>new Set([...p,t.id])); setActive(t); setModal("taskDetail"); };
@@ -458,7 +463,7 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
-        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onShiftReport={()=>setModal("shiftReport")}/>}
+        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
@@ -504,7 +509,7 @@ export default function App() {
       {modal==="taskDetail"   && activeTask && <TaskDetailModal task={activeTask} users={users} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onStatus={updateStatus} onComment={addComment} onDelete={deleteTask} onArchive={archiveTask} onEdit={t=>{setEditTaskData(t);setModal("editTask");}} onPin={togglePin} onClose={()=>{setModal(null);setActive(null);}}/>}
       {modal==="newUser"      && <NewUserModal    onSave={createUser} onClose={()=>setModal(null)}/>}
       {modal==="editUser"     && editUser && <EditUserModal user={editUser} me={me} isOwner={isOwner} onSave={updateUser} onDelete={deleteUser} onClose={()=>{setModal(null);setEditUser(null);}}/>}
-      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead}/>}
+      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead} onDeleteNotif={deleteNotif} onClickNotif={n=>{clickNotif(n);setModal(null);}}/>}
       {modal==="switchUser"   && <SwitchUserModal users={users} me={me} onSwitch={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}} onClose={()=>setModal(null)}/>}
       {showPDFInfo && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPDFInfo(false)}>
@@ -534,8 +539,7 @@ export default function App() {
           onSOS={()=>{setShowUrgency(true);setModal(null);}}
           onClose={()=>setModal(null)}
         />}
-      {modal==="shiftReport"  && <ShiftReportModal me={me} onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
-      {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
+      {{modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
       {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
@@ -567,7 +571,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onShiftReport}){
+function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
     <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
@@ -576,6 +580,20 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
         <div className="serif" style={{fontSize:32,fontWeight:700,letterSpacing:"-0.5px",color:"var(--text)",lineHeight:1.1}}>{me.name}</div>
         <div style={{fontSize:13,color:"var(--t2)",marginTop:5}}>{new Date().toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
       </div>
+
+      {announcements?.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {announcements.slice(0,5).map(a=>(
+              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
         {[
@@ -604,7 +622,7 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
           {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
           {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
           {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
-          {label:"Rapport de shift",  icon:"📊", action:onShiftReport, color:"#2a9d8f"},
+
 
         ].map(s=>(
           <button key={s.label} className="btn card-tap" onClick={s.action}
@@ -615,19 +633,9 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
         ))}
       </div>
 
-      {announcements?.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,3).map(a=>(
-              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{a.text}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
+      <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
+
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
         Créer une nouvelle tâche
       </button>
@@ -1039,13 +1047,15 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                   <div style={{padding:"0 14px 12px",display:"flex",flexDirection:"column",gap:8}}>
                     <input className="field" value={notes[key]||""} onChange={e=>setNotes(p=>({...p,[key]:e.target.value}))} placeholder="Décrire le problème..." style={{fontSize:13,padding:"10px 12px"}}/>
                     <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(key)}/>
-                    {photos[key]
-                      ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}>
-                          <img src={photos[key]} alt="" style={{width:"100%",maxHeight:100,objectFit:"cover",display:"block"}}/>
-                          <button className="btn" onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:5,right:5,width:24,height:24,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:13,border:"none"}}>×</button>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"8px 12px",borderRadius:10,fontSize:12,flexShrink:0}}>📷 {photos[key]?"Changer":"Photo"}</button>
+                      {photos[key]&&(
+                        <div style={{position:"relative",borderRadius:8,overflow:"hidden",width:56,height:56,flexShrink:0}}>
+                          <img src={photos[key]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                          <button onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:2,right:2,width:18,height:18,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:11,border:"none",cursor:"pointer",padding:0}}>×</button>
                         </div>
-                      : <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"9px",borderRadius:10,fontSize:12}}>📷 Ajouter une photo</button>
-                    }
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2741,16 +2751,17 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
                 Aucune notification
               </div>
             : notifs.map(n=>(
-              <div key={n.id} style={{display:"flex",gap:12,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`}}>
+              <div key={n.id} onClick={()=>onClickNotif&&onClickNotif(n)} style={{display:"flex",gap:10,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`,cursor:"pointer"}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                     <div style={{fontSize:10,fontWeight:700,color:typeColor(n.type),letterSpacing:"0.5px"}}>{typeLabel(n.type).toUpperCase()}</div>
-                    {!n.read&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--gold)"}}/>}
+                    {!n.read&&<div style={{width:7,height:7,borderRadius:"50%",background:"var(--gold)"}}/>}
                   </div>
                   <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{n.text}</div>
-                  <div style={{fontSize:12,color:"var(--t2)",fontStyle:"italic",marginBottom:4}}>"{n.sub}"</div>
+                  <div style={{fontSize:12,color:"var(--t2)",marginBottom:4}}>{n.sub}</div>
                   <div style={{fontSize:11,color:"var(--t3)"}}>{ago(n.ts)}</div>
                 </div>
+                <button onClick={e=>{e.stopPropagation();onDeleteNotif&&onDeleteNotif(n.id);}} style={{width:28,height:28,borderRadius:8,flexShrink:0,alignSelf:"flex-start",background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t3)",fontSize:13,cursor:"pointer"}}>×</button>
               </div>
             ))
           }
@@ -2949,6 +2960,90 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEvent}){
+  const [calMonth,setCalMonth]=useState(new Date());
+  const [selDay,setSelDay]=useState(null);
+  const [showForm,setShowForm]=useState(false);
+  const [editEv,setEditEv]=useState(null);
+  const [confirmDel,setConfirmDel]=useState(null);
+  const year=calMonth.getFullYear(),month=calMonth.getMonth();
+  const firstDay=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();
+  const today=new Date();
+  const byDay={};
+  (events||[]).forEach(e=>{if(!e.date)return;const[ey,em,ed]=e.date.split("-").map(Number);if(ey===year&&em===month+1){if(!byDay[ed])byDay[ed]=[];byDay[ed].push(e);}});
+  const selEvents=selDay?(byDay[selDay]||[]):[];
+  const upcoming=(events||[]).filter(e=>e.date&&e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date));
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div className="card" style={{padding:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div><div className="tag" style={{marginBottom:3}}>CALENDRIER</div><div className="serif" style={{fontSize:18,fontWeight:700,color:themeColor,textTransform:"capitalize"}}>{calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div></div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()-1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>‹</button>
+            <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()+1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>›</button>
+            <button onClick={()=>{setEditEv(null);setShowForm(true);}} style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>+ Ajouter</button>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+          {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+          {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
+          {Array(days).fill(null).map((_,i)=>{
+            const day=i+1,de=byDay[day]||[];
+            const isT=day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
+            const isS=selDay===day;
+            return(<div key={day} onClick={()=>setSelDay(isS?null:day)} style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",background:isS?themeColor:isT?`${themeColor}20`:"transparent"}}>
+              <span style={{fontSize:12,fontWeight:isT||isS?700:400,color:isS?"#0a0a0d":isT?themeColor:"var(--text)"}}>{day}</span>
+              <div style={{display:"flex",gap:2,marginTop:2}}>{de.slice(0,3).map((ev,ei)=><div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isS?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>)}</div>
+            </div>);
+          })}
+        </div>
+        {selDay&&(
+          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div className="tag">{new Date(year,month,selDay).toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
+              <button onClick={()=>{setEditEv(null);setShowForm(true);}} style={{padding:"4px 10px",borderRadius:8,background:`${themeColor}20`,color:themeColor,border:`1px solid ${themeColor}40`,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>+ Événement</button>
+            </div>
+            {selEvents.length===0?<div style={{textAlign:"center",padding:12,color:"var(--t3)",fontSize:12}}>Aucun événement</div>
+              :selEvents.map((e,i)=>(
+                <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,borderLeft:`3px solid ${e.color||themeColor}`,display:"flex",alignItems:"flex-start",gap:8}}>
+                  <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div><div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime}—{e.endTime}</div></div>
+                  <div style={{display:"flex",gap:4}}>
+                    <button onClick={()=>{setEditEv(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,background:"var(--s2)",border:"1px solid var(--border)",fontSize:12,cursor:"pointer"}}>✏️</button>
+                    <button onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:12,cursor:"pointer"}}>×</button>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+      {upcoming.length>0&&(
+        <div className="card" style={{padding:14}}>
+          <div className="tag" style={{marginBottom:10}}>PROCHAINS ÉVÉNEMENTS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {upcoming.slice(0,5).map((e,i)=>(
+              <div key={i} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 10px",background:"var(--s2)",borderRadius:10,borderLeft:`3px solid ${e.color||themeColor}`}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
+                  <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}</div>
+                </div>
+                <div style={{display:"flex",gap:4}}>
+                  <button onClick={()=>{setEditEv(e);setShowForm(true);}} style={{width:26,height:26,borderRadius:7,background:"var(--s2)",border:"1px solid var(--border)",fontSize:11,cursor:"pointer"}}>✏️</button>
+                  <button onClick={()=>setConfirmDel(e)} style={{width:26,height:26,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:11,cursor:"pointer"}}>×</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {showForm&&<EventFormModal title={editEv?"Modifier":"Nouvel événement"} initial={editEv||{title:"",description:"",date:selDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}} users={users||[]} me={(users||[])[0]||{id:1}} onSave={e=>{if(!e.title?.trim())return;editEv?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditEv(null);}} onDelete={editEv?e=>{onDeleteEvent(e.id);setShowForm(false);setEditEv(null);}:undefined} onClose={()=>{setShowForm(false);setEditEv(null);}}/>}
+      {confirmDel&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}><div style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}><div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div><div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}"</div><div style={{display:"flex",gap:8}}><button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:12,borderRadius:12,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",cursor:"pointer"}}>Annuler</button><button onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:12,borderRadius:12,background:"#e63946",color:"white",fontWeight:700,cursor:"pointer",border:"none"}}>Supprimer</button></div></div></div>}
     </div>
   );
 }
