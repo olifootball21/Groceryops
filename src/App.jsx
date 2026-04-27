@@ -962,6 +962,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
   const [currentDept,setCurrentDept] = useState(config.order[0]);
   const fileRef = useRef();
   const [photoTarget,setPhotoTarget] = useState(null);
+  const [activeIssue,setActiveIssue] = useState(null);
 
   const deptItems = allItems.filter(x=>x.dept===currentDept);
   const totalItems = allItems.length;
@@ -986,7 +987,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column"}}>
-      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
+      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden",position:"relative"}}>
         {/* HEADER */}
         <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1047,24 +1048,45 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                   </div>
                 </div>
                 {status==="issue"&&(
-                  <div style={{padding:"0 14px 12px",display:"flex",flexDirection:"column",gap:8}}>
-                    <input className="field" value={notes[key]||""} onChange={e=>setNotes(p=>({...p,[key]:e.target.value}))} placeholder="Décrire le problème..." style={{fontSize:13,padding:"10px 12px"}}/>
-                    <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(key)}/>
-                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                      <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"8px 12px",borderRadius:10,fontSize:12,flexShrink:0}}>📷 {photos[key]?"Changer":"Photo"}</button>
-                      {photos[key]&&(
-                        <div style={{position:"relative",borderRadius:8,overflow:"hidden",width:56,height:56,flexShrink:0}}>
-                          <img src={photos[key]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                          <button onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:2,right:2,width:18,height:18,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:11,border:"none",cursor:"pointer",padding:0}}>×</button>
-                        </div>
-                      )}
-                    </div>
+                  <div style={{padding:"4px 14px 12px"}}>
+                    <button onClick={()=>setActiveIssue(key)} style={{width:"100%",padding:"10px",borderRadius:10,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.2)",color:"#e63946",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                      <span>{notes[key]?notes[key].slice(0,30)+"...":"Décrire le problème..."}</span>
+                      <span style={{display:"flex",alignItems:"center",gap:6}}>{photos[key]&&<span>📷</span>}<span>›</span></span>
+                    </button>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
+
+        {/* ISSUE DETAIL POPUP */}
+        {activeIssue&&(
+          <div style={{position:"absolute",inset:0,background:"var(--s1)",zIndex:20,display:"flex",flexDirection:"column"}}>
+            <div style={{padding:"16px 18px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+              <div className="serif" style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>Détail du problème</div>
+              <button onClick={()=>setActiveIssue(null)} style={{width:32,height:32,borderRadius:9,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:18,cursor:"pointer"}}>×</button>
+            </div>
+            <div style={{flex:1,padding:"16px 18px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto"}}>
+              <div style={{fontSize:13,fontWeight:600,color:"var(--t2)"}}>{allItems.find(x=>x.key===activeIssue)?.item}</div>
+              <textarea className="field" value={notes[activeIssue]||""} onChange={e=>setNotes(p=>({...p,[activeIssue]:e.target.value}))} placeholder="Décrire le problème en détail..." rows={4} style={{fontSize:14,padding:"12px",resize:"none",lineHeight:1.5}}/>
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(activeIssue)}/>
+              {photos[activeIssue]
+                ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}>
+                    <img src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
+                    <button onClick={()=>setPhotos(p=>({...p,[activeIssue]:null}))} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:16,border:"none",cursor:"pointer"}}>×</button>
+                  </div>
+                : <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"14px",borderRadius:12,background:"var(--s2)",border:"1px dashed var(--border)",color:"var(--t2)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Ajouter une photo</button>
+              }
+              {photos[activeIssue]&&(
+                <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"10px",borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Changer la photo</button>
+              )}
+            </div>
+            <div style={{padding:"12px 18px 32px",borderTop:"1px solid var(--border)",flexShrink:0}}>
+              <button onClick={()=>setActiveIssue(null)} style={{width:"100%",padding:"14px",borderRadius:12,background:"var(--gold)",color:"#0a0a0d",fontSize:15,fontWeight:700,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif"}}>Confirmer</button>
+            </div>
+          </div>
+        )}
 
         {/* FOOTER */}
         <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0,position:"sticky",bottom:0,background:"var(--s1)",zIndex:10}}>
