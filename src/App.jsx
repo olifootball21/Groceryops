@@ -845,7 +845,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
 }
 
 // ─── TOUR TAB ─────────────────────────────────────────────────────
-function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
+function TourTab({tourHistory,tourConfig,me,isOwner,onSelectTour,onStart,onEditConfig}){
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -930,13 +930,16 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div className="tag" style={{marginBottom:4}}>{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
             {selectedTours.map((t,i)=>(
-              <div key={i} onClick={()=>onSelectTour&&onSelectTour(t)} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</span><span style={{color:"var(--t3)"}}>›</span></div>
+              <div key={i} style={{display:"flex",gap:8,alignItems:"stretch"}}>
+                <div onClick={()=>onSelectTour&&onSelectTour(t)} style={{flex:1,padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</span><span style={{color:"var(--t3)"}}>›</span></div>
+                  </div>
+                  <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
+                  {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
                 </div>
-                <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
-                {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
+                <button onClick={()=>onSelectTour&&onSelectTour(t)} style={{width:32,borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",fontSize:13,cursor:"pointer",flexShrink:0}}>›</button>
               </div>
             ))}
           </div>
