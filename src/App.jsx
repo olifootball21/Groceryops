@@ -539,7 +539,7 @@ export default function App() {
           onSOS={()=>{setShowUrgency(true);setModal(null);}}
           onClose={()=>setModal(null)}
         />}
-      {{modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
+      {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
       {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
