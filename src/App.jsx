@@ -149,11 +149,7 @@ export default function App() {
   const [store, setStore]         = useState(INIT_STORE);
   const [tourConfig, setTourConfig] = useState(INIT_TOUR_CONFIG);
   const [tourHistory, setTourHistory] = useState([]);
-  const [events, setEvents] = useState([
-    { id:1, title:"Réunion direction", description:"Bilan de la semaine et objectifs", date:"2026-04-28", startTime:"08:00", endTime:"09:00", members:[1,2,3], color:"#3b82f6", category:"Rencontre direction", recurrence:"weekly", customDays:[], reminder:"60", createdBy:1 },
-    { id:2, title:"Visite représentant Loblaws", description:"Présentation nouvelles promotions", date:"2026-04-30", startTime:"10:00", endTime:"11:30", members:[1,2], color:"#e63946", category:"Rencontre représentant", recurrence:"none", customDays:[], reminder:"1440", createdBy:1 },
-    { id:3, title:"Inventaire mensuel", description:"Inventaire complet tous départements", date:"2026-04-29", startTime:"07:00", endTime:"12:00", members:[1,2,3], color:"#f4a261", category:"Inventaire", recurrence:"monthly", customDays:[], reminder:"1440", createdBy:1 },
-  ]);
+  const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [showUrgency, setShowUrgency]   = useState(false);
   const [shiftReports, setShiftReports] = useState([]);
@@ -1986,7 +1982,7 @@ const REMINDER_OPTIONS = [
 ];
 
 function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEditEvent,onDeleteAnnouncement,onNewAnnouncement}){
-  const [view,setView]=useState("calendar");
+  const [view,setView]=useState("announcements");
   const [calDate,setCalDate]=useState(new Date());
   const [selectedDay,setSelectedDay]=useState(null);
 
@@ -2014,85 +2010,9 @@ function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEdi
         </div>
       </div>
 
-      {/* VIEW TOGGLE */}
-      <div style={{display:"flex",gap:6}}>
-        {[{id:"calendar",label:"Calendrier"},{id:"list",label:"Liste"},{id:"announcements",label:"Annonces"}].map(v=>(
-          <button key={v.id} className="btn" onClick={()=>setView(v.id)}
-            style={{flex:1,padding:"8px",borderRadius:11,fontSize:12,fontWeight:700,
-              background:view===v.id?"var(--gold)":"var(--s2)",
-              color:view===v.id?"#0a0a0d":"var(--t2)",
-              border:"1px solid var(--border)"}}>
-            {v.label}
-          </button>
-        ))}
-      </div>
 
-      {/* CALENDAR VIEW */}
-      {view==="calendar"&&(
-        <div className="card" style={{padding:"18px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <button className="btn btn-ghost" onClick={()=>setCalDate(d=>{const n=new Date(d);n.setMonth(n.getMonth()-1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>‹</button>
-            <div style={{fontSize:14,fontWeight:700,color:"var(--text)",textTransform:"capitalize"}}>{calDate.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div>
-            <button className="btn btn-ghost" onClick={()=>setCalDate(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>›</button>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:8}}>
-            {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-            {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
-            {Array(daysInMonth).fill(null).map((_,i)=>{
-              const day=i+1;
-              const dateStr=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-              const dayEvents=eventsByDay[dateStr]||[];
-              const isToday=day===todayDate.getDate()&&month===todayDate.getMonth()&&year===todayDate.getFullYear();
-              const isSel=dateStr===selectedDay;
-              return(
-                <div key={day} onClick={()=>setSelectedDay(isSel?null:dateStr)}
-                  style={{borderRadius:9,cursor:"pointer",padding:"4px 2px",minHeight:44,display:"flex",flexDirection:"column",alignItems:"center",
-                    background:isSel?"var(--gold)":isToday?"var(--gold-dim)":"transparent",
-                    border:isToday&&!isSel?"1px solid var(--gold-b)":"1px solid transparent"}}>
-                  <span style={{fontSize:12,fontWeight:isToday?700:400,color:isSel?"#0a0a0d":isToday?"var(--gold)":"var(--text)",marginBottom:3}}>{day}</span>
-                  <div style={{display:"flex",flexDirection:"column",gap:1,width:"100%",padding:"0 2px"}}>
-                    {dayEvents.slice(0,2).map((ev,ei)=>(
-                      <div key={ei} style={{height:4,borderRadius:2,background:isSel?"rgba(10,10,13,0.4)":ev.color,width:"100%"}}/>
-                    ))}
-                    {dayEvents.length>2&&<div style={{fontSize:8,color:isSel?"#0a0a0d":"var(--t3)",textAlign:"center"}}>+{dayEvents.length-2}</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {selectedDay&&(
-            <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
-              <div className="tag">{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
-              {selectedEvents.length===0
-                ? <div style={{textAlign:"center",padding:"16px",color:"var(--t3)",fontSize:13}}>Aucun événement ce jour</div>
-                : selectedEvents.map(ev=><EventCard key={ev.id} event={ev} getUser={getUser} onEdit={()=>onEditEvent(ev)}/>)
-              }
-              <button className="btn btn-gold" onClick={onNewEvent} style={{width:"100%",padding:"11px",borderRadius:12,fontSize:13}}>+ Ajouter un événement</button>
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* LIST VIEW */}
-      {view==="list"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div className="tag" style={{marginBottom:2}}>PROCHAINS ÉVÉNEMENTS</div>
-          {upcomingEvents.length===0
-            ? <div style={{textAlign:"center",padding:"32px",color:"var(--t3)",fontSize:13}}>Aucun événement à venir</div>
-            : upcomingEvents.map(ev=><EventCard key={ev.id} event={ev} getUser={getUser} onEdit={()=>onEditEvent(ev)} showDate/>)
-          }
-          {events.filter(e=>e.date<todayStr()).length>0&&(
-            <>
-              <div className="tag" style={{marginTop:8,marginBottom:2}}>PASSÉS</div>
-              {events.filter(e=>e.date<todayStr()).slice(0,5).map(ev=><EventCard key={ev.id} event={ev} getUser={getUser} onEdit={()=>onEditEvent(ev)} showDate past/>)}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ANNOUNCEMENTS VIEW */}
+{/* ANNOUNCEMENTS VIEW */}
       {view==="announcements"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <button className="btn btn-gold" onClick={onNewAnnouncement} style={{width:"100%",padding:"14px",borderRadius:13,fontSize:14}}>📢 Nouvelle annonce</button>
@@ -2163,7 +2083,8 @@ function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{title}</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
           </div>
-          <button className="btn btn-gold" onClick={()=>{if(!form.title?.trim()){alert("Entrez un titre");return;}onSave(form);}} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15}}>
+          {!form.title?.trim()&&<div style={{fontSize:12,color:"#e63946",textAlign:"center",marginBottom:4}}>* Entrez un titre</div>}
+          <button className="btn btn-gold" onClick={()=>{if(form.title?.trim()) onSave(form);}} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15,opacity:form.title?.trim()?1:0.5}}>
             {onDelete?"Sauvegarder":"Créer l'événement"}
           </button>
         </div>
@@ -3505,7 +3426,7 @@ function HomeCalendar({events, users, themeColor, onNewEvent, onEditEvent, onDel
         title={editingEvent?"Modifier l'événement":"Nouvel événement"}
         initial={editingEvent||{title:"",description:"",date:selectedDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}}
         users={users}
-        me={{id:0}}
+        me={users[0]||{id:1}}
         onSave={e=>{editingEvent?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditingEvent(null);}}
         onDelete={editingEvent?e=>{onDeleteEvent(e.id);setShowForm(false);setEditingEvent(null);}:undefined}
         onClose={()=>{setShowForm(false);setEditingEvent(null);}}
