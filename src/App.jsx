@@ -2407,7 +2407,9 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
           )}
           {selectedFolder!==null&&selectedFolder!==0&&(
             <button className="btn btn-gold" onClick={()=>fileRef.current?.click()} style={{padding:"8px 14px",borderRadius:11,fontSize:13}}>+ Photo</button>
-            {displayPhotos.length>0&&<button className="btn btn-danger" onClick={()=>{displayPhotos.filter(p=>p.id).forEach(p=>onDeletePhoto(selectedFolder,p.id));}} style={{padding:"8px 10px",borderRadius:11,fontSize:12}}>Tout suppr.</button>}
+          )}
+          {selectedFolder!==null&&selectedFolder!==0&&displayPhotos.length>0&&(
+            <button className="btn btn-danger" onClick={()=>{displayPhotos.filter(p=>p.id).forEach(p=>onDeletePhoto(selectedFolder,p.id));}} style={{padding:"8px 10px",borderRadius:11,fontSize:12}}>Tout suppr.</button>
           )}
         </div>
       </div>
