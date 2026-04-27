@@ -986,7 +986,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column"}}>
-      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column"}}>
+      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
         {/* HEADER */}
         <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1023,7 +1023,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* ITEMS */}
-        <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px 16px",display:"flex",flexDirection:"column",gap:8,minHeight:0}}>
           <div className="tag" style={{marginBottom:4}}>{currentDept}</div>
           {deptItems.map(({item,key})=>{
             const status=checks[key];
@@ -2951,7 +2951,7 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
         </div>
 
         {/* SCROLLABLE CONTENT */}
-        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 40px",display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,padding:"14px 18px 40px",display:"flex",flexDirection:"column",gap:10,minHeight:0}}>
           
           <div className="tag">PROBLÈMES SIGNALÉS ({tour.issues?.length||0})</div>
           
