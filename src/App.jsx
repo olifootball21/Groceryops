@@ -204,6 +204,9 @@ export default function App() {
   const [editTaskData, setEditTaskData] = useState(null);
   const [activeTour, setActiveTour] = useState(null);
   const [selectedTour, setSelectedTour] = useState(null);
+  const [ready, setReady]               = useState(false);
+  const [loginUser, setLoginUser]       = useState(null);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [toast, setToast]         = useState(null);
 
 
