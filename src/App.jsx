@@ -244,6 +244,9 @@ export default function App() {
     load();
   },[]);
 
+  const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
+  const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
+
   // Polling every 15s
   useEffect(()=>{
     if(!ready)return;
@@ -264,8 +267,7 @@ export default function App() {
   const unread  = notifs.filter(n=>!n.read).length;
   const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
 
-  const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
-  const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
+
   const clearAllNotifs = () => setNotifs([]);
   const markAllRead = () => setNotifs(p=>p.map(n=>({...n,read:true})));
 
