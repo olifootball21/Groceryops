@@ -2925,44 +2925,63 @@ function JoinRequestForm({onSend}){
 function TourDetailModal({tour,isOwner,onClose,onDelete}){
   const [conf,setConf]=useState(false);
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",maxHeight:"88vh"}}>
-        <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 0",flexShrink:0}}/>
-        <div style={{padding:"12px 18px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+        
+        {/* HANDLE */}
+        <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 8px",flexShrink:0}}/>
+        
+        {/* HEADER - fixed */}
+        <div style={{padding:"0 18px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div><div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div><div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div></div>
-            <button onClick={onClose} style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:18,cursor:"pointer"}}>×</button>
+            <div>
+              <div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div>
+              <div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div>
+            </div>
+            <button onClick={onClose} style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:20,cursor:"pointer",flexShrink:0}}>×</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
             {[{l:"PAR",v:tour.doneBy},{l:"SCORE",v:`${tour.score}/${tour.total}`},{l:"DURÉE",v:tour.duration||"—"},{l:"HEURE",v:tour.startTime||"—"}].map(x=>(
               <div key={x.l} style={{background:"var(--s2)",borderRadius:10,padding:"8px 10px"}}>
-                <div style={{fontSize:9,fontWeight:700,color:"var(--t3)",marginBottom:4}}>{x.l}</div>
+                <div style={{fontSize:9,fontWeight:700,color:"var(--t3)",marginBottom:4,letterSpacing:"0.5px"}}>{x.l}</div>
                 <div style={{fontSize:11,fontWeight:600,color:"var(--gold)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{x.v}</div>
               </div>
             ))}
           </div>
         </div>
-        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 24px",display:"flex",flexDirection:"column",gap:10}}>
-          <div className="tag">PROBLÈMES ({tour.issues?.length||0})</div>
+
+        {/* SCROLLABLE CONTENT */}
+        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 40px",display:"flex",flexDirection:"column",gap:10}}>
+          
+          <div className="tag">PROBLÈMES SIGNALÉS ({tour.issues?.length||0})</div>
+          
           {(!tour.issues||!tour.issues.length)
-            ?<div style={{textAlign:"center",padding:24,color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
-            :tour.issues.map((issue,i)=>(
-              <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
-                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
-                {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
-                {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10}}/>}
-              </div>
-            ))
+            ? <div style={{textAlign:"center",padding:"24px 0",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
+            : tour.issues.map((issue,i)=>(
+                <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
+                  <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
+                  {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
+                  {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+                </div>
+              ))
           }
-          {isOwner&&!conf&&<button onClick={()=>setConf(true)} style={{width:"100%",padding:13,borderRadius:12,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:14,cursor:"pointer",marginTop:8,fontFamily:"'DM Sans',sans-serif"}}>Supprimer cette tournée</button>}
-          {isOwner&&conf&&(
-            <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:16,display:"flex",flexDirection:"column",gap:10}}>
-              <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>Confirmer la suppression ?</div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setConf(false)} style={{flex:1,padding:12,borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:14,cursor:"pointer"}}>Annuler</button>
-                <button onClick={()=>onDelete(tour)} style={{flex:1,padding:12,borderRadius:11,background:"#e63946",color:"white",fontSize:14,fontWeight:700,cursor:"pointer",border:"none"}}>Supprimer</button>
-              </div>
+
+          {/* DELETE BUTTON - always visible for owner */}
+          {isOwner&&(
+            <div style={{marginTop:8}}>
+              {!conf
+                ? <button onClick={()=>setConf(true)} style={{width:"100%",padding:"14px",borderRadius:12,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",color:"#e63946",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
+                    🗑 Supprimer cette tournée
+                  </button>
+                : <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:16,display:"flex",flexDirection:"column",gap:10}}>
+                    <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>Supprimer cette tournée ?</div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>setConf(false)} style={{flex:1,padding:"12px",borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Annuler</button>
+                      <button onClick={()=>onDelete(tour)} style={{flex:1,padding:"12px",borderRadius:11,background:"#e63946",color:"white",fontSize:14,fontWeight:700,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif"}}>Supprimer</button>
+                    </div>
+                  </div>
+              }
             </div>
           )}
         </div>
@@ -2970,7 +2989,6 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
     </div>
   );
 }
-
 function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEvent}){
   const [calMonth,setCalMonth]=useState(new Date());
   const [selDay,setSelDay]=useState(null);
