@@ -986,8 +986,8 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
   };
 
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column"}}>
-      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden",position:"relative"}}>
+    <div style={{position:"fixed",inset:0,background:"var(--s1)",zIndex:50,display:"flex",flexDirection:"column"}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {/* HEADER */}
         <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1024,7 +1024,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* ITEMS */}
-        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px 16px",display:"flex",flexDirection:"column",gap:8,minHeight:0}}>
+        <div style={{flex:1,overflowY:"scroll",WebkitOverflowScrolling:"touch",padding:"14px 16px 8px",display:"flex",flexDirection:"column",gap:8}}>
           <div className="tag" style={{marginBottom:4}}>{currentDept}</div>
           {deptItems.map(({item,key})=>{
             const status=checks[key];
@@ -1039,7 +1039,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                         border:`1px solid ${status==="ok"?"rgba(42,157,143,0.4)":"var(--border)"}`}}>
                       ✓
                     </button>
-                    <button className="btn" onClick={()=>setChecks(p=>({...p,[key]:p[key]==="issue"?undefined:"issue"}))}
+                    <button className="btn" onClick={()=>{setChecks(p=>{const n={...p,[key]:p[key]==="issue"?undefined:"issue"};if(n[key]==="issue")setTimeout(()=>setActiveIssue(key),50);return n;});}}
                       style={{width:36,height:36,borderRadius:10,fontSize:16,
                         background:status==="issue"?"rgba(230,57,70,0.12)":"var(--s1)",
                         border:`1px solid ${status==="issue"?"rgba(230,57,70,0.35)":"var(--border)"}`}}>
@@ -1047,14 +1047,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                     </button>
                   </div>
                 </div>
-                {status==="issue"&&(
-                  <div style={{padding:"4px 14px 12px"}}>
-                    <button onClick={()=>setActiveIssue(key)} style={{width:"100%",padding:"10px",borderRadius:10,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.2)",color:"#e63946",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                      <span>{notes[key]?notes[key].slice(0,30)+"...":"Décrire le problème..."}</span>
-                      <span style={{display:"flex",alignItems:"center",gap:6}}>{photos[key]&&<span>📷</span>}<span>›</span></span>
-                    </button>
-                  </div>
-                )}
+
               </div>
             );
           })}
