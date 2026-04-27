@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
-const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc",H={apikey:SKEY,Authorization:`Bearer ${SKEY}`,"Content-Type":"application/json"};
+const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc",SH={apikey:SKEY,Authorization:`Bearer ${SKEY}`,"Content-Type":"application/json"};
 const sb={
-  get:async(t,q="")=>{const r=await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`,{headers:H});return r.ok?r.json():[];},
-  insert:async(t,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}`,{method:"POST",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
-  update:async(t,id,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"PATCH",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
-  del:async(t,id)=>{await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"DELETE",headers:H});},
+  get:async(t,q="")=>{const r=await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`,{headers:SH});return r.ok?r.json():[];},
+  insert:async(t,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}`,{method:"POST",headers:{...SH,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
+  update:async(t,id,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"PATCH",headers:{...SH,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
+  del:async(t,id)=>{await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"DELETE",headers:SH});},
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────
@@ -51,11 +50,7 @@ const INIT_USERS = [
   { id:3, name:"Kevin Lavoie", role:"Dir. Opérations", color:"#2a9d8f" },
 ];
 
-const INIT_TASKS_OLD = [
-  { id:1, title:"Prix circulaire à vérifier", description:"Confirmer que tous les prix du circulaire sont affichés correctement.", assignedTo:2, createdBy:1, priority:"urgent", status:"todo", department:"Épicerie", dueDate:"2026-04-24", dueTime:"09:00", photo:null, comments:[{id:1,userId:1,text:"Priorité absolue pour demain matin!",ts:Date.now()-3600000}], createdAt:Date.now()-7200000, recurrence:"none", pinned:true },
-  { id:2, title:"Nettoyage réfrigérateurs viande", description:"Nettoyage complet et désinfection des surfaces.", assignedTo:3, createdBy:1, priority:"high", status:"inprogress", department:"Viande", dueDate:"2026-04-23", dueTime:"", photo:null, comments:[], createdAt:Date.now()-86400000, recurrence:"weekly", pinned:false },
-  { id:3, title:"Commander emballages boulangerie", description:"Stock bas — commander boîtes et sacs.", assignedTo:2, createdBy:2, priority:"normal", status:"done", department:"Boulangerie", dueDate:"2026-04-22", dueTime:"", photo:null, comments:[{id:2,userId:2,text:"Commande placée ✓",ts:Date.now()-1800000}], createdAt:Date.now()-172800000, completedAt:Date.now()-3600000, recurrence:"monthly", pinned:false },
-];
+const INIT_TASKS = [];
 
 const INIT_STORE = { name:"Mon IGA", number:"IGA-001", address:"123 rue Principale, Montréal", logo:null };
 
@@ -203,15 +198,17 @@ export default function App() {
   const [editUser, setEditUser]   = useState(null);
   const [editTaskData, setEditTaskData] = useState(null);
   const [activeTour, setActiveTour] = useState(null);
-  const [selectedTour, setSelectedTour] = useState(null);
-  const [ready, setReady]               = useState(false);
-  const [loginUser, setLoginUser]       = useState(null);
-  const [joinRequests, setJoinRequests] = useState([]);
   const [toast, setToast]         = useState(null);
+  const [ready, setReady]         = useState(false);
+  const [loginUser, setLoginUser] = useState(null);
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [selectedTour, setSelectedTour] = useState(null);
 
+  const isOwner = me.isOwner;
 
+  // Load data from Supabase on mount
   useEffect(()=>{
-    const load=async()=>{
+    (async()=>{
       try{
         const [U,T,C,A,E,TR,S]=await Promise.all([
           sb.get("users","order=id"),
@@ -224,56 +221,46 @@ export default function App() {
         ]);
         if(U?.length){const u=U.map(x=>({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));setUsers(u);setMe(u.find(x=>x.isOwner)||u[0]);}
         if(T?.length){setTasks(T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))})));}
-        if(A?.length){setAnnouncements(A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));}
-        if(E?.length){setEvents(E.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));}
-        if(TR?.length){setTourHistory(TR.map(t=>({...t,doneBy:t.done_by,startTime:t.start_time,issues:t.issues||[],ts:new Date(t.created_at).getTime()})));}
-        if(S?.length){setStore({name:S[0].name,number:S[0].number,address:S[0].address||"",logo:S[0].logo||null});}
-        // Notes
-        const N=await sb.get("notes");if(N?.length){const m={};N.forEach(n=>{m[n.user_id]=n.text;});setNotes(m);}
-        // Schedules
-        const SD=await sb.get("schedule_depts","order=sort_order"),SP=await sb.get("schedule_photos","order=created_at.desc");
+        if(A?.length)setAnnouncements(A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
+        if(E?.length)setEvents(E.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));
+        if(TR?.length)setTourHistory(TR.map(t=>({...t,doneBy:t.done_by,startTime:t.start_time,issues:t.issues||[],ts:new Date(t.created_at).getTime()})));
+        if(S?.length)setStore({name:S[0].name,number:S[0].number,address:S[0].address||"",logo:S[0].logo||null});
+        const N=await sb.get("notes");
+        if(N?.length){const m={};N.forEach(n=>{m[n.user_id]=n.text;});setNotes(m);}
+        const [GF,GP]=await Promise.all([sb.get("gallery_folders","order=created_at.desc"),sb.get("gallery_photos","order=created_at.desc")]);
+        if(GF?.length)setGallery(GF.map(f=>({id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),photos:(GP||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))})));
+        const [SD,SP]=await Promise.all([sb.get("schedule_depts","order=sort_order"),sb.get("schedule_photos","order=created_at.desc")]);
         if(SD?.length){const nd=[],ns={};SD.forEach(d=>{nd.push(d.name);ns[d.name]=(SP||[]).filter(p=>p.dept_id===d.id).map(p=>({id:p.id,label:p.label,photo:p.photo||null,ts:new Date(p.created_at).getTime()}));});setScheduleDepts(nd);setSchedules(ns);}
-        // Gallery
-        const GF=await sb.get("gallery_folders","order=created_at.desc"),GP=await sb.get("gallery_photos","order=created_at.desc");
-        if(GF?.length){setGallery(GF.map(f=>({id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),photos:(GP||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))})));}
-        // Join requests
         try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){}
-      }catch(e){console.error("Load error:",e);}
+      }catch(e){console.error(e);}
       setReady(true);
-    };
-    load();
+    })();
   },[]);
 
-  const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
-  const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
-
-  // Polling every 15s
+  // Poll every 15s
   useEffect(()=>{
     if(!ready)return;
     const poll=async()=>{
       try{
-        const T=await sb.get("tasks","archived=eq.false&order=created_at.desc");
-        const C=await sb.get("comments","order=created_at");
-        if(T?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
-        const A=await sb.get("announcements","order=created_at.desc");
-        if(A?.length){setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});}
+        const [T2,C2,A2]=await Promise.all([sb.get("tasks","archived=eq.false&order=created_at.desc"),sb.get("comments","order=created_at"),sb.get("announcements","order=created_at.desc")]);
+        if(T2?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T2.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C2||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
+        if(A2?.length)setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A2.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});
       }catch(e){}
     };
     const iv=setInterval(poll,15000);
     return()=>clearInterval(iv);
   },[ready]);
-
-  const isOwner = me.isOwner;
   const unread  = notifs.filter(n=>!n.read).length;
   const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
 
-
+  const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
+  const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
   const clearAllNotifs = () => setNotifs([]);
   const markAllRead = () => setNotifs(p=>p.map(n=>({...n,read:true})));
 
   const openTask = t => { setSeenTasks(p=>new Set([...p,t.id])); setActive(t); setModal("taskDetail"); };
 
-  const createTask=async data=>{try{const r=await sb.insert("tasks",{title:data.title,description:data.description,assigned_to:data.assignedTo,created_by:me.id,priority:data.priority,status:"todo",department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null};setTasks(p=>[t,...p]);}pushNotif(`Nouvelle tâche`,data.title,"task");pushToast("Tâche créée !");setModal(null);}catch(e){pushToast("Erreur","warn");}};
+  const createTask=async d=>{try{const r=await sb.insert('tasks',{title:d.title,description:d.description,assigned_to:d.assignedTo,created_by:me.id,priority:d.priority,status:'todo',department:d.department,due_date:d.dueDate,due_time:d.dueTime,photo:d.photo,recurrence:d.recurrence,custom_days:d.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[t,...p]);}pushNotif('Nouvelle tâche',d.title,'task');pushToast('Tâche créée !');setModal(null);}catch(e){pushToast('Erreur','warn');}};
 
   const editTask = data => {
     setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
@@ -314,10 +301,23 @@ export default function App() {
     mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});
   };
 
-  const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert("gallery_folders",{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,"folderCreated"));}catch(e){pushToast("Erreur","warn");}};
-  const deleteGalleryFolder=async id=>{try{await sb.del("gallery_folders",id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,"deleted"),"warn");}catch(e){};};
-  const addPhotoToFolder=async(folderId,photo,caption)=>{try{const r=await sb.insert("gallery_photos",{folder_id:folderId,photo,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,"photoAdded"));}catch(e){pushToast("Erreur","warn");}};
-  const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del("gallery_photos",photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,"deleted"),"warn");}catch(e){}};
+  const createGalleryFolder = name => {
+    if(!name.trim()) return;
+    setGallery(p=>[{id:Date.now(),name:name.trim(),photos:[],createdBy:me.id,ts:Date.now()},...p]);
+    pushToast(T(lang,"folderCreated"));
+  };
+  const deleteGalleryFolder = id => {
+    setGallery(p=>p.filter(f=>f.id!==id));
+    pushToast(T(lang,"deleted"),"warn");
+  };
+  const addPhotoToFolder = (folderId, photo, caption) => {
+    setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:Date.now(),photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));
+    pushToast(T(lang,"photoAdded"));
+  };
+  const deletePhotoFromFolder = (folderId, photoId) => {
+    setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));
+    pushToast(T(lang,"deleted"),"warn");
+  };
   const renameGalleryFolder = (id, name) => {
     setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
     pushToast(T(lang,"saved"));
@@ -349,7 +349,10 @@ export default function App() {
     pushToast("Département renommé !");
   };
 
-  const archiveTask=async tid=>{try{await sb.update("tasks",tid,{archived:true,archived_at:new Date().toISOString()});const t=tasks.find(x=>x.id===tid);if(t){setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]);setTasks(p=>p.filter(x=>x.id!==tid));}pushToast("Tâche archivée");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}};
+  const archiveTask = tid => {
+    const t = tasks.find(x=>x.id===tid);
+    if(t){ setArchivedTasks(p=>[{...t, archivedAt:Date.now()},...p]); setTasks(p=>p.filter(x=>x.id!==tid)); pushToast("Tâche archivée"); setModal(null); setActive(null); }
+  };
   const addSchedulePhoto = (dept, label, photo) => {
     setSchedules(p=>({...p,[dept]:[{id:Date.now(),label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
     pushToast("Horaire ajouté !");
@@ -358,14 +361,14 @@ export default function App() {
     setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));
     pushToast("Horaire supprimé","warn");
   };
-  const saveNote=async(userId,text)=>{try{const ex=await sb.get("notes",`user_id=eq.${userId}`);if(ex?.length)await sb.update("notes",ex[0].id,{text});else await sb.insert("notes",{user_id:userId,text});setNotes(p=>({...p,[userId]:text}));}catch(e){}};
+  const saveNote=async(uid,text)=>{try{const ex=await sb.get('notes',`user_id=eq.${uid}`);if(ex?.length)await sb.update('notes',ex[0].id,{text});else await sb.insert('notes',{user_id:uid,text});setNotes(p=>({...p,[uid]:text}));}catch(e){}};
 
-  const createUser=async data=>{try{const r=await sb.insert("users",{name:data.name,role:data.role,color:data.color,is_owner:false,pin:"1111"});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);pushToast(`${data.name} ajouté !`);setModal(null);}catch(e){pushToast("Erreur","warn");}};
-  const updateUser=async data=>{try{await sb.update("users",data.id,{name:data.name,role:data.role,color:data.color,pin:data.pin||"1111"});setUsers(p=>p.map(u=>u.id===data.id?data:u));if(me.id===data.id)setMe(data);pushToast("Profil mis à jour !");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}};
-  const deleteUser=async uid=>{try{await sb.del("users",uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}};
-  const deleteTask=async tid=>{try{await sb.del("tasks",tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast("Supprimée","warn");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}};
+  const createUser=async d=>{try{const r=await sb.insert('users',{name:d.name,role:d.role,color:d.color,is_owner:false,pin:'1111'});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:'1111'}]);pushToast(`${d.name} ajouté !`);setModal(null);}catch(e){pushToast('Erreur','warn');}};
+  const updateUser=async d=>{try{await sb.update('users',d.id,{name:d.name,role:d.role,color:d.color,pin:d.pin||'1111'});setUsers(p=>p.map(u=>u.id===d.id?d:u));if(me.id===d.id)setMe(d);pushToast('Profil mis à jour !');setModal(null);setEditUser(null);}catch(e){pushToast('Erreur','warn');}};
+  const deleteUser=async uid=>{try{await sb.del('users',uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast('Supprimé','warn');setModal(null);setEditUser(null);}catch(e){pushToast('Erreur','warn');}};
+  const deleteTask=async tid=>{try{await sb.del('tasks',tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast('Supprimée','warn');setModal(null);setActive(null);}catch(e){pushToast('Erreur','warn');}};
 
-  const saveTour=async tour=>{try{const si=tour.issues||[];const r=await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:si.map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total}`,'done');pushToast(`Tournée sauvegardée !`);setActiveTour(null);setModal(null);}catch(e){console.error(e);pushToast("Erreur","warn");}};
+  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};
 
   // Reminders disabled
 
@@ -390,15 +393,13 @@ export default function App() {
   const createEvent = data => { setEvents(p=>[{...data,id:Date.now(),createdBy:me.id},...p]); pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event"); pushToast("Événement créé !"); setModal(null); };
   const editEvent   = data => { setEvents(p=>p.map(e=>e.id===data.id?data:e)); pushToast("Événement modifié !"); setModal(null); };
   const deleteEvent = id   => { setEvents(p=>p.filter(e=>e.id!==id)); pushToast("Événement supprimé","warn"); setModal(null); };
-  const createAnnouncement=async data=>{try{const r=await sb.insert("announcements",{text:data.text,dept:data.dept,created_by:me.id});if(r?.[0])setAnnouncements(p=>[{...r[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif(`Annonce`,data.text.slice(0,60),"announce");pushToast("Annonce envoyée !");setModal(null);}catch(e){pushToast("Erreur","warn");}};
-  const deleteAnnouncement=async id=>{try{await sb.del("announcements",id);setAnnouncements(p=>p.filter(a=>a.id!==id));pushToast("Annonce supprimée","warn");}catch(e){}};
+  const createAnnouncement=async d=>{try{const r=await sb.insert('announcements',{text:d.text,dept:d.dept,created_by:me.id});if(r?.[0])setAnnouncements(p=>[{...r[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif('Annonce',d.text.slice(0,60),'announce');pushToast('Annonce envoyée !');setModal(null);}catch(e){pushToast('Erreur','warn');}};
+  const deleteAnnouncement=async id=>{try{await sb.del('announcements',id);setAnnouncements(p=>p.filter(a=>a.id!==id));}catch(e){}};
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
   const sendJoinRequest=async(name,role)=>{try{await sb.insert("join_requests",{name,role,status:"pending"});pushToast("Demande envoyée !");}catch(e){pushToast("Erreur","warn");}};
-  const approveRequest=async req=>{try{const colors=["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261"];const color=colors[users.length%colors.length];const r=await sb.insert("users",{name:req.name,role:req.role,color,is_owner:false,pin:"1111"});if(r?.[0]){setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);await sb.update("join_requests",req.id,{status:"approved"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"approved"}:x));pushToast(`${req.name} approuvé !`);}}catch(e){pushToast("Erreur","warn");}};
-  const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));pushToast("Refusé","warn");}catch(e){}};
-  const deleteNotif=id=>setNotifs(p=>p.filter(n=>n.id!==id));
-  const clickNotif=n=>{setNotifs(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));if(n.type==="task"||n.type==="done"||n.type==="reminder"||n.type==="mention"){const t=tasks.find(x=>x.title===n.sub||n.sub?.includes(x.title));if(t){setActive(t);setModal("taskDetail");setTab("tasks");}else setTab("tasks");}else setTab("comm");};
+  const approveRequest=async req=>{try{const colors=["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261"];const c=colors[users.length%colors.length];const r=await sb.insert("users",{name:req.name,role:req.role,color:c,is_owner:false,pin:"1111"});if(r?.[0]){setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);await sb.update("join_requests",req.id,{status:"approved"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"approved"}:x));pushToast(`${req.name} approuvé !`);}}catch(e){pushToast("Erreur","warn");}};
+  const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));}catch(e){}};
   const getUser = id=>users.find(u=>u.id===id);
   const getPri  = id=>PRIORITIES.find(p=>p.id===id);
   const stats = {
@@ -457,8 +458,9 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
-        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent}/>}
+        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onShiftReport={()=>setModal("shiftReport")}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
+      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
         {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports}/>}
@@ -535,9 +537,8 @@ export default function App() {
       {modal==="shiftReport"  && <ShiftReportModal me={me} onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
-      {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={s=>{setStore(s);setModal(null);pushToast("Profil mis à jour !");}} onClose={()=>setModal(null)}/>}
+      {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
       {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
-      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Tournée supprimée","warn");}catch(e){pushToast("Erreur","warn");}}}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
       {/* TOAST */}
@@ -575,20 +576,6 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
         <div className="serif" style={{fontSize:32,fontWeight:700,letterSpacing:"-0.5px",color:"var(--text)",lineHeight:1.1}}>{me.name}</div>
         <div style={{fontSize:13,color:"var(--t2)",marginTop:5}}>{new Date().toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
       </div>
-
-      {announcements?.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,5).map(a=>(
-              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
         {[
@@ -641,8 +628,6 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
           </div>
         </div>
       )}
-      <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
-
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
         Créer une nouvelle tâche
       </button>
@@ -937,10 +922,10 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div className="tag" style={{marginBottom:4}}>{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
             {selectedTours.map((t,i)=>(
-              <div key={i} className="card-tap" onClick={()=>onSelectTour(t)} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
+              <div key={i} onClick={()=>onSelectTour&&onSelectTour(t)} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</div><span style={{color:"var(--t3)"}}>›</span></div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</span><span style={{color:"var(--t3)"}}>›</span></div>
                 </div>
                 <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
                 {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
@@ -1179,6 +1164,21 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
         {isOwner&&<button className="btn btn-gold" onClick={onAdd} style={{padding:"9px 16px",borderRadius:12,fontSize:13}}>+ Ajouter</button>}
       </div>
       {!isOwner&&<div className="card" style={{padding:"12px 16px",textAlign:"center",fontSize:13,color:"var(--t2)"}}>Seul le propriétaire peut gérer l'équipe</div>}
+      {isOwner&&joinRequests?.filter(r=>r.status==="pending").length>0&&(
+        <div>
+          <div className="tag" style={{marginBottom:10}}>DEMANDES D'ACCÈS</div>
+          {joinRequests.filter(r=>r.status==="pending").map(r=>(
+            <div key={r.id} className="card" style={{padding:14,borderLeft:"3px solid #f4a261",marginBottom:8}}>
+              <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{r.name}</div>
+              <div style={{fontSize:12,color:"var(--t2)",marginBottom:10}}>{r.role}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>onApprove(r)} style={{flex:1,padding:10,borderRadius:11,background:"rgba(42,157,143,0.1)",border:"1px solid rgba(42,157,143,0.3)",color:"#2a9d8f",fontSize:13,fontWeight:700,cursor:"pointer"}}>✓ Approuver</button>
+                <button onClick={()=>onReject(r)} style={{flex:1,padding:10,borderRadius:11,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:13,cursor:"pointer"}}>✕ Refuser</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {users.map(u=>{
           const active=tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done").length;
@@ -2822,34 +2822,30 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
 }
 
 // ─── PIN LOGIN SCREEN ─────────────────────────────────────────────
-function PinLoginScreen({users, onLogin, onJoinRequest}){
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
-  const initials = name => name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-
-  const handlePin = digit => {
-    if(pin.length>=4) return;
-    const p = pin+digit;
-    setPin(p); setError(false);
+function PinLoginScreen({users,onLogin,onJoinRequest}){
+  const [sel,setSel]=useState(null);
+  const [pin,setPin]=useState("");
+  const [err,setErr]=useState(false);
+  const ini=n=>n.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const handlePin=d=>{
+    if(pin.length>=4)return;
+    const p=pin+d;setPin(p);setErr(false);
     if(p.length===4){
-      if(p===(selectedUser.pin||"1111")){setTimeout(()=>onLogin(selectedUser),200);}
-      else{setTimeout(()=>{setPin("");setError(true);},400);}
+      if(p===(sel.pin||"1111")){setTimeout(()=>onLogin(sel),200);}
+      else{setTimeout(()=>{setPin("");setErr(true);},400);}
     }
   };
-
   return(
-    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'DM Sans',sans-serif"}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}`}</style>
+    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700&display=swap');`}</style>
       <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:"#C9A84C",marginBottom:4}}>GroceryOps</div>
-      {!selectedUser?(
+      {!sel?(
         <>
-          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:36}}>Qui es-tu ?</div>
+          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:36,fontFamily:"'DM Sans',sans-serif"}}>Qui es-tu ?</div>
           <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:320}}>
             {users.map(u=>(
-              <button key={u.id} onClick={()=>setSelectedUser(u)}
-                style={{padding:"16px 18px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:12,cursor:"pointer",width:"100%"}}>
-                <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#0a0a0d",flexShrink:0}}>{initials(u.name)}</div>
+              <button key={u.id} onClick={()=>setSel(u)} style={{padding:"16px 18px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:12,cursor:"pointer",width:"100%",fontFamily:"'DM Sans',sans-serif"}}>
+                <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#0a0a0d",flexShrink:0}}>{ini(u.name)}</div>
                 <div style={{textAlign:"left",flex:1}}>
                   <div style={{fontSize:15,fontWeight:600,color:"#ede8df"}}>{u.name}</div>
                   <div style={{fontSize:12,color:"rgba(237,232,223,0.4)",marginTop:1}}>{u.role}</div>
@@ -2862,28 +2858,25 @@ function PinLoginScreen({users, onLogin, onJoinRequest}){
         </>
       ):(
         <>
-          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:28}}>Entrez votre NIP</div>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28,padding:"12px 18px",background:"#141418",borderRadius:14,border:`1px solid ${selectedUser.color}40`}}>
-            <div style={{width:36,height:36,borderRadius:10,background:selectedUser.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#0a0a0d"}}>{initials(selectedUser.name)}</div>
-            <div style={{fontSize:14,fontWeight:600,color:"#ede8df"}}>{selectedUser.name}</div>
+          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:28,fontFamily:"'DM Sans',sans-serif"}}>Entrez votre NIP</div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28,padding:"12px 18px",background:"#141418",borderRadius:14,border:`1px solid ${sel.color}40`}}>
+            <div style={{width:36,height:36,borderRadius:10,background:sel.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#0a0a0d"}}>{ini(sel.name)}</div>
+            <div style={{fontSize:14,fontWeight:600,color:"#ede8df",fontFamily:"'DM Sans',sans-serif"}}>{sel.name}</div>
           </div>
           <div style={{display:"flex",gap:16,marginBottom:8}}>
-            {[0,1,2,3].map(i=><div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(error?"#e63946":"#C9A84C"):"rgba(237,232,223,0.15)",transition:"background .15s"}}/>)}
+            {[0,1,2,3].map(i=><div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(err?"#e63946":"#C9A84C"):"rgba(237,232,223,0.15)",transition:"background .15s"}}/>)}
           </div>
-          {error&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>NIP incorrect — réessaie</div>}
+          {err&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>NIP incorrect</div>}
           <div style={{height:20}}/>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
             {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
-              <button key={i} onClick={()=>{if(d==="⌫"){setPin(p=>p.slice(0,-1));setError(false);}else if(d!=="")handlePin(String(d));}}
-                style={{height:64,borderRadius:14,background:d===""?"transparent":"#141418",border:d===""?"none":"1px solid rgba(237,232,223,0.08)",fontSize:d==="⌫"?20:22,fontWeight:600,color:"#ede8df",cursor:d===""?"default":"pointer"}}>
+              <button key={i} onClick={()=>{if(d==="⌫"){setPin(p=>p.slice(0,-1));setErr(false);}else if(d!=="")handlePin(String(d));}}
+                style={{height:64,borderRadius:14,background:d===""?"transparent":"#141418",border:d===""?"none":"1px solid rgba(237,232,223,0.08)",fontSize:d==="⌫"?20:22,fontWeight:600,color:"#ede8df",cursor:d===""?"default":"pointer",fontFamily:"'DM Sans',sans-serif"}}>
                 {d}
               </button>
             ))}
           </div>
-          <button onClick={()=>{setSelectedUser(null);setPin("");setError(false);}}
-            style={{marginTop:24,background:"transparent",border:"none",color:"rgba(237,232,223,0.3)",fontSize:13,cursor:"pointer"}}>
-            ← Changer de compte
-          </button>
+          <button onClick={()=>{setSel(null);setPin("");setErr(false);}} style={{marginTop:24,background:"transparent",border:"none",color:"rgba(237,232,223,0.3)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>← Retour</button>
         </>
       )}
     </div>
@@ -2896,15 +2889,15 @@ function JoinRequestForm({onSend}){
   const [name,setName]=useState("");
   const [role,setRole]=useState("");
   const [sent,setSent]=useState(false);
-  if(sent)return(<div style={{marginTop:8,padding:"16px",background:"rgba(42,157,143,0.1)",borderRadius:14,border:"1px solid rgba(42,157,143,0.2)",textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}><div style={{fontSize:20,marginBottom:6}}>✓</div><div style={{fontSize:13,color:"#2a9d8f",fontWeight:600}}>Demande envoyée !</div></div>);
-  if(!show)return(<button onClick={()=>setShow(true)} style={{marginTop:8,padding:"14px",borderRadius:14,background:"transparent",border:"1.5px dashed rgba(237,232,223,0.15)",color:"rgba(237,232,223,0.35)",fontSize:13,cursor:"pointer",width:"100%"}}>+ Demander l'accès</button>);
+  if(sent)return(<div style={{marginTop:8,padding:16,background:"rgba(42,157,143,0.1)",borderRadius:14,textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}><div style={{fontSize:13,color:"#2a9d8f",fontWeight:600}}>✓ Demande envoyée !</div></div>);
+  if(!show)return(<button onClick={()=>setShow(true)} style={{marginTop:8,padding:14,borderRadius:14,background:"transparent",border:"1.5px dashed rgba(237,232,223,0.15)",color:"rgba(237,232,223,0.35)",fontSize:13,cursor:"pointer",width:"100%",fontFamily:"'DM Sans',sans-serif"}}>+ Demander l'accès</button>);
   return(
-    <div style={{marginTop:8,padding:"16px",background:"#141418",borderRadius:14,border:"1px solid rgba(237,232,223,0.1)",display:"flex",flexDirection:"column",gap:10}}>
+    <div style={{marginTop:8,padding:16,background:"#141418",borderRadius:14,border:"1px solid rgba(237,232,223,0.1)",display:"flex",flexDirection:"column",gap:10,fontFamily:"'DM Sans',sans-serif"}}>
       <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ton nom complet" style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none"}}/>
       <input value={role} onChange={e=>setRole(e.target.value)} placeholder="Ton poste" style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none"}}/>
       <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>setShow(false)} style={{flex:1,padding:"12px",borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer"}}>Annuler</button>
-        <button onClick={async()=>{if(!name.trim())return;await onSend(name.trim(),role.trim()||"Employé");setSent(true);}} style={{flex:2,padding:"12px",borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none"}}>Envoyer</button>
+        <button onClick={()=>setShow(false)} style={{flex:1,padding:12,borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer"}}>Annuler</button>
+        <button onClick={async()=>{if(!name.trim())return;await onSend(name.trim(),role.trim()||"Employé");setSent(true);}} style={{flex:2,padding:12,borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none"}}>Envoyer</button>
       </div>
     </div>
   );
@@ -2912,20 +2905,20 @@ function JoinRequestForm({onSend}){
 
 // ─── TOUR DETAIL MODAL ────────────────────────────────────────────
 function TourDetailModal({tour,isOwner,onClose,onDelete}){
-  const [confirmDel,setConfirmDel]=useState(false);
+  const [conf,setConf]=useState(false);
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
-      <div className="slide-up" onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",maxHeight:"88vh"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",maxHeight:"88vh"}}>
         <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 0",flexShrink:0}}/>
         <div style={{padding:"12px 18px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div><div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div><div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div></div>
-            <button className="btn btn-outline" onClick={onClose} style={{width:34,height:34,borderRadius:10,fontSize:18}}>×</button>
+            <button onClick={onClose} style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:18,cursor:"pointer"}}>×</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
             {[{l:"PAR",v:tour.doneBy},{l:"SCORE",v:`${tour.score}/${tour.total}`},{l:"DURÉE",v:tour.duration||"—"},{l:"HEURE",v:tour.startTime||"—"}].map(x=>(
               <div key={x.l} style={{background:"var(--s2)",borderRadius:10,padding:"8px 10px"}}>
-                <div style={{fontSize:9,fontWeight:700,letterSpacing:"1px",color:"var(--t3)",marginBottom:4}}>{x.l}</div>
+                <div style={{fontSize:9,fontWeight:700,color:"var(--t3)",marginBottom:4}}>{x.l}</div>
                 <div style={{fontSize:11,fontWeight:600,color:"var(--gold)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{x.v}</div>
               </div>
             ))}
@@ -2933,118 +2926,29 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
         </div>
         <div style={{overflowY:"auto",flex:1,padding:"14px 18px 24px",display:"flex",flexDirection:"column",gap:10}}>
           <div className="tag">PROBLÈMES ({tour.issues?.length||0})</div>
-          {(!tour.issues||tour.issues.length===0)
-            ?<div style={{textAlign:"center",padding:"24px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
+          {(!tour.issues||!tour.issues.length)
+            ?<div style={{textAlign:"center",padding:24,color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
             :tour.issues.map((issue,i)=>(
               <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
                 <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
                 {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
-                {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+                {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10}}/>}
               </div>
             ))
           }
-          {isOwner&&!confirmDel&&<button className="btn btn-danger" onClick={()=>setConfirmDel(true)} style={{width:"100%",padding:"13px",borderRadius:12,fontSize:14,marginTop:8}}>Supprimer cette tournée</button>}
-          {isOwner&&confirmDel&&(
-            <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:"16px",display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
-              <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600}}>Supprimer cette tournée ?</div>
+          {isOwner&&!conf&&<button onClick={()=>setConf(true)} style={{width:"100%",padding:13,borderRadius:12,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:14,cursor:"pointer",marginTop:8,fontFamily:"'DM Sans',sans-serif"}}>Supprimer cette tournée</button>}
+          {isOwner&&conf&&(
+            <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:16,display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>Confirmer la suppression ?</div>
               <div style={{display:"flex",gap:8}}>
-                <button className="btn btn-ghost" onClick={()=>setConfirmDel(false)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14}}>Annuler</button>
-                <button className="btn btn-danger" onClick={()=>onDelete(tour)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14,fontWeight:700}}>Supprimer</button>
+                <button onClick={()=>setConf(false)} style={{flex:1,padding:12,borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:14,cursor:"pointer"}}>Annuler</button>
+                <button onClick={()=>onDelete(tour)} style={{flex:1,padding:12,borderRadius:11,background:"#e63946",color:"white",fontSize:14,fontWeight:700,cursor:"pointer",border:"none"}}>Supprimer</button>
               </div>
             </div>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── HOME CALENDAR ────────────────────────────────────────────────
-function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEvent}){
-  const [calMonth,setCalMonth]=useState(new Date());
-  const [selectedDay,setSelectedDay]=useState(null);
-  const [showForm,setShowForm]=useState(false);
-  const [editingEvent,setEditingEvent]=useState(null);
-  const [confirmDel,setConfirmDel]=useState(null);
-  const year=calMonth.getFullYear(),month=calMonth.getMonth();
-  const firstDay=new Date(year,month,1).getDay(),daysInMonth=new Date(year,month+1,0).getDate();
-  const today=new Date();
-  const eventsByDay={};
-  events.forEach(e=>{if(!e.date)return;const[ey,em,ed]=e.date.split("-").map(Number);if(ey===year&&em===month+1){if(!eventsByDay[ed])eventsByDay[ed]=[];eventsByDay[ed].push(e);}});
-  const selEvents=selectedDay?(eventsByDay[selectedDay]||[]):[];
-  const upcoming=[...events].filter(e=>e.date&&e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date));
-  return(
-    <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div className="card" style={{padding:"16px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div><div className="tag" style={{marginBottom:3}}>CALENDRIER</div><div className="serif" style={{fontSize:18,fontWeight:700,color:themeColor,textTransform:"capitalize"}}>{calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div></div>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()-1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>‹</button>
-            <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()+1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>›</button>
-            <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}} style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none"}}>+ Ajouter</button>
-          </div>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
-          {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-          {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
-          {Array(daysInMonth).fill(null).map((_,i)=>{
-            const day=i+1,dayEvents=eventsByDay[day]||[];
-            const isToday=day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
-            const isSel=selectedDay===day;
-            return(
-              <div key={day} onClick={()=>setSelectedDay(isSel?null:day)} style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",background:isSel?themeColor:isToday?`${themeColor}20`:"transparent"}}>
-                <span style={{fontSize:12,fontWeight:isToday||isSel?700:400,color:isSel?"#0a0a0d":isToday?themeColor:"var(--text)"}}>{day}</span>
-                <div style={{display:"flex",gap:2,marginTop:2}}>
-                  {dayEvents.slice(0,3).map((ev,ei)=><div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isSel?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {selectedDay&&(
-          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div className="tag">{new Date(year,month,selectedDay).toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
-              <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}} style={{padding:"4px 10px",borderRadius:8,background:`${themeColor}20`,color:themeColor,border:`1px solid ${themeColor}40`,fontSize:11,fontWeight:700}}>+ Événement</button>
-            </div>
-            {selEvents.length===0?<div style={{textAlign:"center",padding:"12px",color:"var(--t3)",fontSize:12}}>Aucun événement</div>
-              :selEvents.map((e,i)=>(
-                <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,borderLeft:`3px solid ${e.color||themeColor}`,display:"flex",alignItems:"flex-start",gap:8}}>
-                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div><div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime} — {e.endTime}</div></div>
-                  <div style={{display:"flex",gap:5}}>
-                    <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>✏️</button>
-                    <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>×</button>
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-        )}
-      </div>
-      {upcoming.length>0&&(
-        <div className="card" style={{padding:"14px"}}>
-          <div className="tag" style={{marginBottom:10}}>PROCHAINS ÉVÉNEMENTS</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {upcoming.slice(0,5).map((e,i)=>(
-              <div key={i} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 10px",background:"var(--s2)",borderRadius:10,borderLeft:`3px solid ${e.color||themeColor}`}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
-                  <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}</div>
-                </div>
-                <div style={{display:"flex",gap:4}}>
-                  <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:26,height:26,borderRadius:7,fontSize:11,padding:0}}>✏️</button>
-                  <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:26,height:26,borderRadius:7,fontSize:11,padding:0}}>×</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {showForm&&<EventFormModal title={editingEvent?"Modifier":"Nouvel événement"} initial={editingEvent||{title:"",description:"",date:selectedDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}} users={users} me={users[0]||{id:1}} onSave={e=>{if(!e.title?.trim())return;editingEvent?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditingEvent(null);}} onDelete={editingEvent?e=>{onDeleteEvent(e.id);setShowForm(false);setEditingEvent(null);}:undefined} onClose={()=>{setShowForm(false);setEditingEvent(null);}}/>}
-      {confirmDel&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}><div style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}><div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div><div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}"</div><div style={{display:"flex",gap:8}}><button className="btn btn-ghost" onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12}}>Annuler</button><button className="btn btn-danger" onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:"12px",borderRadius:12}}>Supprimer</button></div></div></div>}
     </div>
   );
 }
