@@ -847,27 +847,19 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
 
       <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
 
-      {(()=>{
-        const todayAnn = announcements?.filter(a=>{
-          const d = new Date(a.ts||a.created_at);
-          const today = new Date();
-          return d.getDate()===today.getDate()&&d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();
-        })||[];
-        if(todayAnn.length===0) return null;
-        return(
-          <div className="fade-in">
-            <div className="tag" style={{marginBottom:10}}>ANNONCES DU JOUR</div>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {todayAnn.map(a=>(
-                <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                  <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{a.text}</div>
-                  <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-                </div>
-              ))}
-            </div>
+      {announcements?.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {announcements.slice(0,5).map(a=>(
+              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+              </div>
+            ))}
           </div>
-        );
-      })()}
+        </div>
+      )}
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
         Créer une nouvelle tâche
       </button>
@@ -2083,8 +2075,7 @@ function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{title}</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
           </div>
-          {!form.title?.trim()&&<div style={{fontSize:12,color:"#e63946",textAlign:"center",marginBottom:4}}>* Entrez un titre</div>}
-          <button className="btn btn-gold" onClick={()=>{if(form.title?.trim()) onSave(form);}} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15,opacity:form.title?.trim()?1:0.5}}>
+          <button className="btn btn-gold" onClick={()=>onSave(form)} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15}}>
             {onDelete?"Sauvegarder":"Créer l'événement"}
           </button>
         </div>
@@ -3427,7 +3418,12 @@ function HomeCalendar({events, users, themeColor, onNewEvent, onEditEvent, onDel
         initial={editingEvent||{title:"",description:"",date:selectedDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}}
         users={users}
         me={users[0]||{id:1}}
-        onSave={e=>{editingEvent?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditingEvent(null);}}
+        onSave={e=>{
+            if(!e.title?.trim()) return;
+            editingEvent?onEditEvent(e):onNewEvent(e);
+            setShowForm(false);
+            setEditingEvent(null);
+          }}
         onDelete={editingEvent?e=>{onDeleteEvent(e.id);setShowForm(false);setEditingEvent(null);}:undefined}
         onClose={()=>{setShowForm(false);setEditingEvent(null);}}
       />}
