@@ -275,9 +275,8 @@ export default function App() {
 
   const createTask=async d=>{try{const r=await sb.insert('tasks',{title:d.title,description:d.description,assigned_to:d.assignedTo,created_by:me.id,priority:d.priority,status:'todo',department:d.department,due_date:d.dueDate,due_time:d.dueTime,photo:d.photo,recurrence:d.recurrence,custom_days:d.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[t,...p]);}pushNotif('Nouvelle tâche',d.title,'task');pushToast('Tâche créée !');setModal(null);}catch(e){pushToast('Erreur','warn');}};
 
-  const editTask = data => {
-    setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
-    pushToast("Tâche modifiée !"); setModal(null); setActive(null);
+  const editTask = async data => {
+    try{await sb.update('tasks',data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned||false});setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));pushToast("Tâche modifiée !");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}
   };
 
   const updateStatus = (taskId,status,note,photo) => {
@@ -305,13 +304,9 @@ export default function App() {
     pushToast("Épinglée !");
   };
 
-  const addComment = (taskId,text) => {
+  const addComment = async (taskId,text) => {
     if(!text.trim()) return;
-    const c={id:Date.now(),userId:me.id,text,ts:Date.now()};
-    setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));
-    setActive(p=>p?{...p,comments:[...p.comments,c]}:p);
-    const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));
-    mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});
+    try{const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text});if(r?.[0]){const c={id:r[0].id,userId:me.id,text,ts:new Date(r[0].created_at).getTime()};setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));setActive(p=>p?{...p,comments:[...p.comments,c]}:p);const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});}}catch(e){console.error(e);}
   };
 
   const createGalleryFolder = name => {
@@ -323,10 +318,7 @@ export default function App() {
     setGallery(p=>p.filter(f=>f.id!==id));
     pushToast(T(lang,"deleted"),"warn");
   };
-  const addPhotoToFolder = (folderId, photo, caption) => {
-    setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:Date.now(),photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));
-    pushToast(T(lang,"photoAdded"));
-  };
+  const addPhotoToFolder=async(folderId,photo,caption)=>{try{const r=await sb.insert('gallery_photos',{folder_id:folderId,photo,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,'photoAdded'));}catch(e){pushToast('Erreur','warn');}};  
   const deletePhotoFromFolder = (folderId, photoId) => {
     setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));
     pushToast(T(lang,"deleted"),"warn");
@@ -362,9 +354,8 @@ export default function App() {
     pushToast("Département renommé !");
   };
 
-  const archiveTask = tid => {
-    const t = tasks.find(x=>x.id===tid);
-    if(t){ setArchivedTasks(p=>[{...t, archivedAt:Date.now()},...p]); setTasks(p=>p.filter(x=>x.id!==tid)); pushToast("Tâche archivée"); setModal(null); setActive(null); }
+  const archiveTask = async tid => {
+    try{await sb.update('tasks',tid,{archived:true,archived_at:new Date().toISOString()});const t=tasks.find(x=>x.id===tid);if(t){setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]);setTasks(p=>p.filter(x=>x.id!==tid));}pushToast("Tâche archivée");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}
   };
   const addSchedulePhoto = (dept, label, photo) => {
     setSchedules(p=>({...p,[dept]:[{id:Date.now(),label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
@@ -381,7 +372,7 @@ export default function App() {
   const deleteUser=async uid=>{try{await sb.del('users',uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast('Supprimé','warn');setModal(null);setEditUser(null);}catch(e){pushToast('Erreur','warn');}};
   const deleteTask=async tid=>{try{await sb.del('tasks',tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast('Supprimée','warn');setModal(null);setActive(null);}catch(e){pushToast('Erreur','warn');}};
 
-  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};
+  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');const pts=(tour.issues||[]).filter(i=>i.photo);if(pts.length>0){try{const fn=`Tournées · ${tour.date}`;const gf=await sb.get('gallery_folders');let tf=gf?.find(f=>f.name===fn);if(!tf){const nf=await sb.insert('gallery_folders',{name:fn,created_by:me.id});tf=nf?.[0];if(tf)setGallery(p=>[{id:tf.id,name:fn,createdBy:me.id,ts:Date.now(),photos:[]},...p]);}if(tf?.id){for(const iss of pts){const cap=`${tour.shift} · ${iss.item}`;const pr=await sb.insert('gallery_photos',{folder_id:tf.id,photo:iss.photo,caption:cap,added_by:me.id});if(pr?.[0])setGallery(p=>p.map(f=>f.id===tf.id?{...f,photos:[{id:pr[0].id,photo:iss.photo,caption:cap,addedBy:me.id,ts:Date.now()},...f.photos]}:f));}}}catch(e){console.error(e);}}pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};;
 
   // Reminders disabled
 
@@ -403,9 +394,9 @@ export default function App() {
     setModal(null);
   };
 
-  const createEvent = data => { setEvents(p=>[{...data,id:Date.now(),createdBy:me.id},...p]); pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event"); pushToast("Événement créé !"); setModal(null); };
-  const editEvent   = data => { setEvents(p=>p.map(e=>e.id===data.id?data:e)); pushToast("Événement modifié !"); setModal(null); };
-  const deleteEvent = id   => { setEvents(p=>p.filter(e=>e.id!==id)); pushToast("Événement supprimé","warn"); setModal(null); };
+  const createEvent=async data=>{try{const r=await sb.insert('events',{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members,created_by:me.id});if(r?.[0])setEvents(p=>[{...r[0],startTime:r[0].start_time,endTime:r[0].end_time,createdBy:me.id,customDays:r[0].custom_days||[],members:r[0].members||[]},...p]);pushNotif(`Nouvel événement: ${data.title}`,`${data.date}`,'event');pushToast('Événement créé !');setModal(null);}catch(e){pushToast('Erreur','warn');}};  
+  const editEvent=async data=>{try{await sb.update('events',data.id,{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members});setEvents(p=>p.map(e=>e.id===data.id?data:e));pushToast('Événement modifié !');setModal(null);}catch(e){pushToast('Erreur','warn');}};  
+  const deleteEvent=async id=>{try{await sb.del('events',id);setEvents(p=>p.filter(e=>e.id!==id));pushToast('Événement supprimé','warn');setModal(null);}catch(e){}};  
   const createAnnouncement=async d=>{try{const r=await sb.insert('announcements',{text:d.text,dept:d.dept,created_by:me.id});if(r?.[0])setAnnouncements(p=>[{...r[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif('Annonce',d.text.slice(0,60),'announce');pushToast('Annonce envoyée !');setModal(null);}catch(e){pushToast('Erreur','warn');}};
   const deleteAnnouncement=async id=>{try{await sb.del('announcements',id);setAnnouncements(p=>p.filter(a=>a.id!==id));}catch(e){}};
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
@@ -544,13 +535,14 @@ export default function App() {
           onStoreProfile={()=>setModal("storeProfile")}
           onExportPDF={()=>{setShowPDFInfo(true);setModal(null);}}
           onSearch={()=>{setGlobalSearch(true);setModal(null);}}
-          onSOS={()=>{setShowUrgency(true);setModal(null);}}
+          onSOS={()=>{setShowUrgency(true);setModal(null);}} onChangePin={()=>{setModal("changePin");}}
           onClose={()=>setModal(null)}
         />}
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
       {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={async c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");try{const ex=await sb.get("app_settings","key=eq.tour_config");if(ex?.length)await sb.update("app_settings",ex[0].id,{value:JSON.stringify(c)});else await sb.insert("app_settings",{key:"tour_config",value:JSON.stringify(c)});}catch(e){}}} onClose={()=>setModal(null)}/>}
+      {modal==="changePin"&&<ChangePinModal me={me} onSave={async newPin=>{try{await sb.update('users',me.id,{pin:newPin});setUsers(p=>p.map(u=>u.id===me.id?{...u,pin:newPin}:u));setMe(p=>({...p,pin:newPin}));pushToast('NIP modifié !');setModal(null);}catch(e){pushToast('Erreur','warn');}}} onClose={()=>setModal(null)}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
       {/* TOAST */}
@@ -3092,6 +3084,50 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
       )}
       {showForm&&<EventFormModal title={editEv?"Modifier":"Nouvel événement"} initial={editEv||{title:"",description:"",date:selDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}} users={users||[]} me={(users||[])[0]||{id:1}} onSave={e=>{if(!e.title?.trim())return;editEv?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditEv(null);}} onDelete={editEv?e=>{onDeleteEvent(e.id);setShowForm(false);setEditEv(null);}:undefined} onClose={()=>{setShowForm(false);setEditEv(null);}}/>}
       {confirmDel&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}><div style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}><div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div><div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}"</div><div style={{display:"flex",gap:8}}><button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:12,borderRadius:12,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",cursor:"pointer"}}>Annuler</button><button onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:12,borderRadius:12,background:"#e63946",color:"white",fontWeight:700,cursor:"pointer",border:"none"}}>Supprimer</button></div></div></div>}
+    </div>
+  );
+}
+
+function ChangePinModal({me,onSave,onClose}){
+  const [step,setStep]=useState("current");
+  const [cur,setCur]=useState("");
+  const [nw,setNw]=useState("");
+  const [conf,setConf]=useState("");
+  const [err,setErr]=useState("");
+  const handleDigit=d=>{
+    setErr("");
+    if(step==="current"){const p=cur+d;setCur(p);if(p.length===4){if(p===(me.pin||"1111")){setTimeout(()=>{setStep("new");setCur("");},300);}else{setTimeout(()=>{setCur("");setErr("NIP incorrect");},400);}}}
+    else if(step==="new"){const p=nw+d;setNw(p);if(p.length===4)setTimeout(()=>setStep("confirm"),300);}
+    else{const p=conf+d;setConf(p);if(p.length===4){if(p===nw){onSave(p);}else{setTimeout(()=>{setConf("");setErr("Les NIPs ne correspondent pas");},400);}}}
+  };
+  const del=()=>{setErr("");if(step==="current")setCur(p=>p.slice(0,-1));else if(step==="new")setNw(p=>p.slice(0,-1));else setConf(p=>p.slice(0,-1));};
+  const val=step==="current"?cur:step==="new"?nw:conf;
+  const titles={current:"NIP actuel",new:"Nouveau NIP",confirm:"Confirmer"};
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
+        <div className="handle"/>
+        <div style={{padding:"4px 18px 40px",display:"flex",flexDirection:"column",alignItems:"center"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",marginBottom:24}}>
+            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>🔐 Changer mon NIP</div>
+            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+          </div>
+          <div style={{fontSize:15,fontWeight:600,color:"var(--text)",marginBottom:6}}>{titles[step]}</div>
+          <div style={{display:"flex",gap:14,marginBottom:8,marginTop:16}}>
+            {[0,1,2,3].map(i=><div key={i} style={{width:14,height:14,borderRadius:"50%",background:val.length>i?"var(--gold)":"var(--s2)",border:"1.5px solid var(--border)",transition:"background .15s"}}/>)}
+          </div>
+          {err&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>{err}</div>}
+          <div style={{height:20}}/>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
+            {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
+              <button key={i} onClick={()=>{if(d==="⌫")del();else if(d!=="")handleDigit(String(d));}}
+                style={{height:60,borderRadius:13,background:d===""?"transparent":"var(--s2)",border:d===""?"none":"1px solid var(--border)",fontSize:d==="⌫"?18:20,fontWeight:600,color:"var(--text)",cursor:d===""?"default":"pointer"}}>
+                {d}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
