@@ -201,11 +201,7 @@ export default function App() {
   const [tab, setTab]             = useState("home");
   const [taskFilter, setTaskFilter] = useState("all");
   const [seenTasks, setSeenTasks] = useState(new Set([1,2,3]));
-  const [notifs, setNotifs]       = useState([
-    {id:1,text:"Nouvelle tâche assignée",sub:"Prix circulaire à vérifier",type:"task",ts:Date.now()-3600000,read:false},
-    {id:2,text:"Tâche complétée",sub:"Commander emballages boulangerie",type:"done",ts:Date.now()-1800000,read:false},
-    {id:3,text:"Rappel — tâche non complétée",sub:"Rotation produits laitiers · Échéance dépassée",type:"reminder",ts:Date.now()-900000,read:false},
-  ]);
+  const [notifs, setNotifs] = useState([]);
   const [modal, setModal]         = useState(null);
   const [activeTask, setActive]   = useState(null);
   const [editUser, setEditUser]   = useState(null);
@@ -219,22 +215,40 @@ export default function App() {
     if(!ready) return;
     const poll = async () => {
       try {
-        // Check for new tasks
-        const tasks = await sb.get("tasks", "archived=eq.false&order=created_at.desc");
-        const comments = await sb.get("comments", "order=created_at");
-        if(tasks?.length) {
-          setTasks(tasks.map(t=>({
+        const newTasks = await sb.get("tasks", "archived=eq.false&order=created_at.desc");
+        const newComments = await sb.get("comments", "order=created_at");
+        if(newTasks?.length) {
+          const mapped = newTasks.map(t=>({
             ...t, assignedTo:t.assigned_to, createdBy:t.created_by,
             dueDate:t.due_date, dueTime:t.due_time,
             customDays:t.custom_days||[], pinned:t.pinned||false,
             createdAt:new Date(t.created_at).getTime(),
             completedAt:t.completed_at?new Date(t.completed_at).getTime():null,
-            comments:(comments||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))
-          })));
+            comments:(newComments||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))
+          }));
+          // Detect new tasks and notify
+          setTasks(prev => {
+            const prevIds = new Set(prev.map(t=>t.id));
+            mapped.forEach(t => {
+              if(!prevIds.has(t.id) && t.createdBy !== undefined) {
+                pushNotif(`Nouvelle tâche`, t.title, "task");
+              }
+            });
+            return mapped;
+          });
         }
         // Check for new announcements
         const ann = await sb.get("announcements", "order=created_at.desc");
-        if(ann?.length) setAnnouncements(ann.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
+        if(ann?.length) {
+          setAnnouncements(prev => {
+            const prevIds = new Set(prev.map(a=>a.id));
+            const mapped = ann.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));
+            mapped.forEach(a => {
+              if(!prevIds.has(a.id)) pushNotif("Nouvelle annonce", a.text.slice(0,60), "announce");
+            });
+            return mapped;
+          });
+        }
       } catch(e) { console.error("Poll error:", e); }
     };
     const interval = setInterval(poll, 15000);
@@ -719,7 +733,14 @@ export default function App() {
   onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
-      {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={s=>{setStore(s);setModal(null);pushToast("Profil mis à jour !");}} onClose={()=>setModal(null)}/>}
+       {modal==="storeProfile" && <StoreProfileModal store={store} onSave={async s=>{
+          try{
+            const ex=await sb.get("store_profile");
+            if(ex?.length) await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});
+            else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});
+            setStore(s); setModal(null); pushToast("Profil mis à jour !");
+          }catch(e){pushToast("Erreur sauvegarde","warn");}
+        }} onClose={()=>setModal(null)}/>}
       {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
