@@ -655,7 +655,7 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
-        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask}/>}
+        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
@@ -805,67 +805,19 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
         <div className="tag" style={{marginBottom:5}}>BONJOUR</div>
         <div className="serif" style={{fontSize:32,fontWeight:700,letterSpacing:"-0.5px",color:"var(--text)",lineHeight:1.1}}>{me.name}</div>
         <div style={{fontSize:13,color:"var(--t2)",marginTop:5}}>{new Date().toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
-      </div>
-
-      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
-        {[
-          {label:"À faire",    value:stats.todo,       sub:"en attente",     filter:"todo"},
-          {label:"En cours",   value:stats.inprogress, sub:"en progression", filter:"inprogress"},
-          {label:"Complétées", value:stats.done,       sub:"ce cycle",       filter:"done"},
-          {label:"Épinglées",  value:stats.pinned,     sub:"prioritaires",   filter:"pinned"},
-        ].map(s=>(
-          <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} themeColor={themeColor} onClick={()=>onGoTo(s.filter)}/>
-        ))}
-      </div>
-
-      {pinned.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ÉPINGLÉES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {pinned.map(t=><MiniTaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)}/>)}
-          </div>
-        </div>
-      )}
-
-      {/* QUICK SHORTCUTS */}
-      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-        {[
-          {label:T(lang,"newUrgentTask"), icon:"⚡", action:onNew, color:"#e63946"},
-          {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
-          {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
-          {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
-
-
-        ].map(s=>(
-          <button key={s.label} className="btn card-tap" onClick={s.action}
-            style={{padding:"14px 12px",borderRadius:14,background:"transparent",border:`1.5px solid ${themeColor}`,flexDirection:"column",gap:6,alignItems:"flex-start"}}>
-            <span style={{fontSize:20}}>{s.icon}</span>
-            <span style={{fontSize:12,fontWeight:600,color:themeColor,textAlign:"left",lineHeight:1.3}}>{s.label}</span>
-          </button>
-        ))}
-      </div>
-
-      <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
-
-      {announcements?.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,5).map(a=>(
-              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
         Créer une nouvelle tâche
       </button>
     </div>
   );
 }
+
+
+
+
+
+
 
 function MiniTaskCard({task,getUser,getPri,onClick}){
   const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status];
@@ -3444,3 +3396,60 @@ function HomeCalendar({events, users, themeColor, onNewEvent, onEditEvent, onDel
     </div>
   );
 }
+/div>
+
+      {announcements?.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {announcements.slice(0,5).map(a=>(
+              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
+        {[
+          {label:"À faire",    value:stats.todo,       sub:"en attente",     filter:"todo"},
+          {label:"En cours",   value:stats.inprogress, sub:"en progression", filter:"inprogress"},
+          {label:"Complétées", value:stats.done,       sub:"ce cycle",       filter:"done"},
+          {label:"Épinglées",  value:stats.pinned,     sub:"prioritaires",   filter:"pinned"},
+        ].map(s=>(
+          <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} themeColor={themeColor} onClick={()=>onGoTo(s.filter)}/>
+        ))}
+      </div>
+
+      {pinned.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ÉPINGLÉES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {pinned.map(t=><MiniTaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)}/>)}
+          </div>
+        </div>
+      )}
+
+      {/* QUICK SHORTCUTS */}
+      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+        {[
+          {label:T(lang,"newUrgentTask"), icon:"⚡", action:onNew, color:"#e63946"},
+          {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
+          {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
+          {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
+
+
+        ].map(s=>(
+          <button key={s.label} className="btn card-tap" onClick={s.action}
+            style={{padding:"14px 12px",borderRadius:14,background:"transparent",border:`1.5px solid ${themeColor}`,flexDirection:"column",gap:6,alignItems:"flex-start"}}>
+            <span style={{fontSize:20}}>{s.icon}</span>
+            <span style={{fontSize:12,fontWeight:600,color:themeColor,textAlign:"left",lineHeight:1.3}}>{s.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
+
+
