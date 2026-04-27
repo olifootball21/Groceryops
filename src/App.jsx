@@ -279,50 +279,33 @@ export default function App() {
     try{await sb.update('tasks',data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned||false});setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));pushToast("Tâche modifiée !");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}
   };
 
-  const updateStatus = (taskId,status,note,photo) => {
+  const updateStatus = async (taskId,status,note,photo) => {
     const now=Date.now();
-    const update = t=>({...t,status,completedAt:status==="done"?now:null,
-      ...(status==="done"&&note?{comments:[...t.comments,{id:now,userId:me.id,text:"✓ "+note,ts:now}]}:{}),
-      ...(status==="done"&&photo?{photo}:{}),
-    });
-    setTasks(p=>p.map(t=>{
-      if(t.id!==taskId) return t;
-      const updated=update(t);
-      if(status==="done"&&t.recurrence&&t.recurrence!=="none"){
-        const next={...t,id:now+1,status:"todo",comments:[],createdAt:now,completedAt:null,dueDate:nextDue(t.recurrence,t.customDays),photo:null,pinned:false};
-        setTimeout(()=>{setTasks(p2=>[...p2,next]);pushNotif("Tâche récurrente créée",t.title,"task");},600);
-      }
-      return updated;
-    }));
-    if(status==="done"){const t=tasks.find(x=>x.id===taskId);pushNotif("Tâche complétée",t?.title,"done");pushToast("Complété !");}
-    setActive(p=>p?.id===taskId?update(p):p);
+    try{
+      await sb.update('tasks',taskId,{status,completed_at:status==='done'?new Date().toISOString():null,...(photo?{photo}:{})});
+      if(status==='done'&&note){const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text:'✓ '+note});if(r?.[0]){const c={id:r[0].id,userId:me.id,text:'✓ '+note,ts:now};setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...t.comments,c],...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...p.comments,c]}:p);}}
+      else{setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==='done'?now:null,...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:status==='done'?now:null}:p);}
+      if(status==='done'){const t=tasks.find(x=>x.id===taskId);pushNotif('Tâche complétée',t?.title,'done');pushToast('Complété !');}
+    }catch(e){pushToast('Erreur','warn');}
   };
-
-  const togglePin = taskId => {
-    setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));
-    setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);
-    pushToast("Épinglée !");
+  
+  const togglePin = async taskId => {
+    const task=tasks.find(t=>t.id===taskId);if(!task)return;
+    try{await sb.update('tasks',taskId,{pinned:!task.pinned});setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);pushToast("Épinglée !");}catch(e){}
   };
-
+  
   const addComment = async (taskId,text) => {
     if(!text.trim()) return;
     try{const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text});if(r?.[0]){const c={id:r[0].id,userId:me.id,text,ts:new Date(r[0].created_at).getTime()};setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));setActive(p=>p?{...p,comments:[...p.comments,c]}:p);const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});}}catch(e){console.error(e);}
   };
 
-  const createGalleryFolder = name => {
-    if(!name.trim()) return;
-    setGallery(p=>[{id:Date.now(),name:name.trim(),photos:[],createdBy:me.id,ts:Date.now()},...p]);
-    pushToast(T(lang,"folderCreated"));
-  };
-  const deleteGalleryFolder = id => {
-    setGallery(p=>p.filter(f=>f.id!==id));
-    pushToast(T(lang,"deleted"),"warn");
-  };
+  const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert('gallery_folders',{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,'folderCreated'));}catch(e){pushToast('Erreur','warn');}};
+  
+  const deleteGalleryFolder=async id=>{try{await sb.del('gallery_folders',id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,'deleted'),'warn');}catch(e){}};
+  
   const addPhotoToFolder=async(folderId,photo,caption)=>{try{const r=await sb.insert('gallery_photos',{folder_id:folderId,photo,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,'photoAdded'));}catch(e){pushToast('Erreur','warn');}};  
-  const deletePhotoFromFolder = (folderId, photoId) => {
-    setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));
-    pushToast(T(lang,"deleted"),"warn");
-  };
+  const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del('gallery_photos',photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,'deleted'),'warn');}catch(e){}};
+  
   const renameGalleryFolder = (id, name) => {
     setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
     pushToast(T(lang,"saved"));
@@ -361,10 +344,8 @@ export default function App() {
     setSchedules(p=>({...p,[dept]:[{id:Date.now(),label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
     pushToast("Horaire ajouté !");
   };
-  const deleteSchedulePhoto = (dept, id) => {
-    setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));
-    pushToast("Horaire supprimé","warn");
-  };
+  const deleteSchedulePhoto=async(dept,id)=>{try{await sb.del('schedule_photos',id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast('Supprimé','warn');}catch(e){}};
+  
   const saveNote=async(uid,text)=>{try{const ex=await sb.get('notes',`user_id=eq.${uid}`);if(ex?.length)await sb.update('notes',ex[0].id,{text});else await sb.insert('notes',{user_id:uid,text});setNotes(p=>({...p,[uid]:text}));}catch(e){}};
 
   const createUser=async d=>{try{const r=await sb.insert('users',{name:d.name,role:d.role,color:d.color,is_owner:false,pin:'1111'});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:'1111'}]);pushToast(`${d.name} ajouté !`);setModal(null);}catch(e){pushToast('Erreur','warn');}};
@@ -2793,7 +2774,7 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
   );
 }
 
-function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onClose}){
+function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onChangePin,onClose}){
   const [showSwitch,setShowSwitch] = useState(false);
   return(
     <div className="overlay" onClick={onClose}>
@@ -2812,6 +2793,7 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
             {icon:"⚙",  label:"Paramètres",                    action:onSettings},
             ...(isOwner?[{icon:"🏪", label:"Profil du magasin", action:onStoreProfile}]:[]),
             {icon:"📄", label:"Exporter en PDF",                action:onExportPDF},
+          {icon:"🔐", label:"Changer mon NIP",                  action:onChangePin},
             {icon:"🆘", label:"Alerte urgence (SOS)",           action:onSOS, danger:true},
           ].map(item=>(
             <button key={item.label} className="btn" onClick={item.action}
