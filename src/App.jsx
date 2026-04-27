@@ -244,7 +244,7 @@ export default function App() {
         if(A2?.length)setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A2.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});
       }catch(e){}
     };
-    const iv=setInterval(poll,15000);
+    const iv=setInterval(poll,10000);
     return()=>clearInterval(iv);
   },[ready]);
   const unread  = notifs.filter(n=>!n.read).length;
@@ -453,7 +453,7 @@ export default function App() {
               style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)"}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </button>
-            {unread>0&&<span style={{position:"absolute",top:-3,right:-3,width:16,height:16,borderRadius:"50%",background:"#e63946",border:`2px solid var(--bg)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:"white",pointerEvents:"none"}}>{unread}</span>}
+            {unread>0&&<span key={`b${unread}`} style={{position:"absolute",top:-3,right:-3,width:16,height:16,borderRadius:"50%",background:"#e63946",border:`2px solid var(--bg)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:"white",pointerEvents:"none"}}>{unread}</span>}
           </div>
           <button className="btn" onClick={()=>setModal("accountMenu")} style={{width:34,height:34,borderRadius:10,background:"var(--gold)",fontSize:11,fontWeight:700,color:"#0a0a0d",border:"none"}}>
             {initials(me.name)}
@@ -1064,7 +1064,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* FOOTER */}
-        <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0}}>
+        <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0,position:"sticky",bottom:0,background:"var(--s1)",zIndex:10}}>
           <button className="btn btn-gold" onClick={handleSave} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15}}>
             Terminer la tournée · {pct}% complété
           </button>
