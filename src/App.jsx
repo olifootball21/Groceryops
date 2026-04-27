@@ -801,7 +801,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask}){
+function HomeTab({stats,me,store,tasks,announcements,events,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onGoComm}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
     <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
@@ -848,6 +848,88 @@ function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,get
           </button>
         ))}
       </div>
+
+      {/* MINI CALENDAR */}
+      {(()=>{
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month+1, 0).getDate();
+        const todayDate = now.getDate();
+        const eventsByDay = {};
+        (events||[]).forEach(e=>{
+          const d = e.date?.split("-")[2];
+          const m = parseInt(e.date?.split("-")[1])-1;
+          const y = parseInt(e.date?.split("-")[0]);
+          if(y===year&&m===month) {
+            if(!eventsByDay[d]) eventsByDay[d]=[];
+            eventsByDay[d].push(e);
+          }
+        });
+        const upcomingEvents = [...(events||[])].filter(e=>e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime?.localeCompare(b.startTime||"")||0).slice(0,3);
+        return(
+          <div className="fade-in card" style={{padding:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div>
+                <div className="tag" style={{marginBottom:3}}>CALENDRIER</div>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",textTransform:"capitalize"}}>
+                  {now.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}
+                </div>
+              </div>
+              <button className="btn btn-ghost" onClick={onGoComm} style={{padding:"6px 12px",borderRadius:10,fontSize:12}}>Voir tout ›</button>
+            </div>
+            {/* DAYS GRID */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>
+              {["D","L","M","M","J","V","S"].map((d,i)=>(
+                <div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>
+              ))}
+              {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
+              {Array(daysInMonth).fill(null).map((_,i)=>{
+                const day = i+1;
+                const dayStr = String(day).padStart(2,"0");
+                const dayEvents = eventsByDay[dayStr]||[];
+                const isToday = day===todayDate;
+                return(
+                  <div key={day} onClick={()=>dayEvents.length>0&&onGoComm()}
+                    style={{borderRadius:7,padding:"3px 2px",minHeight:32,display:"flex",flexDirection:"column",alignItems:"center",
+                      background:isToday?"var(--gold)":"transparent",
+                      border:isToday?"none":"1px solid transparent",
+                      cursor:dayEvents.length>0?"pointer":"default"}}>
+                    <span style={{fontSize:11,fontWeight:isToday?700:400,color:isToday?"#0a0a0d":"var(--text)"}}>{day}</span>
+                    {dayEvents.length>0&&(
+                      <div style={{display:"flex",gap:2,marginTop:2}}>
+                        {dayEvents.slice(0,2).map((ev,ei)=>(
+                          <div key={ei} style={{width:4,height:4,borderRadius:"50%",background:isToday?"#0a0a0d":ev.color||"var(--gold)"}}/>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* UPCOMING EVENTS */}
+            {upcomingEvents.length>0&&(
+              <div style={{borderTop:"1px solid var(--border)",paddingTop:10,display:"flex",flexDirection:"column",gap:7}}>
+                {upcomingEvents.map((e,i)=>(
+                  <div key={i} onClick={onGoComm} style={{display:"flex",gap:10,alignItems:"center",cursor:"pointer"}}>
+                    <div style={{width:3,borderRadius:2,alignSelf:"stretch",background:e.color||"var(--gold)",flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
+                      <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>
+                        {new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {upcomingEvents.length===0&&(
+              <div style={{textAlign:"center",padding:"8px",color:"var(--t3)",fontSize:12}}>Aucun événement à venir</div>
+            )}
+          </div>
+        );
+      })()}
 
       {(()=>{
         const todayAnn = announcements?.filter(a=>{
