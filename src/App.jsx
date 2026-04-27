@@ -285,7 +285,19 @@ export default function App() {
       await sb.update('tasks',taskId,{status,completed_at:status==='done'?new Date().toISOString():null,...(photo?{photo}:{})});
       if(status==='done'&&note){const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text:'✓ '+note});if(r?.[0]){const c={id:r[0].id,userId:me.id,text:'✓ '+note,ts:now};setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...t.comments,c],...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...p.comments,c]}:p);}}
       else{setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==='done'?now:null,...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:status==='done'?now:null}:p);}
-      if(status==='done'){const t=tasks.find(x=>x.id===taskId);pushNotif('Tâche complétée',t?.title,'done');pushToast('Complété !');}
+      if(status==='done'){
+        const t=tasks.find(x=>x.id===taskId);
+        pushNotif('Tâche complétée',t?.title,'done');
+        pushToast('Complété !');
+        // Handle recurring tasks
+        if(t?.recurrence&&t.recurrence!=='none'){
+          try{
+            const nextDate=nextDue(t.recurrence,t.customDays);
+            const r=await sb.insert('tasks',{title:t.title,description:t.description,assigned_to:t.assignedTo,created_by:t.createdBy,priority:t.priority,status:'todo',department:t.department,due_date:nextDate,due_time:t.dueTime,photo:null,recurrence:t.recurrence,custom_days:t.customDays,pinned:false,archived:false});
+            if(r?.[0]){const nt={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[nt,...p]);pushNotif('Tâche récurrente créée',t.title,'task');}
+          }catch(e){console.error('Recurring task error:',e);}
+        }
+      }
     }catch(e){pushToast('Erreur','warn');}
   };
   
@@ -667,6 +679,7 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
     (showArchived||(
       filter==="all"  ? true :
       filter==="active" ? t.status!=="done" :
+      filter==="mine"   ? t.assignedTo===me.id&&t.status!=="done" :
       t.status===filter
     ))&&
     (priFilter==="all"||t.priority===priFilter)&&
