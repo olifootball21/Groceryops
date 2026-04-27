@@ -229,6 +229,14 @@ export default function App() {
         const [SD,SP]=await Promise.all([sb.get("schedule_depts","order=sort_order"),sb.get("schedule_photos","order=created_at.desc")]);
         if(SD?.length){const nd=[],ns={};SD.forEach(d=>{nd.push(d.name);ns[d.name]=(SP||[]).filter(p=>p.dept_id===d.id).map(p=>({id:p.id,label:p.label,photo:p.photo||null,ts:new Date(p.created_at).getTime()}));});setScheduleDepts(nd);setSchedules(ns);}
         try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){}
+        // Load tour config
+        try{
+          const TC=await sb.get("app_settings","key=eq.tour_config");
+          if(TC?.length&&TC[0].value){
+            const cfg=JSON.parse(TC[0].value);
+            setTourConfig(cfg);
+          }
+        }catch(e){}
       }catch(e){console.error(e);}
       setReady(true);
     })();
@@ -542,7 +550,7 @@ export default function App() {
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
-      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
+      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={async c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");try{const ex=await sb.get("app_settings","key=eq.tour_config");if(ex?.length)await sb.update("app_settings",ex[0].id,{value:JSON.stringify(c)});else await sb.insert("app_settings",{key:"tour_config",value:JSON.stringify(c)});}catch(e){}}} onClose={()=>setModal(null)}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
       {/* TOAST */}
