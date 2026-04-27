@@ -2407,6 +2407,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
           )}
           {selectedFolder!==null&&selectedFolder!==0&&(
             <button className="btn btn-gold" onClick={()=>fileRef.current?.click()} style={{padding:"8px 14px",borderRadius:11,fontSize:13}}>+ Photo</button>
+            {displayPhotos.length>0&&<button className="btn btn-danger" onClick={()=>{displayPhotos.filter(p=>p.id).forEach(p=>onDeletePhoto(selectedFolder,p.id));}} style={{padding:"8px 10px",borderRadius:11,fontSize:12}}>Tout suppr.</button>}
           )}
         </div>
       </div>
@@ -2510,8 +2511,9 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
             : viewMode==="grid"
               ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                   {displayPhotos.map((p,i)=>(
-                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}>
-                      <img src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1"}}>
+                      <img src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}/>
+                      {p.id&&selectedFolder!==0&&<button onClick={e=>{e.stopPropagation();onDeletePhoto(selectedFolder,p.id);}} style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:12,border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                     </div>
                   ))}
                 </div>
