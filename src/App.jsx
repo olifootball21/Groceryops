@@ -339,6 +339,19 @@ export default function App() {
   const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
   const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
   const clearAllNotifs = () => setNotifs([]);
+  const deleteNotif = id => setNotifs(p=>p.filter(n=>n.id!==id));
+  const clickNotif = n => {
+    // Mark as read
+    setNotifs(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));
+    // Navigate to relevant content
+    if(n.type==="task"||n.type==="done"||n.type==="reminder"||n.type==="mention"){
+      const task = tasks.find(t=>t.title===n.sub||n.sub?.includes(t.title));
+      if(task){setActive(task);setModal("taskDetail");setTab("tasks");}
+      else setTab("tasks");
+    } else if(n.type==="announce"){ setTab("comm"); }
+    else if(n.type==="event"){     setTab("comm"); }
+    else if(n.type==="urgency"){   setTab("comm"); }
+  };
   const markAllRead = () => setNotifs(p=>p.map(n=>({...n,read:true})));
 
   const openTask = t => { setSeenTasks(p=>new Set([...p,t.id])); setActive(t); setModal("taskDetail"); };
@@ -632,7 +645,7 @@ export default function App() {
             SOS
           </button>
           <div style={{position:"relative"}}>
-            <button className="btn" onClick={()=>{setModal("notifs");setNotifs(p=>p.map(n=>({...n,read:true})));}}
+            <button className="btn" onClick={()=>setModal("notifs")}
               style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)"}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </button>
@@ -691,7 +704,7 @@ export default function App() {
       {modal==="taskDetail"   && activeTask && <TaskDetailModal task={activeTask} users={users} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onStatus={updateStatus} onComment={addComment} onDelete={deleteTask} onArchive={archiveTask} onEdit={t=>{setEditTaskData(t);setModal("editTask");}} onPin={togglePin} onClose={()=>{setModal(null);setActive(null);}}/>}
       {modal==="newUser"      && <NewUserModal    onSave={createUser} onClose={()=>setModal(null)}/>}
       {modal==="editUser"     && editUser && <EditUserModal user={editUser} me={me} isOwner={isOwner} onSave={updateUser} onDelete={deleteUser} onClose={()=>{setModal(null);setEditUser(null);}}/>}
-      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead}/>}
+      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead} onDeleteNotif={deleteNotif} onClickNotif={clickNotif}/>}
       {modal==="switchUser"   && <SwitchUserModal users={users} me={me} onSwitch={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}} onClose={()=>setModal(null)}/>}
       {showPDFInfo && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPDFInfo(false)}>
@@ -2972,7 +2985,7 @@ function GlobalSearchModal({query,setQuery,tasks,events,announcements,notes,me,g
 
 // ─── UPDATE NOTIFS MODAL with clear all ───────────────────────────
 // (override the existing NotifsModal)
-function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
+function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead,onDeleteNotif,onClickNotif}){
   const typeColor=t=>t==="done"?"#2a9d8f":t==="reminder"?"#e63946":t==="mention"?"#8b5cf6":t==="urgency"?"#e63946":t==="event"?"#3b82f6":t==="announce"?"#f4a261":t==="report"?"#2a9d8f":"var(--gold)";
   const typeLabel=t=>t==="done"?"Complété":t==="reminder"?"Rappel":t==="mention"?"Mention":t==="urgency"?"SOS":t==="event"?"Événement":t==="announce"?"Annonce":t==="report"?"Rapport":"Tâche";
   return(
@@ -2994,16 +3007,19 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
                 Aucune notification
               </div>
             : notifs.map(n=>(
-              <div key={n.id} style={{display:"flex",gap:12,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`}}>
+              <div key={n.id} style={{display:"flex",gap:10,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`,cursor:"pointer"}}
+                onClick={()=>{onClickNotif(n);onClose();}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                     <div style={{fontSize:10,fontWeight:700,color:typeColor(n.type),letterSpacing:"0.5px"}}>{typeLabel(n.type).toUpperCase()}</div>
-                    {!n.read&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--gold)"}}/>}
+                    {!n.read&&<div style={{width:7,height:7,borderRadius:"50%",background:"var(--gold)",flexShrink:0}}/>}
                   </div>
                   <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{n.text}</div>
-                  <div style={{fontSize:12,color:"var(--t2)",fontStyle:"italic",marginBottom:4}}>"{n.sub}"</div>
+                  <div style={{fontSize:12,color:"var(--t2)",marginBottom:4}}>{n.sub}</div>
                   <div style={{fontSize:11,color:"var(--t3)"}}>{ago(n.ts)}</div>
                 </div>
+                <button className="btn" onClick={e=>{e.stopPropagation();onDeleteNotif(n.id);}}
+                  style={{width:28,height:28,borderRadius:8,flexShrink:0,alignSelf:"flex-start",background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t3)",fontSize:13}}>×</button>
               </div>
             ))
           }
