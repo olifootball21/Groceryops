@@ -260,7 +260,7 @@ export default function App() {
     return()=>clearInterval(iv);
   },[ready]);
 
-    const isOwner = me.isOwner;
+  const isOwner = me.isOwner;
   const unread  = notifs.filter(n=>!n.read).length;
   const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
 
