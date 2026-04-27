@@ -801,7 +801,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,events,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onGoComm}){
+function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
     <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
@@ -849,87 +849,7 @@ function HomeTab({stats,me,store,tasks,announcements,events,lang,themeColor,getU
         ))}
       </div>
 
-      {/* MINI CALENDAR */}
-      {(()=>{
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month+1, 0).getDate();
-        const todayDate = now.getDate();
-        const eventsByDay = {};
-        (events||[]).forEach(e=>{
-          const d = e.date?.split("-")[2];
-          const m = parseInt(e.date?.split("-")[1])-1;
-          const y = parseInt(e.date?.split("-")[0]);
-          if(y===year&&m===month) {
-            if(!eventsByDay[d]) eventsByDay[d]=[];
-            eventsByDay[d].push(e);
-          }
-        });
-        const upcomingEvents = [...(events||[])].filter(e=>e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime?.localeCompare(b.startTime||"")||0).slice(0,3);
-        return(
-          <div className="fade-in card" style={{padding:"16px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div>
-                <div className="tag" style={{marginBottom:3}}>CALENDRIER</div>
-                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",textTransform:"capitalize"}}>
-                  {now.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}
-                </div>
-              </div>
-              <button className="btn btn-ghost" onClick={onGoComm} style={{padding:"6px 12px",borderRadius:10,fontSize:12}}>Voir tout ›</button>
-            </div>
-            {/* DAYS GRID */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>
-              {["D","L","M","M","J","V","S"].map((d,i)=>(
-                <div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>
-              ))}
-              {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
-              {Array(daysInMonth).fill(null).map((_,i)=>{
-                const day = i+1;
-                const dayStr = String(day).padStart(2,"0");
-                const dayEvents = eventsByDay[dayStr]||[];
-                const isToday = day===todayDate;
-                return(
-                  <div key={day} onClick={()=>dayEvents.length>0&&onGoComm()}
-                    style={{borderRadius:7,padding:"3px 2px",minHeight:32,display:"flex",flexDirection:"column",alignItems:"center",
-                      background:isToday?"var(--gold)":"transparent",
-                      border:isToday?"none":"1px solid transparent",
-                      cursor:dayEvents.length>0?"pointer":"default"}}>
-                    <span style={{fontSize:11,fontWeight:isToday?700:400,color:isToday?"#0a0a0d":"var(--text)"}}>{day}</span>
-                    {dayEvents.length>0&&(
-                      <div style={{display:"flex",gap:2,marginTop:2}}>
-                        {dayEvents.slice(0,2).map((ev,ei)=>(
-                          <div key={ei} style={{width:4,height:4,borderRadius:"50%",background:isToday?"#0a0a0d":ev.color||"var(--gold)"}}/>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {/* UPCOMING EVENTS */}
-            {upcomingEvents.length>0&&(
-              <div style={{borderTop:"1px solid var(--border)",paddingTop:10,display:"flex",flexDirection:"column",gap:7}}>
-                {upcomingEvents.map((e,i)=>(
-                  <div key={i} onClick={onGoComm} style={{display:"flex",gap:10,alignItems:"center",cursor:"pointer"}}>
-                    <div style={{width:3,borderRadius:2,alignSelf:"stretch",background:e.color||"var(--gold)",flexShrink:0}}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
-                      <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>
-                        {new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {upcomingEvents.length===0&&(
-              <div style={{textAlign:"center",padding:"8px",color:"var(--t3)",fontSize:12}}>Aucun événement à venir</div>
-            )}
-          </div>
-        );
-      })()}
+      <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
 
       {(()=>{
         const todayAnn = announcements?.filter(a=>{
@@ -3441,6 +3361,169 @@ function TourDetailModal({tour, isOwner, gallery, setGallery, onClose, onDelete}
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── HOME CALENDAR ────────────────────────────────────────────────
+function HomeCalendar({events, users, themeColor, onNewEvent, onEditEvent, onDeleteEvent}){
+  const [calMonth, setCalMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  const year = calMonth.getFullYear();
+  const month = calMonth.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = new Date();
+
+  const eventsByDay = {};
+  events.forEach(e => {
+    if(!e.date) return;
+    const [ey,em,ed] = e.date.split("-").map(Number);
+    if(ey===year && em===month+1) {
+      if(!eventsByDay[ed]) eventsByDay[ed]=[];
+      eventsByDay[ed].push(e);
+    }
+  });
+
+  const selectedEvents = selectedDay ? (eventsByDay[selectedDay]||[]) : [];
+  const upcomingAll = [...events].filter(e=>e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date)||(a.startTime||"").localeCompare(b.startTime||""));
+
+  return(
+    <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div className="card" style={{padding:"16px"}}>
+        {/* HEADER */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div>
+            <div className="tag" style={{marginBottom:3}}>CALENDRIER</div>
+            <div className="serif" style={{fontSize:18,fontWeight:700,color:themeColor,textTransform:"capitalize"}}>
+              {calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()-1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>‹</button>
+            <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()+1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>›</button>
+            <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}}
+              style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none"}}>
+              + Ajouter
+            </button>
+          </div>
+        </div>
+
+        {/* DAY HEADERS */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+          {["D","L","M","M","J","V","S"].map((d,i)=>(
+            <div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>
+          ))}
+        </div>
+
+        {/* CALENDAR GRID */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+          {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
+          {Array(daysInMonth).fill(null).map((_,i)=>{
+            const day = i+1;
+            const dayEvents = eventsByDay[day]||[];
+            const isToday = day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
+            const isSel = selectedDay===day;
+            return(
+              <div key={day} onClick={()=>setSelectedDay(isSel?null:day)}
+                style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",
+                  background:isSel?themeColor:isToday?`${themeColor}20`:"transparent",
+                  border:`1px solid ${isSel?"transparent":isToday?`${themeColor}50`:"transparent"}`}}>
+                <span style={{fontSize:12,fontWeight:isToday||isSel?700:400,color:isSel?"#0a0a0d":isToday?themeColor:"var(--text)"}}>{day}</span>
+                <div style={{display:"flex",gap:2,marginTop:2,flexWrap:"wrap",justifyContent:"center"}}>
+                  {dayEvents.slice(0,3).map((ev,ei)=>(
+                    <div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isSel?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* SELECTED DAY EVENTS */}
+        {selectedDay&&(
+          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div className="tag">
+                {new Date(year,month,selectedDay).toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}
+              </div>
+              <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}}
+                style={{padding:"4px 10px",borderRadius:8,background:`${themeColor}20`,color:themeColor,border:`1px solid ${themeColor}40`,fontSize:11,fontWeight:700}}>
+                + Événement
+              </button>
+            </div>
+            {selectedEvents.length===0
+              ? <div style={{textAlign:"center",padding:"12px",color:"var(--t3)",fontSize:12}}>Aucun événement</div>
+              : selectedEvents.map((e,i)=>(
+                  <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,borderLeft:`3px solid ${e.color||themeColor}`,display:"flex",alignItems:"flex-start",gap:8}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div>
+                      <div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime} — {e.endTime}</div>
+                      {e.description&&<div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{e.description}</div>}
+                    </div>
+                    <div style={{display:"flex",gap:5,flexShrink:0}}>
+                      <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>✏️</button>
+                      <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>×</button>
+                    </div>
+                  </div>
+                ))
+            }
+          </div>
+        )}
+      </div>
+
+      {/* UPCOMING EVENTS LIST */}
+      {upcomingAll.length>0&&(
+        <div className="card" style={{padding:"14px"}}>
+          <div className="tag" style={{marginBottom:10}}>PROCHAINS ÉVÉNEMENTS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {upcomingAll.slice(0,5).map((e,i)=>(
+              <div key={i} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 10px",background:"var(--s2)",borderRadius:10,borderLeft:`3px solid ${e.color||themeColor}`}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
+                  <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>
+                    {new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}
+                    {e.category&&<span style={{marginLeft:8,color:e.color||themeColor,fontWeight:600}}>{e.category}</span>}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:4}}>
+                  <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:26,height:26,borderRadius:7,fontSize:11,padding:0}}>✏️</button>
+                  <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:26,height:26,borderRadius:7,fontSize:11,padding:0}}>×</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* EVENT FORM MODAL */}
+      {showForm&&<EventFormModal
+        title={editingEvent?"Modifier l'événement":"Nouvel événement"}
+        initial={editingEvent||{title:"",description:"",date:selectedDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}}
+        users={users}
+        me={{id:0}}
+        onSave={e=>{editingEvent?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditingEvent(null);}}
+        onDelete={editingEvent?e=>{onDeleteEvent(e.id);setShowForm(false);setEditingEvent(null);}:undefined}
+        onClose={()=>{setShowForm(false);setEditingEvent(null);}}
+      />}
+
+      {/* CONFIRM DELETE */}
+      {confirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}>
+          <div className="scale-in" style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}>
+            <div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div>
+            <div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}" sera supprimé.</div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn btn-ghost" onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,fontSize:14}}>Annuler</button>
+              <button className="btn btn-danger" onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:"12px",borderRadius:12,fontSize:14}}>Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
