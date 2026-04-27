@@ -214,6 +214,33 @@ export default function App() {
   const [selectedTour, setSelectedTour] = useState(null);
   const [toast, setToast]         = useState(null);
 
+  // REALTIME - poll every 15 seconds for new data
+  useEffect(() => {
+    if(!ready) return;
+    const poll = async () => {
+      try {
+        // Check for new tasks
+        const tasks = await sb.get("tasks", "archived=eq.false&order=created_at.desc");
+        const comments = await sb.get("comments", "order=created_at");
+        if(tasks?.length) {
+          setTasks(tasks.map(t=>({
+            ...t, assignedTo:t.assigned_to, createdBy:t.created_by,
+            dueDate:t.due_date, dueTime:t.due_time,
+            customDays:t.custom_days||[], pinned:t.pinned||false,
+            createdAt:new Date(t.created_at).getTime(),
+            completedAt:t.completed_at?new Date(t.completed_at).getTime():null,
+            comments:(comments||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))
+          })));
+        }
+        // Check for new announcements
+        const ann = await sb.get("announcements", "order=created_at.desc");
+        if(ann?.length) setAnnouncements(ann.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
+      } catch(e) { console.error("Poll error:", e); }
+    };
+    const interval = setInterval(poll, 15000);
+    return () => clearInterval(interval);
+  }, [ready]);
+
   useEffect(() => {
     const load = async () => {
       try {
