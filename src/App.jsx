@@ -1,15 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-const SURL = "https://sbokqrubrarsngkhuxwt.supabase.co";
-const SKEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc";
-const H = { apikey:SKEY, Authorization:`Bearer ${SKEY}`, "Content-Type":"application/json" };
-
-const sb = {
-  get: async (t, q="") => { const r = await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`, {headers:H}); return r.ok?r.json():[]; },
-  insert: async (t, d) => { const r = await fetch(`${SURL}/rest/v1/${t}`, {method:"POST",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)}); return r.ok?r.json():[]; },
-  update: async (t, id, d) => { const r = await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`, {method:"PATCH",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)}); return r.ok?r.json():[]; },
-  del: async (t, id) => { await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`, {method:"DELETE",headers:H}); },
-  upsert: async (t, d, on) => { const r = await fetch(`${SURL}/rest/v1/${t}`, {method:"POST",headers:{...H,Prefer:`resolution=merge-duplicates,return=representation`},body:JSON.stringify(d)}); return r.ok?r.json():[]; },
+const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc",H={apikey:SKEY,Authorization:`Bearer ${SKEY}`,"Content-Type":"application/json"};
+const sb={
+  get:async(t,q="")=>{const r=await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`,{headers:H});return r.ok?r.json():[];},
+  insert:async(t,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}`,{method:"POST",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
+  update:async(t,id,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"PATCH",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
+  del:async(t,id)=>{await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"DELETE",headers:H});},
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────
@@ -50,12 +46,16 @@ const DEFAULT_TOUR_ITEMS = {
 };
 
 const INIT_USERS = [
-  { id:1, name:"Olivier", role:"Propriétaire", color:"#C9A84C", isOwner:true, pin:"1111" },
-  { id:2, name:"Sophie Gagnon", role:"Dir. Adjointe", color:"#3b82f6", pin:"1111" },
-  { id:3, name:"Kevin Lavoie", role:"Dir. Opérations", color:"#2a9d8f", pin:"1111" },
+  { id:1, name:"Olivier", role:"Propriétaire", color:"#C9A84C", isOwner:true },
+  { id:2, name:"Sophie Gagnon", role:"Dir. Adjointe", color:"#3b82f6" },
+  { id:3, name:"Kevin Lavoie", role:"Dir. Opérations", color:"#2a9d8f" },
 ];
 
-const INIT_TASKS = [];
+const INIT_TASKS_OLD = [
+  { id:1, title:"Prix circulaire à vérifier", description:"Confirmer que tous les prix du circulaire sont affichés correctement.", assignedTo:2, createdBy:1, priority:"urgent", status:"todo", department:"Épicerie", dueDate:"2026-04-24", dueTime:"09:00", photo:null, comments:[{id:1,userId:1,text:"Priorité absolue pour demain matin!",ts:Date.now()-3600000}], createdAt:Date.now()-7200000, recurrence:"none", pinned:true },
+  { id:2, title:"Nettoyage réfrigérateurs viande", description:"Nettoyage complet et désinfection des surfaces.", assignedTo:3, createdBy:1, priority:"high", status:"inprogress", department:"Viande", dueDate:"2026-04-23", dueTime:"", photo:null, comments:[], createdAt:Date.now()-86400000, recurrence:"weekly", pinned:false },
+  { id:3, title:"Commander emballages boulangerie", description:"Stock bas — commander boîtes et sacs.", assignedTo:2, createdBy:2, priority:"normal", status:"done", department:"Boulangerie", dueDate:"2026-04-22", dueTime:"", photo:null, comments:[{id:2,userId:2,text:"Commande placée ✓",ts:Date.now()-1800000}], createdAt:Date.now()-172800000, completedAt:Date.now()-3600000, recurrence:"monthly", pinned:false },
+];
 
 const INIT_STORE = { name:"Mon IGA", number:"IGA-001", address:"123 rue Principale, Montréal", logo:null };
 
@@ -137,19 +137,23 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
 
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
-  const [ready, setReady] = useState(false);
-  const [joinRequests, setJoinRequests] = useState([]);
-  const [loginUser, setLoginUser] = useState(null); // null = show user picker
   const [dark, setDark]           = useState(true);
   const [lang, setLang]           = useState("fr");
   const [themeColor, setThemeColor] = useState("#C9A84C");
-  const [gallery, setGallery] = useState([]);
+  const [gallery, setGallery]     = useState([
+    { id:1, name:"Montage été", photos:[], createdBy:1, ts:Date.now()-86400000 },
+    { id:2, name:"Inspection MAPAQ", photos:[], createdBy:1, ts:Date.now()-172800000 },
+  ]);
   const [users, setUsers]         = useState(INIT_USERS);
   const [tasks, setTasks]         = useState(INIT_TASKS);
   const [store, setStore]         = useState(INIT_STORE);
   const [tourConfig, setTourConfig] = useState(INIT_TOUR_CONFIG);
   const [tourHistory, setTourHistory] = useState([]);
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState([
+    { id:1, title:"Réunion direction", description:"Bilan de la semaine et objectifs", date:"2026-04-28", startTime:"08:00", endTime:"09:00", members:[1,2,3], color:"#3b82f6", category:"Rencontre direction", recurrence:"weekly", customDays:[], reminder:"60", createdBy:1 },
+    { id:2, title:"Visite représentant Loblaws", description:"Présentation nouvelles promotions", date:"2026-04-30", startTime:"10:00", endTime:"11:30", members:[1,2], color:"#e63946", category:"Rencontre représentant", recurrence:"none", customDays:[], reminder:"1440", createdBy:1 },
+    { id:3, title:"Inventaire mensuel", description:"Inventaire complet tous départements", date:"2026-04-29", startTime:"07:00", endTime:"12:00", members:[1,2,3], color:"#f4a261", category:"Inventaire", recurrence:"monthly", customDays:[], reminder:"1440", createdBy:1 },
+  ]);
   const [announcements, setAnnouncements] = useState([]);
   const [showUrgency, setShowUrgency]   = useState(false);
   const [shiftReports, setShiftReports] = useState([]);
@@ -206,230 +210,116 @@ export default function App() {
   const [selectedTour, setSelectedTour] = useState(null);
   const [toast, setToast]         = useState(null);
 
-  // REALTIME - poll every 15 seconds for new data
-  useEffect(() => {
-    if(!ready) return;
-    const poll = async () => {
-      try {
-        const newTasks = await sb.get("tasks", "archived=eq.false&order=created_at.desc");
-        const newComments = await sb.get("comments", "order=created_at");
-        if(newTasks?.length) {
-          const mapped = newTasks.map(t=>({
-            ...t, assignedTo:t.assigned_to, createdBy:t.created_by,
-            dueDate:t.due_date, dueTime:t.due_time,
-            customDays:t.custom_days||[], pinned:t.pinned||false,
-            createdAt:new Date(t.created_at).getTime(),
-            completedAt:t.completed_at?new Date(t.completed_at).getTime():null,
-            comments:(newComments||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))
-          }));
-          // Detect new tasks and notify
-          setTasks(prev => {
-            const prevIds = new Set(prev.map(t=>t.id));
-            mapped.forEach(t => {
-              if(!prevIds.has(t.id) && t.createdBy !== undefined) {
-                pushNotif(`Nouvelle tâche`, t.title, "task");
-              }
-            });
-            return mapped;
-          });
-        }
-        // Check for new announcements
-        const ann = await sb.get("announcements", "order=created_at.desc");
-        if(ann?.length) {
-          setAnnouncements(prev => {
-            const prevIds = new Set(prev.map(a=>a.id));
-            const mapped = ann.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));
-            mapped.forEach(a => {
-              if(!prevIds.has(a.id)) pushNotif("Nouvelle annonce", a.text.slice(0,60), "announce");
-            });
-            return mapped;
-          });
-        }
-      } catch(e) { console.error("Poll error:", e); }
-    };
-    const interval = setInterval(poll, 15000);
-    return () => clearInterval(interval);
-  }, [ready]);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // Users
-        const users = await sb.get("users", "order=id");
-        if (users?.length) {
-          const u = users.map(x => ({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));
-          setUsers(u);
-          setMe(u.find(x=>x.isOwner)||u[0]);
-        }
-        // Tasks + comments
-        const tasks = await sb.get("tasks", "archived=eq.false&order=created_at.desc");
-        const comments = await sb.get("comments", "order=created_at");
-        if (tasks?.length) {
-          setTasks(tasks.map(t=>({
-            ...t, assignedTo:t.assigned_to, createdBy:t.created_by,
-            dueDate:t.due_date, dueTime:t.due_time,
-            customDays:t.custom_days||[], pinned:t.pinned||false,
-            createdAt:new Date(t.created_at).getTime(),
-            completedAt:t.completed_at?new Date(t.completed_at).getTime():null,
-            comments:(comments||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))
-          })));
-        }
-        // Announcements
-        const ann = await sb.get("announcements", "order=created_at.desc");
-        if (ann?.length) setAnnouncements(ann.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
-        // Events
-        const evts = await sb.get("events", "order=date");
-        if (evts?.length) setEvents(evts.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));
-        // Tour history
-        const tours = await sb.get("tour_history", "order=created_at.desc");
-        if (tours?.length) setTourHistory(tours.map(t=>({...t,doneBy:t.done_by,startTime:t.start_time,issues:t.issues||[],ts:new Date(t.created_at).getTime()})));
-        // Shift reports
-        const reports = await sb.get("shift_reports", "order=created_at.desc");
-        if (reports?.length) setShiftReports(reports.map(r=>({...r,doneBy:r.done_by,createdBy:r.created_by,ts:new Date(r.created_at).getTime()})));
-        // Store
-        const store = await sb.get("store_profile");
-        if (store?.length) setStore({name:store[0].name,number:store[0].number,address:store[0].address||"",logo:store[0].logo||null});
+  useEffect(()=>{
+    const load=async()=>{
+      try{
+        const [U,T,C,A,E,TR,S]=await Promise.all([
+          sb.get("users","order=id"),
+          sb.get("tasks","archived=eq.false&order=created_at.desc"),
+          sb.get("comments","order=created_at"),
+          sb.get("announcements","order=created_at.desc"),
+          sb.get("events","order=date"),
+          sb.get("tour_history","order=created_at.desc"),
+          sb.get("store_profile"),
+        ]);
+        if(U?.length){const u=U.map(x=>({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));setUsers(u);setMe(u.find(x=>x.isOwner)||u[0]);}
+        if(T?.length){setTasks(T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))})));}
+        if(A?.length){setAnnouncements(A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));}
+        if(E?.length){setEvents(E.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));}
+        if(TR?.length){setTourHistory(TR.map(t=>({...t,doneBy:t.done_by,startTime:t.start_time,issues:t.issues||[],ts:new Date(t.created_at).getTime()})));}
+        if(S?.length){setStore({name:S[0].name,number:S[0].number,address:S[0].address||"",logo:S[0].logo||null});}
         // Notes
-        const notes = await sb.get("notes");
-        if (notes?.length) { const m={}; notes.forEach(n=>{m[n.user_id]=n.text;}); setNotes(m); }
+        const N=await sb.get("notes");if(N?.length){const m={};N.forEach(n=>{m[n.user_id]=n.text;});setNotes(m);}
         // Schedules
-        const depts = await sb.get("schedule_depts","order=sort_order");
-        const photos = await sb.get("schedule_photos","order=created_at.desc");
-        if (depts?.length) {
-          const newDepts=[], newSched={};
-          depts.forEach(d=>{
-            newDepts.push(d.name);
-            newSched[d.name]=(photos||[]).filter(p=>p.dept_id===d.id).map(p=>({id:p.id,label:p.label,photo:p.photo||null,ts:new Date(p.created_at).getTime()}));
-          });
-          setScheduleDepts(newDepts);
-          setSchedules(newSched);
-        }
-      // Load gallery
-      try {
-        const gFolders = await sb.get("gallery_folders","order=created_at.desc");
-        const gPhotos = await sb.get("gallery_photos","order=created_at.desc");
-        if(gFolders?.length){
-          setGallery(gFolders.map(f=>({
-            id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),
-            photos:(gPhotos||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))
-          })));
-        }
-      } catch(e) { console.error("Gallery error:",e); }
-
-      // Load join requests (owner only)
-      try {
-        const reqs = await sb.get("join_requests", "order=created_at.desc");
-        if(reqs?.length) setJoinRequests(reqs);
-      } catch(e) { /* table might not exist yet */ }
-      } catch(e) { console.error("Load error:", e); }
+        const SD=await sb.get("schedule_depts","order=sort_order"),SP=await sb.get("schedule_photos","order=created_at.desc");
+        if(SD?.length){const nd=[],ns={};SD.forEach(d=>{nd.push(d.name);ns[d.name]=(SP||[]).filter(p=>p.dept_id===d.id).map(p=>({id:p.id,label:p.label,photo:p.photo||null,ts:new Date(p.created_at).getTime()}));});setScheduleDepts(nd);setSchedules(ns);}
+        // Gallery
+        const GF=await sb.get("gallery_folders","order=created_at.desc"),GP=await sb.get("gallery_photos","order=created_at.desc");
+        if(GF?.length){setGallery(GF.map(f=>({id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),photos:(GP||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))})));}
+        // Join requests
+        try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){}
+      }catch(e){console.error("Load error:",e);}
       setReady(true);
     };
     load();
-  }, []);
+  },[]);
 
-  const isOwner = me.isOwner;
+  // Polling every 15s
+  useEffect(()=>{
+    if(!ready)return;
+    const poll=async()=>{
+      try{
+        const T=await sb.get("tasks","archived=eq.false&order=created_at.desc");
+        const C=await sb.get("comments","order=created_at");
+        if(T?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
+        const A=await sb.get("announcements","order=created_at.desc");
+        if(A?.length){setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});}
+      }catch(e){}
+    };
+    const iv=setInterval(poll,15000);
+    return()=>clearInterval(iv);
+  },[ready]);
+
+    const isOwner = me.isOwner;
   const unread  = notifs.filter(n=>!n.read).length;
-  const pendingRequests = joinRequests.filter(r=>r.status==="pending").length;
   const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
 
   const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
   const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
   const clearAllNotifs = () => setNotifs([]);
-  const deleteNotif = id => setNotifs(p=>p.filter(n=>n.id!==id));
-  const clickNotif = n => {
-    // Mark as read
-    setNotifs(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));
-    // Navigate to relevant content
-    if(n.type==="task"||n.type==="done"||n.type==="reminder"||n.type==="mention"){
-      const task = tasks.find(t=>t.title===n.sub||n.sub?.includes(t.title));
-      if(task){setActive(task);setModal("taskDetail");setTab("tasks");}
-      else setTab("tasks");
-    } else if(n.type==="announce"){ setTab("comm"); }
-    else if(n.type==="event"){     setTab("comm"); }
-    else if(n.type==="urgency"){   setTab("comm"); }
-  };
   const markAllRead = () => setNotifs(p=>p.map(n=>({...n,read:true})));
 
   const openTask = t => { setSeenTasks(p=>new Set([...p,t.id])); setActive(t); setModal("taskDetail"); };
 
-  const createTask = async data => {
-    try {
-      const res = await sb.insert("tasks",{title:data.title,description:data.description,assigned_to:data.assignedTo,created_by:me.id,priority:data.priority,status:"todo",department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:false,archived:false});
-      if(res?.[0]){const t={...res[0],assignedTo:res[0].assigned_to,createdBy:res[0].created_by,dueDate:res[0].due_date,dueTime:res[0].due_time,customDays:res[0].custom_days||[],createdAt:new Date(res[0].created_at).getTime(),comments:[],completedAt:null};setTasks(p=>[t,...p]);}
-      pushNotif(`Nouvelle tâche par ${me.name}`,data.title,"task");
-      pushToast("Tâche créée !"); setModal(null);
-    } catch(e){pushToast("Erreur","warn");}
+  const createTask=async data=>{try{const r=await sb.insert("tasks",{title:data.title,description:data.description,assigned_to:data.assignedTo,created_by:me.id,priority:data.priority,status:"todo",department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null};setTasks(p=>[t,...p]);}pushNotif(`Nouvelle tâche`,data.title,"task");pushToast("Tâche créée !");setModal(null);}catch(e){pushToast("Erreur","warn");}};
+
+  const editTask = data => {
+    setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
+    pushToast("Tâche modifiée !"); setModal(null); setActive(null);
   };
 
-  const editTask = async data => {
-    try {
-      await sb.update("tasks",data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned});
-      setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
-      pushToast("Tâche modifiée !"); setModal(null); setActive(null);
-    } catch(e){pushToast("Erreur","warn");}
-  };
-
-  const updateStatus = async (taskId,status,note,photo) => {
+  const updateStatus = (taskId,status,note,photo) => {
     const now=Date.now();
-    try {
-      await sb.update("tasks",taskId,{status,completed_at:status==="done"?new Date().toISOString():null,...(photo?{photo}:{})});
-      if(status==="done"&&note){const res=await sb.insert("comments",{task_id:taskId,user_id:me.id,text:"✓ "+note});if(res?.[0]){const c={id:res[0].id,userId:me.id,text:"✓ "+note,ts:now};setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...t.comments,c],...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...p.comments,c]}:p);}}
-      else{setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==="done"?now:null,...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:status==="done"?now:null}:p);}
-      if(status==="done"){const t=tasks.find(x=>x.id===taskId);pushNotif("Tâche complétée",t?.title,"done");pushToast("Complété !");}
-    } catch(e){pushToast("Erreur","warn");}
-  };
-
-  const togglePin = async taskId => {
-    const task=tasks.find(t=>t.id===taskId);if(!task)return;
-    try{await sb.update("tasks",taskId,{pinned:!task.pinned});setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);pushToast("Épinglée !");}catch(e){}
-  };
-
-  const addComment = async (taskId,text) => {
-    if(!text.trim()) return;
-    try {
-      const res=await sb.insert("comments",{task_id:taskId,user_id:me.id,text});
-      if(res?.[0]){const c={id:res[0].id,userId:me.id,text,ts:new Date(res[0].created_at).getTime()};setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));setActive(p=>p?{...p,comments:[...p.comments,c]}:p);const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});}
-    } catch(e){console.error(e);}
-  };
-
-  const createGalleryFolder = async name => {
-    if(!name.trim()) return;
-    try {
-      const res = await sb.insert("gallery_folders",{name:name.trim(),created_by:me.id});
-      if(res?.[0]) setGallery(p=>[{id:res[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);
-      pushToast(T(lang,"folderCreated"));
-    } catch(e) { pushToast("Erreur","warn"); }
-  };
-  const deleteGalleryFolder = async id => {
-    try {
-      await sb.del("gallery_folders",id);
-      setGallery(p=>p.filter(f=>f.id!==id));
-      pushToast(T(lang,"deleted"),"warn");
-    } catch(e) { pushToast("Erreur","warn"); }
-  };
-  const addPhotoToFolder = async (folderId, photo, caption) => {
-    try {
-      const res = await sb.insert("gallery_photos",{folder_id:folderId,photo,caption,added_by:me.id});
-      if(res?.[0]) {
-        const newPhoto = {id:res[0].id,photo,caption,addedBy:me.id,ts:Date.now()};
-        setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[newPhoto,...f.photos]}:f));
+    const update = t=>({...t,status,completedAt:status==="done"?now:null,
+      ...(status==="done"&&note?{comments:[...t.comments,{id:now,userId:me.id,text:"✓ "+note,ts:now}]}:{}),
+      ...(status==="done"&&photo?{photo}:{}),
+    });
+    setTasks(p=>p.map(t=>{
+      if(t.id!==taskId) return t;
+      const updated=update(t);
+      if(status==="done"&&t.recurrence&&t.recurrence!=="none"){
+        const next={...t,id:now+1,status:"todo",comments:[],createdAt:now,completedAt:null,dueDate:nextDue(t.recurrence,t.customDays),photo:null,pinned:false};
+        setTimeout(()=>{setTasks(p2=>[...p2,next]);pushNotif("Tâche récurrente créée",t.title,"task");},600);
       }
-      pushToast(T(lang,"photoAdded"));
-    } catch(e) { pushToast("Erreur","warn"); }
+      return updated;
+    }));
+    if(status==="done"){const t=tasks.find(x=>x.id===taskId);pushNotif("Tâche complétée",t?.title,"done");pushToast("Complété !");}
+    setActive(p=>p?.id===taskId?update(p):p);
   };
-  const deletePhotoFromFolder = async (folderId, photoId) => {
-    try {
-      await sb.del("gallery_photos",photoId);
-      setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));
-      pushToast(T(lang,"deleted"),"warn");
-    } catch(e) { pushToast("Erreur","warn"); }
+
+  const togglePin = taskId => {
+    setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));
+    setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);
+    pushToast("Épinglée !");
   };
-  const renameGalleryFolder = async (id, name) => {
-    try {
-      await sb.update("gallery_folders",id,{name});
-      setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
-      pushToast(T(lang,"saved"));
-    } catch(e) { pushToast("Erreur","warn"); }
+
+  const addComment = (taskId,text) => {
+    if(!text.trim()) return;
+    const c={id:Date.now(),userId:me.id,text,ts:Date.now()};
+    setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));
+    setActive(p=>p?{...p,comments:[...p.comments,c]}:p);
+    const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));
+    mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});
+  };
+
+  const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert("gallery_folders",{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,"folderCreated"));}catch(e){pushToast("Erreur","warn");}};
+  const deleteGalleryFolder=async id=>{try{await sb.del("gallery_folders",id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,"deleted"),"warn");}catch(e){};};
+  const addPhotoToFolder=async(folderId,photo,caption)=>{try{const r=await sb.insert("gallery_photos",{folder_id:folderId,photo,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,"photoAdded"));}catch(e){pushToast("Erreur","warn");}};
+  const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del("gallery_photos",photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,"deleted"),"warn");}catch(e){}};
+  const renameGalleryFolder = (id, name) => {
+    setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
+    pushToast(T(lang,"saved"));
   };
 
   // Auto-collect all photos from tasks into a virtual "all" list
@@ -458,80 +348,31 @@ export default function App() {
     pushToast("Département renommé !");
   };
 
-  const archiveTask = async tid => {
-    try{await sb.update("tasks",tid,{archived:true,archived_at:new Date().toISOString()});const t=tasks.find(x=>x.id===tid);if(t){setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]);setTasks(p=>p.filter(x=>x.id!==tid));}pushToast("Tâche archivée");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}
+  const archiveTask=async tid=>{try{await sb.update("tasks",tid,{archived:true,archived_at:new Date().toISOString()});const t=tasks.find(x=>x.id===tid);if(t){setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]);setTasks(p=>p.filter(x=>x.id!==tid));}pushToast("Tâche archivée");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}};
+  const addSchedulePhoto = (dept, label, photo) => {
+    setSchedules(p=>({...p,[dept]:[{id:Date.now(),label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
+    pushToast("Horaire ajouté !");
   };
-  const addSchedulePhoto = async (dept,label,photo) => {
-    try{const depts=await sb.get("schedule_depts");let dr=depts?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert("schedule_depts",{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const res=await sb.insert("schedule_photos",{dept_id:dr.id,label,photo});if(res?.[0])setSchedules(p=>({...p,[dept]:[{id:res[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast("Horaire ajouté !");}catch(e){pushToast("Erreur","warn");}
+  const deleteSchedulePhoto = (dept, id) => {
+    setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));
+    pushToast("Horaire supprimé","warn");
   };
-  
-  const deleteSchedulePhoto = async (dept,id) => {
-    try{await sb.del("schedule_photos",id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast("Horaire supprimé","warn");}catch(e){}
-  };
-  
-  const saveNote = async (userId,text) => {
-    try{const ex=await sb.get("notes",`user_id=eq.${userId}`);if(ex?.length){await sb.update("notes",ex[0].id,{text,updated_at:new Date().toISOString()});}else{await sb.insert("notes",{user_id:userId,text});}setNotes(p=>({...p,[userId]:text}));}catch(e){console.error(e);}
-  };
+  const saveNote=async(userId,text)=>{try{const ex=await sb.get("notes",`user_id=eq.${userId}`);if(ex?.length)await sb.update("notes",ex[0].id,{text});else await sb.insert("notes",{user_id:userId,text});setNotes(p=>({...p,[userId]:text}));}catch(e){}};
 
-  const createUser = async data => {
-    try{const res=await sb.insert("users",{name:data.name,role:data.role,color:data.color,is_owner:false});if(res?.[0])setUsers(p=>[...p,{...res[0],isOwner:false}]);pushToast(`${data.name} ajouté !`);setModal(null);}catch(e){pushToast("Erreur","warn");}
-  };
-  const updateUser = async data => {
-    try{
-      await sb.update("users",data.id,{name:data.name,role:data.role,color:data.color,pin:data.pin||"1111"});
-      setUsers(p=>p.map(u=>u.id===data.id?data:u));
-      if(me.id===data.id)setMe(data);
-      pushToast("Profil mis à jour !");setModal(null);setEditUser(null);
-    }catch(e){pushToast("Erreur","warn");}
-  };
-  const deleteUser = async uid => {
-    try{await sb.del("users",uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}
-  };
-  const deleteTask = async tid => { try{await sb.del("tasks",tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast("Supprimée","warn");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");} };
+  const createUser=async data=>{try{const r=await sb.insert("users",{name:data.name,role:data.role,color:data.color,is_owner:false,pin:"1111"});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);pushToast(`${data.name} ajouté !`);setModal(null);}catch(e){pushToast("Erreur","warn");}};
+  const updateUser=async data=>{try{await sb.update("users",data.id,{name:data.name,role:data.role,color:data.color,pin:data.pin||"1111"});setUsers(p=>p.map(u=>u.id===data.id?data:u));if(me.id===data.id)setMe(data);pushToast("Profil mis à jour !");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}};
+  const deleteUser=async uid=>{try{await sb.del("users",uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}};
+  const deleteTask=async tid=>{try{await sb.del("tasks",tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast("Supprimée","warn");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}};
 
-  const saveTour = async tour => {
-    try{
-      const issuesWithPhotos = tour.issues||[];
-      // Strip photos from issues for tour_history (too large)
-      const safeIssues = issuesWithPhotos.map(i=>({...i,photo:null}));
-      const res = await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:safeIssues});
-      if(res?.[0]) setTourHistory(p=>[{...tour,id:res[0].id},...p]);
+  const saveTour=async tour=>{try{const si=tour.issues||[];const r=await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:si.map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total}`,'done');pushToast(`Tournée sauvegardée !`);setActiveTour(null);setModal(null);}catch(e){console.error(e);pushToast("Erreur","warn");}};
 
-      // Auto-save tour photos to gallery
-      const photosToSave = issuesWithPhotos.filter(i=>i.photo);
-      if(photosToSave.length>0){
-        try{
-          // Find or create "Photos Tournées" folder
-          const existingFolders = await sb.get("gallery_folders");
-          let tourFolder = existingFolders?.find(f=>f.name==="Photos Tournées");
-          if(!tourFolder){
-            const newFolder = await sb.insert("gallery_folders",{name:"Photos Tournées",created_by:me.id});
-            tourFolder = newFolder?.[0];
-            if(tourFolder) setGallery(p=>[{id:tourFolder.id,name:"Photos Tournées",createdBy:me.id,ts:Date.now(),photos:[]},...p]);
-          }
-          if(tourFolder?.id){
-            for(const issue of photosToSave){
-              const caption = `${tour.shift} · ${tour.date} · ${issue.item}`;
-              const photoRes = await sb.insert("gallery_photos",{folder_id:tourFolder.id,photo:issue.photo,caption,added_by:me.id});
-              if(photoRes?.[0]){
-                const newPhoto = {id:photoRes[0].id,photo:issue.photo,caption,addedBy:me.id,ts:Date.now()};
-                setGallery(p=>p.map(f=>f.id===tourFolder.id?{...f,photos:[newPhoto,...f.photos]}:f));
-              }
-            }
-          }
-        }catch(e){ console.error("Tour photos to gallery error:",e); }
-      }
+  // Reminders disabled
 
-      pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total} — ${tour.doneBy}`,"done");
-      pushToast(`Tournée ${tour.shift} sauvegardée !`);
-      setActiveTour(null);setModal(null);
-    }catch(e){console.error("Tour save error:",e);pushToast("Erreur sauvegarde tournée","warn");}
-  };
-
-  // Reminders disabled - handled manually
-
-  const saveShiftReport = async report => {
-    try{const res=await sb.insert("shift_reports",{date:report.date,traffic:report.traffic,rating:report.rating,highlights:report.highlights,incidents:report.incidents,notes:report.notes,done_by:me.name,created_by:me.id});if(res?.[0])setShiftReports(p=>[{...res[0],doneBy:me.name,createdBy:me.id,ts:Date.now()},...p]);pushNotif("Rapport de journée",`${me.name} · Note: ${report.rating}/5`,"report");pushToast("Rapport sauvegardé !");setModal(null);}catch(e){pushToast("Erreur","warn");}
+  const saveShiftReport = report => {
+    setShiftReports(p=>[{...report, id:Date.now(), createdBy:me.id, ts:Date.now()},...p]);
+    pushNotif(`Rapport de shift — ${report.shift}`, `${me.name} · Note: ${report.rating}/5`, "report");
+    pushToast("Rapport sauvegardé !");
+    setModal(null);
   };
 
   const applyTemplate = template => {
@@ -545,50 +386,18 @@ export default function App() {
     setModal(null);
   };
 
-  const createEvent = async data => {
-    try{const res=await sb.insert("events",{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members,created_by:me.id});if(res?.[0])setEvents(p=>[{...res[0],startTime:res[0].start_time,endTime:res[0].end_time,createdBy:me.id,customDays:res[0].custom_days||[],members:res[0].members||[]},...p]);pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event");pushToast("Événement créé !");setModal(null);}catch(e){pushToast("Erreur","warn");}
-  };
-  const editEvent = async data => {
-    try{await sb.update("events",data.id,{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members});setEvents(p=>p.map(e=>e.id===data.id?data:e));pushToast("Événement modifié !");setModal(null);}catch(e){pushToast("Erreur","warn");}
-  };
-  const deleteEvent = async id => {
-    try{await sb.del("events",id);setEvents(p=>p.filter(e=>e.id!==id));pushToast("Événement supprimé","warn");setModal(null);}catch(e){}
-  };
-  const createAnnouncement = async data => {
-    try{const res=await sb.insert("announcements",{text:data.text,dept:data.dept,created_by:me.id});if(res?.[0])setAnnouncements(p=>[{...res[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif(`Annonce de ${me.name}`,data.text.slice(0,60),"announce");pushToast("Annonce envoyée !");setModal(null);}catch(e){pushToast("Erreur","warn");}
-  };
-  const deleteAnnouncement = async id => {
-    try{await sb.del("announcements",id);setAnnouncements(p=>p.filter(a=>a.id!==id));pushToast("Annonce supprimée","warn");}catch(e){}
-  };
+  const createEvent = data => { setEvents(p=>[{...data,id:Date.now(),createdBy:me.id},...p]); pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event"); pushToast("Événement créé !"); setModal(null); };
+  const editEvent   = data => { setEvents(p=>p.map(e=>e.id===data.id?data:e)); pushToast("Événement modifié !"); setModal(null); };
+  const deleteEvent = id   => { setEvents(p=>p.filter(e=>e.id!==id)); pushToast("Événement supprimé","warn"); setModal(null); };
+  const createAnnouncement=async data=>{try{const r=await sb.insert("announcements",{text:data.text,dept:data.dept,created_by:me.id});if(r?.[0])setAnnouncements(p=>[{...r[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif(`Annonce`,data.text.slice(0,60),"announce");pushToast("Annonce envoyée !");setModal(null);}catch(e){pushToast("Erreur","warn");}};
+  const deleteAnnouncement=async id=>{try{await sb.del("announcements",id);setAnnouncements(p=>p.filter(a=>a.id!==id));pushToast("Annonce supprimée","warn");}catch(e){}};
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
-  const sendJoinRequest = async (name, role) => {
-    try {
-      const res = await sb.insert("join_requests", {name, role, status:"pending"});
-      if(res?.[0]) pushToast("Demande envoyée ! En attente d'approbation.");
-    } catch(e) { pushToast("Erreur","warn"); }
-  };
-  const approveRequest = async (req) => {
-    try {
-      const colors = ["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261","#84cc16"];
-      const color = colors[users.length % colors.length];
-      const newUser = await sb.insert("users",{name:req.name,role:req.role,color,is_owner:false});
-      if(newUser?.[0]) {
-        setUsers(p=>[...p,{...newUser[0],isOwner:false}]);
-        await sb.update("join_requests",req.id,{status:"approved"});
-        setJoinRequests(p=>p.map(r=>r.id===req.id?{...r,status:"approved"}:r));
-        pushToast(`${req.name} approuvé !`);
-      }
-    } catch(e) { pushToast("Erreur","warn"); }
-  };
-  const rejectRequest = async (req) => {
-    try {
-      await sb.update("join_requests",req.id,{status:"rejected"});
-      setJoinRequests(p=>p.map(r=>r.id===req.id?{...r,status:"rejected"}:r));
-      pushToast("Demande refusée","warn");
-    } catch(e) {}
-  };
-
+  const sendJoinRequest=async(name,role)=>{try{await sb.insert("join_requests",{name,role,status:"pending"});pushToast("Demande envoyée !");}catch(e){pushToast("Erreur","warn");}};
+  const approveRequest=async req=>{try{const colors=["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261"];const color=colors[users.length%colors.length];const r=await sb.insert("users",{name:req.name,role:req.role,color,is_owner:false,pin:"1111"});if(r?.[0]){setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);await sb.update("join_requests",req.id,{status:"approved"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"approved"}:x));pushToast(`${req.name} approuvé !`);}}catch(e){pushToast("Erreur","warn");}};
+  const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));pushToast("Refusé","warn");}catch(e){}};
+  const deleteNotif=id=>setNotifs(p=>p.filter(n=>n.id!==id));
+  const clickNotif=n=>{setNotifs(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));if(n.type==="task"||n.type==="done"||n.type==="reminder"||n.type==="mention"){const t=tasks.find(x=>x.title===n.sub||n.sub?.includes(x.title));if(t){setActive(t);setModal("taskDetail");setTab("tasks");}else setTab("tasks");}else setTab("comm");};
   const getUser = id=>users.find(u=>u.id===id);
   const getPri  = id=>PRIORITIES.find(p=>p.id===id);
   const stats = {
@@ -604,17 +413,9 @@ export default function App() {
 
   const css = makeCSS(dark, themeColor);
 
-  if (!ready) return (
-    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap'); @keyframes spin{to{transform:rotate(360deg);}}`}</style>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div>
-      <div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/>
-    </div>
-  );
+  if(!ready)return(<div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap');@keyframes spin{to{transform:rotate(360deg);}}`}</style><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div><div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/></div>);
 
-  if (!loginUser) return (
-    <PinLoginScreen users={users} onLogin={(u)=>{setLoginUser(u);setMe(u);}} onJoinRequest={sendJoinRequest}/>
-  );
+  if(!loginUser)return(<PinLoginScreen users={users} onLogin={u=>{setLoginUser(u);setMe(u);}} onJoinRequest={sendJoinRequest}/>);
 
   return (
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",maxWidth:430,margin:"0 auto",position:"relative"}}>
@@ -641,7 +442,7 @@ export default function App() {
             SOS
           </button>
           <div style={{position:"relative"}}>
-            <button className="btn" onClick={()=>setModal("notifs")}
+            <button className="btn" onClick={()=>{setModal("notifs");setNotifs(p=>p.map(n=>({...n,read:true})));}}
               style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)"}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </button>
@@ -700,7 +501,7 @@ export default function App() {
       {modal==="taskDetail"   && activeTask && <TaskDetailModal task={activeTask} users={users} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onStatus={updateStatus} onComment={addComment} onDelete={deleteTask} onArchive={archiveTask} onEdit={t=>{setEditTaskData(t);setModal("editTask");}} onPin={togglePin} onClose={()=>{setModal(null);setActive(null);}}/>}
       {modal==="newUser"      && <NewUserModal    onSave={createUser} onClose={()=>setModal(null)}/>}
       {modal==="editUser"     && editUser && <EditUserModal user={editUser} me={me} isOwner={isOwner} onSave={updateUser} onDelete={deleteUser} onClose={()=>{setModal(null);setEditUser(null);}}/>}
-      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead} onDeleteNotif={deleteNotif} onClickNotif={clickNotif}/>}
+      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead}/>}
       {modal==="switchUser"   && <SwitchUserModal users={users} me={me} onSwitch={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}} onClose={()=>setModal(null)}/>}
       {showPDFInfo && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPDFInfo(false)}>
@@ -728,50 +529,17 @@ export default function App() {
           onExportPDF={()=>{setShowPDFInfo(true);setModal(null);}}
           onSearch={()=>{setGlobalSearch(true);setModal(null);}}
           onSOS={()=>{setShowUrgency(true);setModal(null);}}
-          onChangePin={()=>{setModal("changePin");}}
           onClose={()=>setModal(null)}
         />}
-      {modal==="changePin" && <ChangePinModal me={me} onSave={async (newPin)=>{
-          try{
-            await sb.update("users",me.id,{pin:newPin});
-            setUsers(p=>p.map(u=>u.id===me.id?{...u,pin:newPin}:u));
-            setMe(p=>({...p,pin:newPin}));
-            pushToast("NIP modifié !");setModal(null);
-          }catch(e){pushToast("Erreur","warn");}
-        }} onClose={()=>setModal(null)}/>}
-  onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
+      {modal==="shiftReport"  && <ShiftReportModal me={me} onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
-       {modal==="storeProfile" && <StoreProfileModal store={store} onSave={async s=>{
-          try{
-            const ex=await sb.get("store_profile");
-            if(ex?.length) await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});
-            else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});
-            setStore(s); setModal(null); pushToast("Profil mis à jour !");
-          }catch(e){pushToast("Erreur sauvegarde","warn");}
-        }} onClose={()=>setModal(null)}/>}
+      {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={s=>{setStore(s);setModal(null);pushToast("Profil mis à jour !");}} onClose={()=>setModal(null)}/>}
       {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
+      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Tournée supprimée","warn");}catch(e){pushToast("Erreur","warn");}}}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
       {/* TOAST */}
-      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} gallery={gallery} setGallery={setGallery} onClose={()=>setSelectedTour(null)} onDelete={async(t)=>{
-          try{
-            await sb.del("tour_history",t.id);
-            setTourHistory(p=>p.filter(x=>x.id!==t.id));
-            try{
-              const gf=await sb.get("gallery_folders");
-              const tf=gf?.find(f=>f.name==="Photos Tournées");
-              if(tf){
-                const gp=await sb.get("gallery_photos",`folder_id=eq.${tf.id}`);
-                const toRemove=gp?.filter(p=>p.caption?.includes(t.date)&&p.caption?.includes(t.shift));
-                for(const p of toRemove||[]) await sb.del("gallery_photos",p.id);
-                setGallery(prev=>prev.map(f=>f.id===tf.id?{...f,photos:f.photos.filter(p=>!(p.caption?.includes(t.date)&&p.caption?.includes(t.shift)))}:f));
-              }
-            }catch(e){}
-            setSelectedTour(null);
-            pushToast("Tournée supprimée","warn");
-          }catch(e){pushToast("Erreur","warn");}
-        }}/>}
       {showGlobalSearch&&(
         <GlobalSearchModal query={globalQuery} setQuery={setGlobalQuery} tasks={tasks} events={events} announcements={announcements} notes={notes} me={me} getUser={getUser} getPri={getPri} onTask={t=>{openTask(t);setGlobalSearch(false);}} onClose={()=>{setGlobalSearch(false);setGlobalQuery("");}}/>
       )}
@@ -797,7 +565,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent}){
+function HomeTab({stats,me,store,tasks,announcements,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onShiftReport}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
     <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
@@ -805,19 +573,81 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
         <div className="tag" style={{marginBottom:5}}>BONJOUR</div>
         <div className="serif" style={{fontSize:32,fontWeight:700,letterSpacing:"-0.5px",color:"var(--text)",lineHeight:1.1}}>{me.name}</div>
         <div style={{fontSize:13,color:"var(--t2)",marginTop:5}}>{new Date().toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
-      <
+      </div>
+
+      {announcements?.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {announcements.slice(0,5).map(a=>(
+              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
+        {[
+          {label:"À faire",    value:stats.todo,       sub:"en attente",     filter:"todo"},
+          {label:"En cours",   value:stats.inprogress, sub:"en progression", filter:"inprogress"},
+          {label:"Complétées", value:stats.done,       sub:"ce cycle",       filter:"done"},
+          {label:"Épinglées",  value:stats.pinned,     sub:"prioritaires",   filter:"pinned"},
+        ].map(s=>(
+          <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} themeColor={themeColor} onClick={()=>onGoTo(s.filter)}/>
+        ))}
+      </div>
+
+      {pinned.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ÉPINGLÉES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {pinned.map(t=><MiniTaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)}/>)}
+          </div>
+        </div>
+      )}
+
+      {/* QUICK SHORTCUTS */}
+      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+        {[
+          {label:T(lang,"newUrgentTask"), icon:"⚡", action:onNew, color:"#e63946"},
+          {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
+          {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
+          {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
+          {label:"Rapport de shift",  icon:"📊", action:onShiftReport, color:"#2a9d8f"},
+
+        ].map(s=>(
+          <button key={s.label} className="btn card-tap" onClick={s.action}
+            style={{padding:"14px 12px",borderRadius:14,background:"transparent",border:`1.5px solid ${themeColor}`,flexDirection:"column",gap:6,alignItems:"flex-start"}}>
+            <span style={{fontSize:20}}>{s.icon}</span>
+            <span style={{fontSize:12,fontWeight:600,color:themeColor,textAlign:"left",lineHeight:1.3}}>{s.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {announcements?.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {announcements.slice(0,3).map(a=>(
+              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{a.text}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
+
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
         Créer une nouvelle tâche
       </button>
     </div>
   );
 }
-
-
-
-
-
-
 
 function MiniTaskCard({task,getUser,getPri,onClick}){
   const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status];
@@ -1021,7 +851,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
 }
 
 // ─── TOUR TAB ─────────────────────────────────────────────────────
-function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig,onSelectTour}){
+function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -1062,10 +892,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig,onSelec
                   {done&&tour&&<div style={{fontSize:11,color:"var(--t2)",marginTop:1}}>Score {tour.score}/{tour.total} · {tour.doneBy} · {tour.duration}</div>}
                 </div>
                 {done
-                  ? <button className="btn" onClick={()=>onStart(shift)}
-                      style={{padding:"6px 12px",borderRadius:10,fontSize:11,background:"rgba(42,157,143,0.1)",color:"#2a9d8f",border:"1px solid rgba(42,157,143,0.2)"}}>
-                      ✓ Fait · Refaire
-                    </button>
+                  ? <button className="btn" onClick={()=>onStart(shift)} style={{padding:"6px 12px",borderRadius:10,fontSize:11,background:"rgba(42,157,143,0.1)",color:"#2a9d8f",border:"1px solid rgba(42,157,143,0.2)"}}>✓ Fait · Refaire</button>
                   : <button className="btn btn-gold" onClick={()=>onStart(shift)} style={{padding:"8px 14px",borderRadius:10,fontSize:12}}>Démarrer</button>
                 }
               </div>
@@ -1121,7 +948,6 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig,onSelec
           </div>
         )}
       </div>
-      
     </div>
   );
 }
@@ -1227,18 +1053,13 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                   <div style={{padding:"0 14px 12px",display:"flex",flexDirection:"column",gap:8}}>
                     <input className="field" value={notes[key]||""} onChange={e=>setNotes(p=>({...p,[key]:e.target.value}))} placeholder="Décrire le problème..." style={{fontSize:13,padding:"10px 12px"}}/>
                     <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(key)}/>
-                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                      <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}}
-                        style={{padding:"8px 12px",borderRadius:10,fontSize:12,flexShrink:0}}>
-                        📷 {photos[key]?"Changer":"Photo"}
-                      </button>
-                      {photos[key]&&(
-                        <div style={{position:"relative",borderRadius:8,overflow:"hidden",width:60,height:60,flexShrink:0}}>
-                          <img src={photos[key]} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                          <button className="btn" onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:2,right:2,width:18,height:18,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:11,border:"none",padding:0}}>×</button>
+                    {photos[key]
+                      ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}>
+                          <img src={photos[key]} alt="" style={{width:"100%",maxHeight:100,objectFit:"cover",display:"block"}}/>
+                          <button className="btn" onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:5,right:5,width:24,height:24,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:13,border:"none"}}>×</button>
                         </div>
-                      )}
-                    </div>
+                      : <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"9px",borderRadius:10,fontSize:12}}>📷 Ajouter une photo</button>
+                    }
                   </div>
                 )}
               </div>
@@ -1349,7 +1170,7 @@ function TourConfigModal({config,onSave,onClose}){
 }
 
 // ─── TEAM TAB ─────────────────────────────────────────────────────
-function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onReject}){
+function TeamTab({users,me,isOwner,onAdd,onEdit,tasks}){
   return(
     <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
@@ -1357,23 +1178,6 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
         {isOwner&&<button className="btn btn-gold" onClick={onAdd} style={{padding:"9px 16px",borderRadius:12,fontSize:13}}>+ Ajouter</button>}
       </div>
       {!isOwner&&<div className="card" style={{padding:"12px 16px",textAlign:"center",fontSize:13,color:"var(--t2)"}}>Seul le propriétaire peut gérer l'équipe</div>}
-      {isOwner&&joinRequests?.filter(r=>r.status==="pending").length>0&&(
-        <div>
-          <div className="tag" style={{marginBottom:10}}>DEMANDES D'ACCÈS EN ATTENTE</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {joinRequests.filter(r=>r.status==="pending").map(r=>(
-              <div key={r.id} className="card" style={{padding:"14px",borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{r.name}</div>
-                <div style={{fontSize:12,color:"var(--t2)",marginBottom:10}}>{r.role}</div>
-                <div style={{display:"flex",gap:8}}>
-                  <button className="btn btn-ok" onClick={()=>onApprove(r)} style={{flex:1,padding:"10px",borderRadius:11,fontSize:13,fontWeight:700}}>✓ Approuver</button>
-                  <button className="btn btn-danger" onClick={()=>onReject(r)} style={{flex:1,padding:"10px",borderRadius:11,fontSize:13}}>✕ Refuser</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {users.map(u=>{
           const active=tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done").length;
@@ -1735,7 +1539,7 @@ function EditTaskModal({task,users,onSave,onClose}){
 }
 
 // ─── USER MODALS ──────────────────────────────────────────────────
-function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete,isCurrentUser}){
+function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
   const [form,setForm]=useState({...initial});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const [confirmDel,setConfirmDel]=useState(false);
@@ -1753,15 +1557,6 @@ function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete,isCurre
             <FL label="POSTE">
               <input className="field" list="roles-list" value={form.role} onChange={e=>set("role")(e.target.value)} placeholder="Ex: Directeur, Gérant(e)..."/>
               <datalist id="roles-list">{["Directeur/Directrice","Dir. Adjoint(e)","Gérant(e)","Assistant(e) gérant"].map(r=><option key={r} value={r}/>)}</datalist>
-            </FL>
-          )}
-          {(showDelete||form.isCurrentUser)&&(
-            <FL label={showDelete?"NIP — "+(form.name||""):"Mon NIP"}>
-              <input className="field" value={form.pin||""} onChange={e=>set("pin")(e.target.value.slice(0,4).replace(/\D/g,""))}
-                placeholder="4 chiffres" maxLength={4} inputMode="numeric" type={showDelete?"text":"password"}/>
-              <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>
-                {showDelete?"Visible car vous êtes propriétaire":"Changer votre NIP personnel"}
-              </div>
             </FL>
           )}
           <FL label="COULEUR">
@@ -1926,7 +1721,7 @@ const REMINDER_OPTIONS = [
 ];
 
 function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEditEvent,onDeleteAnnouncement,onNewAnnouncement}){
-  const [view,setView]=useState("announcements");
+  const [view,setView]=useState("calendar");
   const [calDate,setCalDate]=useState(new Date());
   const [selectedDay,setSelectedDay]=useState(null);
 
@@ -1954,9 +1749,85 @@ function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEdi
         </div>
       </div>
 
+      {/* VIEW TOGGLE */}
+      <div style={{display:"flex",gap:6}}>
+        {[{id:"calendar",label:"Calendrier"},{id:"list",label:"Liste"},{id:"announcements",label:"Annonces"}].map(v=>(
+          <button key={v.id} className="btn" onClick={()=>setView(v.id)}
+            style={{flex:1,padding:"8px",borderRadius:11,fontSize:12,fontWeight:700,
+              background:view===v.id?"var(--gold)":"var(--s2)",
+              color:view===v.id?"#0a0a0d":"var(--t2)",
+              border:"1px solid var(--border)"}}>
+            {v.label}
+          </button>
+        ))}
+      </div>
 
+      {/* CALENDAR VIEW */}
+      {view==="calendar"&&(
+        <div className="card" style={{padding:"18px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <button className="btn btn-ghost" onClick={()=>setCalDate(d=>{const n=new Date(d);n.setMonth(n.getMonth()-1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>‹</button>
+            <div style={{fontSize:14,fontWeight:700,color:"var(--text)",textTransform:"capitalize"}}>{calDate.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div>
+            <button className="btn btn-ghost" onClick={()=>setCalDate(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>›</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:8}}>
+            {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+            {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
+            {Array(daysInMonth).fill(null).map((_,i)=>{
+              const day=i+1;
+              const dateStr=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+              const dayEvents=eventsByDay[dateStr]||[];
+              const isToday=day===todayDate.getDate()&&month===todayDate.getMonth()&&year===todayDate.getFullYear();
+              const isSel=dateStr===selectedDay;
+              return(
+                <div key={day} onClick={()=>setSelectedDay(isSel?null:dateStr)}
+                  style={{borderRadius:9,cursor:"pointer",padding:"4px 2px",minHeight:44,display:"flex",flexDirection:"column",alignItems:"center",
+                    background:isSel?"var(--gold)":isToday?"var(--gold-dim)":"transparent",
+                    border:isToday&&!isSel?"1px solid var(--gold-b)":"1px solid transparent"}}>
+                  <span style={{fontSize:12,fontWeight:isToday?700:400,color:isSel?"#0a0a0d":isToday?"var(--gold)":"var(--text)",marginBottom:3}}>{day}</span>
+                  <div style={{display:"flex",flexDirection:"column",gap:1,width:"100%",padding:"0 2px"}}>
+                    {dayEvents.slice(0,2).map((ev,ei)=>(
+                      <div key={ei} style={{height:4,borderRadius:2,background:isSel?"rgba(10,10,13,0.4)":ev.color,width:"100%"}}/>
+                    ))}
+                    {dayEvents.length>2&&<div style={{fontSize:8,color:isSel?"#0a0a0d":"var(--t3)",textAlign:"center"}}>+{dayEvents.length-2}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {selectedDay&&(
+            <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+              <div className="tag">{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
+              {selectedEvents.length===0
+                ? <div style={{textAlign:"center",padding:"16px",color:"var(--t3)",fontSize:13}}>Aucun événement ce jour</div>
+                : selectedEvents.map(ev=><EventCard key={ev.id} event={ev} getUser={getUser} onEdit={()=>onEditEvent(ev)}/>)
+              }
+              <button className="btn btn-gold" onClick={onNewEvent} style={{width:"100%",padding:"11px",borderRadius:12,fontSize:13}}>+ Ajouter un événement</button>
+            </div>
+          )}
+        </div>
+      )}
 
-{/* ANNOUNCEMENTS VIEW */}
+      {/* LIST VIEW */}
+      {view==="list"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div className="tag" style={{marginBottom:2}}>PROCHAINS ÉVÉNEMENTS</div>
+          {upcomingEvents.length===0
+            ? <div style={{textAlign:"center",padding:"32px",color:"var(--t3)",fontSize:13}}>Aucun événement à venir</div>
+            : upcomingEvents.map(ev=><EventCard key={ev.id} event={ev} getUser={getUser} onEdit={()=>onEditEvent(ev)} showDate/>)
+          }
+          {events.filter(e=>e.date<todayStr()).length>0&&(
+            <>
+              <div className="tag" style={{marginTop:8,marginBottom:2}}>PASSÉS</div>
+              {events.filter(e=>e.date<todayStr()).slice(0,5).map(ev=><EventCard key={ev.id} event={ev} getUser={getUser} onEdit={()=>onEditEvent(ev)} showDate past/>)}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ANNOUNCEMENTS VIEW */}
       {view==="announcements"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <button className="btn btn-gold" onClick={onNewAnnouncement} style={{width:"100%",padding:"14px",borderRadius:13,fontSize:14}}>📢 Nouvelle annonce</button>
@@ -2027,7 +1898,7 @@ function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{title}</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
           </div>
-          <button className="btn btn-gold" onClick={()=>onSave(form)} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15}}>
+          <button className="btn btn-gold" onClick={()=>{if(!form.title?.trim()){alert("Entrez un titre");return;}onSave(form);}} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15}}>
             {onDelete?"Sauvegarder":"Créer l'événement"}
           </button>
         </div>
@@ -2628,12 +2499,8 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
             : viewMode==="grid"
               ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                   {displayPhotos.map((p,i)=>(
-                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1",cursor:"pointer"}}>
-                      <img src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} onClick={()=>setSelectedPhoto(p)}/>
-                      {selectedFolder!==0&&p.id&&(
-                        <button className="btn" onClick={e=>{e.stopPropagation();onDeletePhoto(selectedFolder,p.id);}}
-                          style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:12,border:"none",padding:0,zIndex:2}}>×</button>
-                      )}
+                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}>
+                      <img src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
                     </div>
                   ))}
                 </div>
@@ -2851,7 +2718,7 @@ function GlobalSearchModal({query,setQuery,tasks,events,announcements,notes,me,g
 
 // ─── UPDATE NOTIFS MODAL with clear all ───────────────────────────
 // (override the existing NotifsModal)
-function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead,onDeleteNotif,onClickNotif}){
+function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
   const typeColor=t=>t==="done"?"#2a9d8f":t==="reminder"?"#e63946":t==="mention"?"#8b5cf6":t==="urgency"?"#e63946":t==="event"?"#3b82f6":t==="announce"?"#f4a261":t==="report"?"#2a9d8f":"var(--gold)";
   const typeLabel=t=>t==="done"?"Complété":t==="reminder"?"Rappel":t==="mention"?"Mention":t==="urgency"?"SOS":t==="event"?"Événement":t==="announce"?"Annonce":t==="report"?"Rapport":"Tâche";
   return(
@@ -2873,19 +2740,16 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead,onDeleteNotif,on
                 Aucune notification
               </div>
             : notifs.map(n=>(
-              <div key={n.id} style={{display:"flex",gap:10,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`,cursor:"pointer"}}
-                onClick={()=>{onClickNotif(n);onClose();}}>
+              <div key={n.id} style={{display:"flex",gap:12,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                     <div style={{fontSize:10,fontWeight:700,color:typeColor(n.type),letterSpacing:"0.5px"}}>{typeLabel(n.type).toUpperCase()}</div>
-                    {!n.read&&<div style={{width:7,height:7,borderRadius:"50%",background:"var(--gold)",flexShrink:0}}/>}
+                    {!n.read&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--gold)"}}/>}
                   </div>
                   <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{n.text}</div>
-                  <div style={{fontSize:12,color:"var(--t2)",marginBottom:4}}>{n.sub}</div>
+                  <div style={{fontSize:12,color:"var(--t2)",fontStyle:"italic",marginBottom:4}}>"{n.sub}"</div>
                   <div style={{fontSize:11,color:"var(--t3)"}}>{ago(n.ts)}</div>
                 </div>
-                <button className="btn" onClick={e=>{e.stopPropagation();onDeleteNotif(n.id);}}
-                  style={{width:28,height:28,borderRadius:8,flexShrink:0,alignSelf:"flex-start",background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t3)",fontSize:13}}>×</button>
               </div>
             ))
           }
@@ -2895,7 +2759,7 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead,onDeleteNotif,on
   );
 }
 
-function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onChangePin,onClose}){
+function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onClose}){
   const [showSwitch,setShowSwitch] = useState(false);
   return(
     <div className="overlay" onClick={onClose}>
@@ -2914,7 +2778,6 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
             {icon:"⚙",  label:"Paramètres",                    action:onSettings},
             ...(isOwner?[{icon:"🏪", label:"Profil du magasin", action:onStoreProfile}]:[]),
             {icon:"📄", label:"Exporter en PDF",                action:onExportPDF},
-          {icon:"🔐", label:"Changer mon NIP",                  action:onChangePin},
             {icon:"🆘", label:"Alerte urgence (SOS)",           action:onSOS, danger:true},
           ].map(item=>(
             <button key={item.label} className="btn" onClick={item.action}
@@ -2926,51 +2789,32 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
               {item.label}
             </button>
           ))}
-
+          <button className="btn" onClick={()=>setShowSwitch(p=>!p)}
+            style={{width:"100%",padding:"14px 16px",borderRadius:13,justifyContent:"flex-start",gap:14,
+              background:"var(--gold-dim)",border:"1px solid var(--gold-b)",color:"var(--gold)",fontSize:14,fontWeight:600}}>
+            <span style={{fontSize:18}}>👤</span>
+            Changer de compte
+            <span style={{marginLeft:"auto"}}>{showSwitch?"▲":"▼"}</span>
+          </button>
+          {showSwitch&&(
+            <div style={{display:"flex",flexDirection:"column",gap:7,paddingLeft:8}}>
+              {users.map(u=>(
+                <button key={u.id} className="btn" onClick={()=>onSwitchUser(u)}
+                  style={{padding:"11px 14px",borderRadius:12,
+                    background:me.id===u.id?"var(--gold-dim)":"var(--s2)",
+                    border:me.id===u.id?"1px solid var(--gold-b)":"1px solid var(--border)",
+                    display:"flex",alignItems:"center",gap:10,width:"100%",justifyContent:"flex-start"}}>
+                  <div style={{width:32,height:32,borderRadius:9,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:u.id===1?"#0a0a0d":"white",flexShrink:0}}>{initials(u.name)}</div>
+                  <div style={{textAlign:"left",flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{u.name}</div>
+                    <div style={{fontSize:11,color:"var(--t2)"}}>{u.role}</div>
+                  </div>
+                  {me.id===u.id&&<span style={{fontSize:11,color:"var(--gold)",fontWeight:700}}>Actif</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── JOIN REQUEST FORM ────────────────────────────────────────────
-function JoinRequestForm({onSend}){
-  const [show,setShow] = useState(false);
-  const [name,setName] = useState("");
-  const [role,setRole] = useState("");
-  const [sent,setSent] = useState(false);
-
-  const handleSend = async () => {
-    if(!name.trim()) return;
-    await onSend(name.trim(), role.trim()||"Employé");
-    setSent(true);
-  };
-
-  if(sent) return(
-    <div style={{marginTop:8,padding:"16px",background:"rgba(42,157,143,0.1)",borderRadius:14,border:"1px solid rgba(42,157,143,0.2)",textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}>
-      <div style={{fontSize:20,marginBottom:6}}>✓</div>
-      <div style={{fontSize:13,color:"#2a9d8f",fontWeight:600}}>Demande envoyée !</div>
-      <div style={{fontSize:11,color:"rgba(42,157,143,0.7)",marginTop:4}}>Le propriétaire va approuver ton accès</div>
-    </div>
-  );
-
-  if(!show) return(
-    <button onClick={()=>setShow(true)}
-      style={{marginTop:8,padding:"14px",borderRadius:14,background:"transparent",border:"1.5px dashed rgba(237,232,223,0.15)",color:"rgba(237,232,223,0.35)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",width:"100%"}}>
-      + Demander l'accès
-    </button>
-  );
-
-  return(
-    <div style={{marginTop:8,padding:"16px",background:"#141418",borderRadius:14,border:"1px solid rgba(237,232,223,0.1)",fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column",gap:10}}>
-      <div style={{fontSize:13,color:"rgba(237,232,223,0.5)",marginBottom:2}}>Nouvelle demande d'accès</div>
-      <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ton nom complet"
-        style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
-      <input value={role} onChange={e=>setRole(e.target.value)} placeholder="Ton poste (ex: Gérant)"
-        style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>setShow(false)} style={{flex:1,padding:"12px",borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Annuler</button>
-        <button onClick={handleSend} style={{flex:2,padding:"12px",borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif"}}>Envoyer la demande</button>
       </div>
     </div>
   );
@@ -2981,40 +2825,30 @@ function PinLoginScreen({users, onLogin, onJoinRequest}){
   const [selectedUser, setSelectedUser] = useState(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const initials = name => name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
 
-  const handlePin = (digit) => {
-    if(pin.length >= 4) return;
-    const newPin = pin + digit;
-    setPin(newPin);
-    setError(false);
-    if(newPin.length === 4){
-      const userPin = selectedUser.pin || "0000";
-      if(newPin === userPin){
-        setTimeout(()=>onLogin(selectedUser), 200);
-      } else {
-        setTimeout(()=>{ setPin(""); setError(true); }, 400);
-      }
+  const handlePin = digit => {
+    if(pin.length>=4) return;
+    const p = pin+digit;
+    setPin(p); setError(false);
+    if(p.length===4){
+      if(p===(selectedUser.pin||"1111")){setTimeout(()=>onLogin(selectedUser),200);}
+      else{setTimeout(()=>{setPin("");setError(true);},400);}
     }
   };
-
-  const initials = name => name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
 
   return(
     <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'DM Sans',sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}`}</style>
-
       <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:"#C9A84C",marginBottom:4}}>GroceryOps</div>
-
-      {!selectedUser ? (
+      {!selectedUser?(
         <>
           <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:36}}>Qui es-tu ?</div>
           <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:320}}>
             {users.map(u=>(
               <button key={u.id} onClick={()=>setSelectedUser(u)}
                 style={{padding:"16px 18px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:12,cursor:"pointer",width:"100%"}}>
-                <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:u.id===1?"#0a0a0d":"white",flexShrink:0}}>
-                  {initials(u.name)}
-                </div>
+                <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#0a0a0d",flexShrink:0}}>{initials(u.name)}</div>
                 <div style={{textAlign:"left",flex:1}}>
                   <div style={{fontSize:15,fontWeight:600,color:"#ede8df"}}>{u.name}</div>
                   <div style={{fontSize:12,color:"rgba(237,232,223,0.4)",marginTop:1}}>{u.role}</div>
@@ -3025,39 +2859,28 @@ function PinLoginScreen({users, onLogin, onJoinRequest}){
             <JoinRequestForm onSend={onJoinRequest}/>
           </div>
         </>
-      ) : (
+      ):(
         <>
           <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:28}}>Entrez votre NIP</div>
-
-          {/* USER BADGE */}
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28,padding:"12px 18px",background:"#141418",borderRadius:14,border:`1px solid ${selectedUser.color}40`}}>
-            <div style={{width:36,height:36,borderRadius:10,background:selectedUser.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:selectedUser.id===1?"#0a0a0d":"white"}}>
-              {initials(selectedUser.name)}
-            </div>
+            <div style={{width:36,height:36,borderRadius:10,background:selectedUser.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#0a0a0d"}}>{initials(selectedUser.name)}</div>
             <div style={{fontSize:14,fontWeight:600,color:"#ede8df"}}>{selectedUser.name}</div>
           </div>
-
-          {/* PIN DOTS */}
           <div style={{display:"flex",gap:16,marginBottom:8}}>
-            {[0,1,2,3].map(i=>(
-              <div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(error?"#e63946":"#C9A84C"):"rgba(237,232,223,0.15)",transition:"background .15s"}}/>
-            ))}
+            {[0,1,2,3].map(i=><div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(error?"#e63946":"#C9A84C"):"rgba(237,232,223,0.15)",transition:"background .15s"}}/>)}
           </div>
           {error&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>NIP incorrect — réessaie</div>}
-          <div style={{height:16,marginBottom:28}}/>
-
-          {/* KEYPAD */}
+          <div style={{height:20}}/>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
             {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
-              <button key={i} onClick={()=>{ if(d==="⌫"){setPin(p=>p.slice(0,-1));setError(false);} else if(d!=="") handlePin(String(d));}}
-                style={{height:64,borderRadius:14,background:d===""?"transparent":"#141418",border:d===""?"none":"1px solid rgba(237,232,223,0.08)",fontSize:d==="⌫"?20:22,fontWeight:600,color:"#ede8df",cursor:d===""?"default":"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+              <button key={i} onClick={()=>{if(d==="⌫"){setPin(p=>p.slice(0,-1));setError(false);}else if(d!=="")handlePin(String(d));}}
+                style={{height:64,borderRadius:14,background:d===""?"transparent":"#141418",border:d===""?"none":"1px solid rgba(237,232,223,0.08)",fontSize:d==="⌫"?20:22,fontWeight:600,color:"#ede8df",cursor:d===""?"default":"pointer"}}>
                 {d}
               </button>
             ))}
           </div>
-
           <button onClick={()=>{setSelectedUser(null);setPin("");setError(false);}}
-            style={{marginTop:24,background:"transparent",border:"none",color:"rgba(237,232,223,0.3)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+            style={{marginTop:24,background:"transparent",border:"none",color:"rgba(237,232,223,0.3)",fontSize:13,cursor:"pointer"}}>
             ← Changer de compte
           </button>
         </>
@@ -3066,120 +2889,40 @@ function PinLoginScreen({users, onLogin, onJoinRequest}){
   );
 }
 
-// ─── CHANGE PIN MODAL ─────────────────────────────────────────────
-function ChangePinModal({me,onSave,onClose}){
-  const [step,setStep] = useState("current"); // current | new | confirm
-  const [currentPin,setCurrentPin] = useState("");
-  const [newPin,setNewPin] = useState("");
-  const [confirmPin,setConfirmPin] = useState("");
-  const [error,setError] = useState("");
-
-  const handleDigit = (digit) => {
-    setError("");
-    if(step==="current"){
-      const p=currentPin+digit;
-      setCurrentPin(p);
-      if(p.length===4){
-        if(p===me.pin){setTimeout(()=>{setStep("new");setCurrentPin("");},300);}
-        else{setTimeout(()=>{setCurrentPin("");setError("NIP actuel incorrect");},400);}
-      }
-    } else if(step==="new"){
-      const p=newPin+digit;
-      setNewPin(p);
-      if(p.length===4) setTimeout(()=>setStep("confirm"),300);
-    } else {
-      const p=confirmPin+digit;
-      setConfirmPin(p);
-      if(p.length===4){
-        if(p===newPin){onSave(p);}
-        else{setTimeout(()=>{setConfirmPin("");setError("Les NIPs ne correspondent pas");},400);}
-      }
-    }
-  };
-
-  const del = () => {
-    setError("");
-    if(step==="current") setCurrentPin(p=>p.slice(0,-1));
-    else if(step==="new") setNewPin(p=>p.slice(0,-1));
-    else setConfirmPin(p=>p.slice(0,-1));
-  };
-
-  const currentVal = step==="current"?currentPin:step==="new"?newPin:confirmPin;
-  const titles = {current:"NIP actuel",new:"Nouveau NIP",confirm:"Confirmer le NIP"};
-  const subtitles = {current:"Entrez votre NIP actuel",new:"Choisissez un nouveau NIP à 4 chiffres",confirm:"Entrez à nouveau votre nouveau NIP"};
-
+// ─── JOIN REQUEST FORM ────────────────────────────────────────────
+function JoinRequestForm({onSend}){
+  const [show,setShow]=useState(false);
+  const [name,setName]=useState("");
+  const [role,setRole]=useState("");
+  const [sent,setSent]=useState(false);
+  if(sent)return(<div style={{marginTop:8,padding:"16px",background:"rgba(42,157,143,0.1)",borderRadius:14,border:"1px solid rgba(42,157,143,0.2)",textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}><div style={{fontSize:20,marginBottom:6}}>✓</div><div style={{fontSize:13,color:"#2a9d8f",fontWeight:600}}>Demande envoyée !</div></div>);
+  if(!show)return(<button onClick={()=>setShow(true)} style={{marginTop:8,padding:"14px",borderRadius:14,background:"transparent",border:"1.5px dashed rgba(237,232,223,0.15)",color:"rgba(237,232,223,0.35)",fontSize:13,cursor:"pointer",width:"100%"}}>+ Demander l'accès</button>);
   return(
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
-        <div className="handle"/>
-        <div style={{padding:"4px 18px 40px",display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",marginBottom:24}}>
-            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>🔐 Changer mon NIP</div>
-            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-          </div>
-
-          <div style={{fontSize:16,fontWeight:600,color:"var(--text)",marginBottom:6}}>{titles[step]}</div>
-          <div style={{fontSize:13,color:"var(--t2)",marginBottom:24,textAlign:"center"}}>{subtitles[step]}</div>
-
-          <div style={{display:"flex",gap:14,marginBottom:8}}>
-            {[0,1,2,3].map(i=>(
-              <div key={i} style={{width:14,height:14,borderRadius:"50%",background:currentVal.length>i?"var(--gold)":"var(--s2)",border:"1.5px solid var(--border)",transition:"background .15s"}}/>
-            ))}
-          </div>
-          {error&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>{error}</div>}
-          <div style={{height:20}}/>
-
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
-            {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
-              <button key={i} onClick={()=>{ if(d==="⌫") del(); else if(d!=="") handleDigit(String(d));}}
-                style={{height:60,borderRadius:13,background:d===""?"transparent":"var(--s2)",border:d===""?"none":"1px solid var(--border)",fontSize:d==="⌫"?18:20,fontWeight:600,color:"var(--text)",cursor:d===""?"default":"pointer",fontFamily:"'DM Sans',sans-serif"}}>
-                {d}
-              </button>
-            ))}
-          </div>
-
-          {step!=="current"&&(
-            <button onClick={()=>{setStep(step==="new"?"current":"new");setNewPin("");setConfirmPin("");setError("");}}
-              style={{marginTop:20,background:"transparent",border:"none",color:"var(--t3)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
-              ← Retour
-            </button>
-          )}
-        </div>
+    <div style={{marginTop:8,padding:"16px",background:"#141418",borderRadius:14,border:"1px solid rgba(237,232,223,0.1)",display:"flex",flexDirection:"column",gap:10}}>
+      <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ton nom complet" style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none"}}/>
+      <input value={role} onChange={e=>setRole(e.target.value)} placeholder="Ton poste" style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none"}}/>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setShow(false)} style={{flex:1,padding:"12px",borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer"}}>Annuler</button>
+        <button onClick={async()=>{if(!name.trim())return;await onSend(name.trim(),role.trim()||"Employé");setSent(true);}} style={{flex:2,padding:"12px",borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none"}}>Envoyer</button>
       </div>
     </div>
   );
 }
 
 // ─── TOUR DETAIL MODAL ────────────────────────────────────────────
-function TourDetailModal({tour, isOwner, gallery, setGallery, onClose, onDelete}){
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
+function TourDetailModal({tour,isOwner,onClose,onDelete}){
+  const [confirmDel,setConfirmDel]=useState(false);
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
-      <div className="slide-up" onClick={e=>e.stopPropagation()}
-        style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",maxHeight:"88vh"}}>
-        
-        {/* HANDLE */}
+      <div className="slide-up" onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",maxHeight:"88vh"}}>
         <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 0",flexShrink:0}}/>
-
-        {/* FIXED HEADER */}
         <div style={{padding:"12px 18px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div>
-              <div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div>
-              <div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div>
-            </div>
-            <button className="btn btn-outline" onClick={onClose} style={{width:34,height:34,borderRadius:10,fontSize:18,flexShrink:0}}>×</button>
+            <div><div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div><div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div></div>
+            <button className="btn btn-outline" onClick={onClose} style={{width:34,height:34,borderRadius:10,fontSize:18}}>×</button>
           </div>
-
-          {/* STATS GRID */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-            {[
-              {l:"PAR",    v:tour.doneBy},
-              {l:"SCORE",  v:`${tour.score}/${tour.total}`},
-              {l:"DURÉE",  v:tour.duration||"—"},
-              {l:"HEURE",  v:tour.startTime||"—"},
-            ].map(x=>(
+            {[{l:"PAR",v:tour.doneBy},{l:"SCORE",v:`${tour.score}/${tour.total}`},{l:"DURÉE",v:tour.duration||"—"},{l:"HEURE",v:tour.startTime||"—"}].map(x=>(
               <div key={x.l} style={{background:"var(--s2)",borderRadius:10,padding:"8px 10px"}}>
                 <div style={{fontSize:9,fontWeight:700,letterSpacing:"1px",color:"var(--t3)",marginBottom:4}}>{x.l}</div>
                 <div style={{fontSize:11,fontWeight:600,color:"var(--gold)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{x.v}</div>
@@ -3187,38 +2930,25 @@ function TourDetailModal({tour, isOwner, gallery, setGallery, onClose, onDelete}
             ))}
           </div>
         </div>
-
-        {/* SCROLLABLE PROBLEMS */}
         <div style={{overflowY:"auto",flex:1,padding:"14px 18px 24px",display:"flex",flexDirection:"column",gap:10}}>
-          <div className="tag">PROBLÈMES SIGNALÉS ({tour.issues?.length||0})</div>
-
+          <div className="tag">PROBLÈMES ({tour.issues?.length||0})</div>
           {(!tour.issues||tour.issues.length===0)
-            ? <div style={{textAlign:"center",padding:"24px",color:"var(--t2)",fontSize:13}}>
-                <div style={{fontSize:28,marginBottom:8}}>✓</div>
-                Aucun problème signalé
+            ?<div style={{textAlign:"center",padding:"24px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
+            :tour.issues.map((issue,i)=>(
+              <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
+                {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
+                {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
               </div>
-            : tour.issues.map((issue,i)=>(
-                <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
-                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
-                  <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
-                  {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
-                  {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
-                </div>
-              ))
+            ))
           }
-
-          {/* DELETE BUTTON - owner only */}
-          {isOwner&&!confirmDelete&&(
-            <button className="btn btn-danger" onClick={()=>setConfirmDelete(true)}
-              style={{width:"100%",padding:"13px",borderRadius:12,fontSize:14,marginTop:8}}>
-              Supprimer cette tournée
-            </button>
-          )}
-          {isOwner&&confirmDelete&&(
+          {isOwner&&!confirmDel&&<button className="btn btn-danger" onClick={()=>setConfirmDel(true)} style={{width:"100%",padding:"13px",borderRadius:12,fontSize:14,marginTop:8}}>Supprimer cette tournée</button>}
+          {isOwner&&confirmDel&&(
             <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:"16px",display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
-              <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600}}>Supprimer cette tournée et ses photos ?</div>
+              <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600}}>Supprimer cette tournée ?</div>
               <div style={{display:"flex",gap:8}}>
-                <button className="btn btn-ghost" onClick={()=>setConfirmDelete(false)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14}}>Annuler</button>
+                <button className="btn btn-ghost" onClick={()=>setConfirmDel(false)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14}}>Annuler</button>
                 <button className="btn btn-danger" onClick={()=>onDelete(tour)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14,fontWeight:700}}>Supprimer</button>
               </div>
             </div>
@@ -3230,129 +2960,78 @@ function TourDetailModal({tour, isOwner, gallery, setGallery, onClose, onDelete}
 }
 
 // ─── HOME CALENDAR ────────────────────────────────────────────────
-function HomeCalendar({events, users, themeColor, onNewEvent, onEditEvent, onDeleteEvent}){
-  const [calMonth, setCalMonth] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [editingEvent, setEditingEvent] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(null);
-
-  const year = calMonth.getFullYear();
-  const month = calMonth.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const today = new Date();
-
-  const eventsByDay = {};
-  events.forEach(e => {
-    if(!e.date) return;
-    const [ey,em,ed] = e.date.split("-").map(Number);
-    if(ey===year && em===month+1) {
-      if(!eventsByDay[ed]) eventsByDay[ed]=[];
-      eventsByDay[ed].push(e);
-    }
-  });
-
-  const selectedEvents = selectedDay ? (eventsByDay[selectedDay]||[]) : [];
-  const upcomingAll = [...events].filter(e=>e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date)||(a.startTime||"").localeCompare(b.startTime||""));
-
+function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEvent}){
+  const [calMonth,setCalMonth]=useState(new Date());
+  const [selectedDay,setSelectedDay]=useState(null);
+  const [showForm,setShowForm]=useState(false);
+  const [editingEvent,setEditingEvent]=useState(null);
+  const [confirmDel,setConfirmDel]=useState(null);
+  const year=calMonth.getFullYear(),month=calMonth.getMonth();
+  const firstDay=new Date(year,month,1).getDay(),daysInMonth=new Date(year,month+1,0).getDate();
+  const today=new Date();
+  const eventsByDay={};
+  events.forEach(e=>{if(!e.date)return;const[ey,em,ed]=e.date.split("-").map(Number);if(ey===year&&em===month+1){if(!eventsByDay[ed])eventsByDay[ed]=[];eventsByDay[ed].push(e);}});
+  const selEvents=selectedDay?(eventsByDay[selectedDay]||[]):[];
+  const upcoming=[...events].filter(e=>e.date&&e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date));
   return(
-    <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
       <div className="card" style={{padding:"16px"}}>
-        {/* HEADER */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div>
-            <div className="tag" style={{marginBottom:3}}>CALENDRIER</div>
-            <div className="serif" style={{fontSize:18,fontWeight:700,color:themeColor,textTransform:"capitalize"}}>
-              {calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}
-            </div>
-          </div>
+          <div><div className="tag" style={{marginBottom:3}}>CALENDRIER</div><div className="serif" style={{fontSize:18,fontWeight:700,color:themeColor,textTransform:"capitalize"}}>{calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div></div>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()-1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>‹</button>
             <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()+1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>›</button>
-            <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}}
-              style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none"}}>
-              + Ajouter
-            </button>
+            <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}} style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none"}}>+ Ajouter</button>
           </div>
         </div>
-
-        {/* DAY HEADERS */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
-          {["D","L","M","M","J","V","S"].map((d,i)=>(
-            <div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>
-          ))}
+          {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
         </div>
-
-        {/* CALENDAR GRID */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
           {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
           {Array(daysInMonth).fill(null).map((_,i)=>{
-            const day = i+1;
-            const dayEvents = eventsByDay[day]||[];
-            const isToday = day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
-            const isSel = selectedDay===day;
+            const day=i+1,dayEvents=eventsByDay[day]||[];
+            const isToday=day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
+            const isSel=selectedDay===day;
             return(
-              <div key={day} onClick={()=>setSelectedDay(isSel?null:day)}
-                style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",
-                  background:isSel?themeColor:isToday?`${themeColor}20`:"transparent",
-                  border:`1px solid ${isSel?"transparent":isToday?`${themeColor}50`:"transparent"}`}}>
+              <div key={day} onClick={()=>setSelectedDay(isSel?null:day)} style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",background:isSel?themeColor:isToday?`${themeColor}20`:"transparent"}}>
                 <span style={{fontSize:12,fontWeight:isToday||isSel?700:400,color:isSel?"#0a0a0d":isToday?themeColor:"var(--text)"}}>{day}</span>
-                <div style={{display:"flex",gap:2,marginTop:2,flexWrap:"wrap",justifyContent:"center"}}>
-                  {dayEvents.slice(0,3).map((ev,ei)=>(
-                    <div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isSel?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>
-                  ))}
+                <div style={{display:"flex",gap:2,marginTop:2}}>
+                  {dayEvents.slice(0,3).map((ev,ei)=><div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isSel?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>)}
                 </div>
               </div>
             );
           })}
         </div>
-
-        {/* SELECTED DAY EVENTS */}
         {selectedDay&&(
           <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div className="tag">
-                {new Date(year,month,selectedDay).toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}
-              </div>
-              <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}}
-                style={{padding:"4px 10px",borderRadius:8,background:`${themeColor}20`,color:themeColor,border:`1px solid ${themeColor}40`,fontSize:11,fontWeight:700}}>
-                + Événement
-              </button>
+              <div className="tag">{new Date(year,month,selectedDay).toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
+              <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}} style={{padding:"4px 10px",borderRadius:8,background:`${themeColor}20`,color:themeColor,border:`1px solid ${themeColor}40`,fontSize:11,fontWeight:700}}>+ Événement</button>
             </div>
-            {selectedEvents.length===0
-              ? <div style={{textAlign:"center",padding:"12px",color:"var(--t3)",fontSize:12}}>Aucun événement</div>
-              : selectedEvents.map((e,i)=>(
-                  <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,borderLeft:`3px solid ${e.color||themeColor}`,display:"flex",alignItems:"flex-start",gap:8}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div>
-                      <div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime} — {e.endTime}</div>
-                      {e.description&&<div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{e.description}</div>}
-                    </div>
-                    <div style={{display:"flex",gap:5,flexShrink:0}}>
-                      <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>✏️</button>
-                      <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>×</button>
-                    </div>
+            {selEvents.length===0?<div style={{textAlign:"center",padding:"12px",color:"var(--t3)",fontSize:12}}>Aucun événement</div>
+              :selEvents.map((e,i)=>(
+                <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,borderLeft:`3px solid ${e.color||themeColor}`,display:"flex",alignItems:"flex-start",gap:8}}>
+                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div><div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime} — {e.endTime}</div></div>
+                  <div style={{display:"flex",gap:5}}>
+                    <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>✏️</button>
+                    <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>×</button>
                   </div>
-                ))
+                </div>
+              ))
             }
           </div>
         )}
       </div>
-
-      {/* UPCOMING EVENTS LIST */}
-      {upcomingAll.length>0&&(
+      {upcoming.length>0&&(
         <div className="card" style={{padding:"14px"}}>
           <div className="tag" style={{marginBottom:10}}>PROCHAINS ÉVÉNEMENTS</div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {upcomingAll.slice(0,5).map((e,i)=>(
+            {upcoming.slice(0,5).map((e,i)=>(
               <div key={i} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 10px",background:"var(--s2)",borderRadius:10,borderLeft:`3px solid ${e.color||themeColor}`}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
-                  <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>
-                    {new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}
-                    {e.category&&<span style={{marginLeft:8,color:e.color||themeColor,fontWeight:600}}>{e.category}</span>}
-                  </div>
+                  <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}</div>
                 </div>
                 <div style={{display:"flex",gap:4}}>
                   <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:26,height:26,borderRadius:7,fontSize:11,padding:0}}>✏️</button>
@@ -3363,93 +3042,8 @@ function HomeCalendar({events, users, themeColor, onNewEvent, onEditEvent, onDel
           </div>
         </div>
       )}
-
-      {/* EVENT FORM MODAL */}
-      {showForm&&<EventFormModal
-        title={editingEvent?"Modifier l'événement":"Nouvel événement"}
-        initial={editingEvent||{title:"",description:"",date:selectedDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}}
-        users={users}
-        me={users[0]||{id:1}}
-        onSave={e=>{
-            if(!e.title?.trim()) return;
-            editingEvent?onEditEvent(e):onNewEvent(e);
-            setShowForm(false);
-            setEditingEvent(null);
-          }}
-        onDelete={editingEvent?e=>{onDeleteEvent(e.id);setShowForm(false);setEditingEvent(null);}:undefined}
-        onClose={()=>{setShowForm(false);setEditingEvent(null);}}
-      />}
-
-      {/* CONFIRM DELETE */}
-      {confirmDel&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}>
-          <div className="scale-in" style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}>
-            <div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div>
-            <div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}" sera supprimé.</div>
-            <div style={{display:"flex",gap:8}}>
-              <button className="btn btn-ghost" onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,fontSize:14}}>Annuler</button>
-              <button className="btn btn-danger" onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:"12px",borderRadius:12,fontSize:14}}>Supprimer</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showForm&&<EventFormModal title={editingEvent?"Modifier":"Nouvel événement"} initial={editingEvent||{title:"",description:"",date:selectedDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}} users={users} me={users[0]||{id:1}} onSave={e=>{if(!e.title?.trim())return;editingEvent?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditingEvent(null);}} onDelete={editingEvent?e=>{onDeleteEvent(e.id);setShowForm(false);setEditingEvent(null);}:undefined} onClose={()=>{setShowForm(false);setEditingEvent(null);}}/>}
+      {confirmDel&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}><div style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}><div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div><div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}"</div><div style={{display:"flex",gap:8}}><button className="btn btn-ghost" onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12}}>Annuler</button><button className="btn btn-danger" onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:"12px",borderRadius:12}}>Supprimer</button></div></div></div>}
     </div>
   );
 }
-/div>
-
-      {announcements?.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,5).map(a=>(
-              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
-        {[
-          {label:"À faire",    value:stats.todo,       sub:"en attente",     filter:"todo"},
-          {label:"En cours",   value:stats.inprogress, sub:"en progression", filter:"inprogress"},
-          {label:"Complétées", value:stats.done,       sub:"ce cycle",       filter:"done"},
-          {label:"Épinglées",  value:stats.pinned,     sub:"prioritaires",   filter:"pinned"},
-        ].map(s=>(
-          <StatBox key={s.label} label={s.label} value={s.value} sub={s.sub} themeColor={themeColor} onClick={()=>onGoTo(s.filter)}/>
-        ))}
-      </div>
-
-      {pinned.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ÉPINGLÉES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {pinned.map(t=><MiniTaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)}/>)}
-          </div>
-        </div>
-      )}
-
-      {/* QUICK SHORTCUTS */}
-      <div className="fade-in" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-        {[
-          {label:T(lang,"newUrgentTask"), icon:"⚡", action:onNew, color:"#e63946"},
-          {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
-          {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
-          {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
-
-
-        ].map(s=>(
-          <button key={s.label} className="btn card-tap" onClick={s.action}
-            style={{padding:"14px 12px",borderRadius:14,background:"transparent",border:`1.5px solid ${themeColor}`,flexDirection:"column",gap:6,alignItems:"flex-start"}}>
-            <span style={{fontSize:20}}>{s.icon}</span>
-            <span style={{fontSize:12,fontWeight:600,color:themeColor,textAlign:"left",lineHeight:1.3}}>{s.label}</span>
-          </button>
-        ))}
-      </div>
-
-      <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
-
-
