@@ -149,11 +149,7 @@ export default function App() {
   const [store, setStore]         = useState(INIT_STORE);
   const [tourConfig, setTourConfig] = useState(INIT_TOUR_CONFIG);
   const [tourHistory, setTourHistory] = useState([]);
-  const [events, setEvents] = useState([
-    { id:1, title:"Réunion direction", description:"Bilan de la semaine et objectifs", date:"2026-04-28", startTime:"08:00", endTime:"09:00", members:[1,2,3], color:"#3b82f6", category:"Rencontre direction", recurrence:"weekly", customDays:[], reminder:"60", createdBy:1 },
-    { id:2, title:"Visite représentant Loblaws", description:"Présentation nouvelles promotions", date:"2026-04-30", startTime:"10:00", endTime:"11:30", members:[1,2], color:"#e63946", category:"Rencontre représentant", recurrence:"none", customDays:[], reminder:"1440", createdBy:1 },
-    { id:3, title:"Inventaire mensuel", description:"Inventaire complet tous départements", date:"2026-04-29", startTime:"07:00", endTime:"12:00", members:[1,2,3], color:"#f4a261", category:"Inventaire", recurrence:"monthly", customDays:[], reminder:"1440", createdBy:1 },
-  ]);
+  const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [showUrgency, setShowUrgency]   = useState(false);
   const [shiftReports, setShiftReports] = useState([]);
@@ -1170,7 +1166,7 @@ function TourConfigModal({config,onSave,onClose}){
 }
 
 // ─── TEAM TAB ─────────────────────────────────────────────────────
-function TeamTab({users,me,isOwner,onAdd,onEdit,tasks}){
+function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onReject}){
   return(
     <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
