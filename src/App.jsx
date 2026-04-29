@@ -1496,7 +1496,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",flex:1,padding:"4px 18px 16px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"4px 18px 16px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               <span className="pill" style={{background:p?.bg,color:p?.color,border:`1px solid ${p?.border}`}}>{p?.label}</span>
@@ -1604,7 +1604,7 @@ function TaskFormModal({initial,users,onSave,onClose,title}){
             {title==="Nouvelle tâche"?"Publier la tâche":"Sauvegarder"}
           </button>
         </div>
-        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <FL label="TITRE *"><input className="field" value={form.title} onChange={e=>set("title")(e.target.value)} placeholder="Ex: Vérifier les prix du circulaire"/></FL>
           <FL label="DESCRIPTION"><textarea className="field" value={form.description} onChange={e=>set("description")(e.target.value)} placeholder="Détails..." rows={2} style={{resize:"none"}}/></FL>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1667,7 +1667,7 @@ function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{title}</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -1727,7 +1727,7 @@ function StoreProfileModal({store,onSave,onClose}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>Profil du magasin</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -1767,7 +1767,7 @@ function NotifsModal({notifs,onClose}){
           <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>Notifications</div>
           <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
         </div>
-        <div style={{overflowY:"auto",flex:1,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
           {notifs.length===0
             ? <div style={{textAlign:"center",padding:"32px",color:"var(--t3)",fontSize:14}}>Aucune notification</div>
             : notifs.map(n=>(
@@ -1793,7 +1793,7 @@ function SwitchUserModal({users,me,onSwitch,onClose}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
           <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)",marginBottom:4}}>Changer de compte</div>
           {users.map(u=>(
             <button key={u.id} className="btn" onClick={()=>onSwitch(u)}
@@ -2022,7 +2022,7 @@ function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
             {onDelete?"Sauvegarder":"Créer l'événement"}
           </button>
         </div>
-        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <FL label="TITRE *"><input className="field" value={form.title||""} onChange={e=>set("title")(e.target.value)} placeholder="Ex: Réunion direction"/></FL>
           <FL label="DESCRIPTION / ORDRE DU JOUR"><textarea className="field" value={form.description||""} onChange={e=>set("description")(e.target.value)} placeholder="Points à discuter..." rows={2} style={{resize:"none"}}/></FL>
 
@@ -2123,7 +2123,7 @@ function AnnouncementModal({me,users,onSave,onClose}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📢 Nouvelle annonce</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -2416,7 +2416,7 @@ function SettingsModal({lang,setLang,themeColor,setThemeColor,dark,setDark,onClo
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:20}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>⚙ {T(lang,"settings")}</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -2680,7 +2680,7 @@ function ShiftReportModal({me,onSave,onClose}){
             Soumettre le rapport
           </button>
         </div>
-        <div style={{overflowY:"auto",flex:1,padding:"16px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"16px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <FL label="QUART">
               <select className="field" value={form.shift} onChange={e=>set("shift")(e.target.value)}>
@@ -2750,7 +2750,7 @@ function TemplatesModal({templates,onApply,onClose,lang}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📋 Templates de tâches</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -2857,7 +2857,7 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
           </div>
         </div>
-        <div style={{overflowY:"auto",flex:1,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
           {notifs.length===0
             ? <div style={{textAlign:"center",padding:"40px",color:"var(--t3)",fontSize:14}}>
                 <div style={{fontSize:32,marginBottom:10}}>🔔</div>
@@ -2890,7 +2890,7 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"flex",alignItems:"center",gap:14,padding:"16px",background:"var(--s2)",borderRadius:16,border:"1px solid var(--border)",marginBottom:4}}>
             <div style={{width:48,height:48,borderRadius:13,background:me.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:me.id===1?"#0a0a0d":"white",flexShrink:0}}>{initials(me.name)}</div>
             <div>
@@ -3200,7 +3200,7 @@ function ChangePinModal({me,onSave,onClose}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{padding:"4px 18px 40px",display:"flex",flexDirection:"column",alignItems:"center"}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 40px",display:"flex",flexDirection:"column",alignItems:"center"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",marginBottom:24}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>🔐 Changer mon NIP</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
