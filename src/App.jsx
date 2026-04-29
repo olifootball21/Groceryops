@@ -892,13 +892,13 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
             <div style={{fontSize:28,marginBottom:8}}>—</div>
             <div style={{fontSize:14}}>{showArchived?"Aucune tâche archivée":"Aucune tâche trouvée"}</div>
           </div>
-        : filtered.map(t=><TaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)} unseen={!seenTasks?.has(t.id)} taskFilter={taskFilter} onUnarchive={onUnarchive}/>)
+        : filtered.map(t=><TaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)} unseen={!seenTasks?.has(t.id)}/>)
       }
     </div>
   );
 }
 
-function TaskCard({task,getUser,getPri,onClick,unseen,taskFilter,onUnarchive}){
+function TaskCard({task,getUser,getPri,onClick,unseen}){
   const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status];
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date()&&task.status!=="done";
   return(
@@ -927,9 +927,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen,taskFilter,onUnarchive}){
           {task.dueDate&&<span style={{fontSize:11,color:overdue?"#e63946":"var(--t3)",fontWeight:overdue?700:400}}>{overdue?"⚠ ":""}{new Date(task.dueDate).toLocaleDateString("fr-CA",{month:"short",day:"numeric"})}{task.dueTime?" "+task.dueTime:""}</span>}
         </div>
       </div>
-      {taskFilter==="archived"&&onUnarchive&&(
-        <button onClick={e=>{e.stopPropagation();onUnarchive(task.id);}} style={{width:"100%",padding:"7px",borderRadius:"0 0 12px 12px",background:"rgba(42,157,143,0.08)",border:"1px solid rgba(42,157,143,0.2)",borderTop:"none",color:"#2a9d8f",fontSize:12,cursor:"pointer"}}>↩ Restaurer</button>
-      )}
+
     </div>
   );
 }
