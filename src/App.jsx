@@ -267,7 +267,16 @@ export default function App() {
       if(isSaving.current)return; // skip poll during saves
       try{
         const [T2,C2,A2]=await Promise.all([sb.get("tasks","archived=eq.false&order=created_at.desc"),sb.get("comments","order=created_at"),sb.get("announcements","order=created_at.desc")]);
-        if(T2?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T2.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C2||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
+        if(T2?.length){setTasks(prev=>{
+            const ids=new Set(prev.map(t=>t.id));
+            const mapped=T2.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C2||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));
+            // Only update if something changed
+            const hasNew=mapped.some(t=>!ids.has(t.id));
+            const hasChanged=mapped.some(t=>{const prev_t=prev.find(p=>p.id===t.id);return prev_t&&(prev_t.status!==t.status||prev_t.pinned!==t.pinned);});
+            if(!hasNew&&!hasChanged) return prev; // No change - skip re-render
+            mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});
+            return mapped;
+          });}
         if(A2?.length)setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A2.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});
       }catch(e){console.error(e)}
     };
@@ -512,7 +521,7 @@ export default function App() {
       <div style={{position:"sticky",top:0,zIndex:30,background:dark?"rgba(10,10,13,0.93)":"rgba(247,245,240,0.93)",backdropFilter:"blur(18px)",borderBottom:"1px solid var(--border)",padding:"13px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>isOwner&&setModal("storeProfile")}>
           {store.logo
-            ? <img src={store.logo} alt="" style={{width:34,height:34,borderRadius:9,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
+            ? <img loading="lazy" src={store.logo} alt="" style={{width:34,height:34,borderRadius:9,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
             : <div style={{width:34,height:34,borderRadius:9,background:"var(--gold-dim)",border:"1px solid var(--gold-b)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"var(--gold)"}}>
                 {store.name.slice(0,2).toUpperCase()}
               </div>
@@ -541,7 +550,7 @@ export default function App() {
       </div>
 
       {/* CONTENT */}
-      <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",paddingBottom:100,position:"relative",zIndex:1}}>
         {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent} onDeleteAnn={deleteAnnouncement} isOwner={isOwner}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort} onUnarchive={unarchiveTask}/>}
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
@@ -654,7 +663,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent,onDeleteAnn,isOwner}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
-    <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
+    <div style={{padding:"22px 16px 80px",display:"flex",flexDirection:"column",gap:20}}>
       <div className="fade-in">
         <div className="tag" style={{marginBottom:5}}>BONJOUR</div>
         <div className="serif" style={{fontSize:32,fontWeight:700,letterSpacing:"-0.5px",color:"var(--text)",lineHeight:1.1}}>{me.name}</div>
@@ -909,13 +918,13 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
           {task.pinned&&<span style={{fontSize:12,color:"var(--gold)"}}>★</span>}
           <div style={{fontSize:15,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.title}</div>
         </div>
-        <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0,marginLeft:8}}>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,marginLeft:8}}>
           {task.recurrence&&task.recurrence!=="none"&&<span className="recur-tag">↻</span>}
           <span className="pill" style={{background:s.bg,color:s.color,border:`1px solid ${s.border}`}}>{s.label}</span>
         </div>
       </div>
       {task.description&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:10,lineHeight:1.5,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{task.description}</div>}
-      {task.photo&&<div style={{borderRadius:10,overflow:"hidden",marginBottom:10,height:90}}><img src={task.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>}
+      {task.photo&&<div style={{borderRadius:10,overflow:"hidden",marginBottom:10,height:90}}><img loading="lazy" src={task.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",alignItems:"center",gap:7}}>
           <div style={{width:22,height:22,borderRadius:6,background:u?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:u?.id===1?"#0a0a0d":"white"}}>{initials(u?.name||"?")}</div>
@@ -990,10 +999,10 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onSelectTour,onStart,onEditC
           <div style={{fontSize:14,fontWeight:700,color:"var(--text)",textTransform:"capitalize"}}>{calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div>
           <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()+1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>›</button>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:8}}>
           {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,color:"var(--t3)",fontWeight:700,padding:"4px 0"}}>{d}</div>)}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
           {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
           {Array(daysInMonth).fill(null).map((_,i)=>{
             const day=i+1;
@@ -1007,7 +1016,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onSelectTour,onStart,onEditC
                   background:isSel?"var(--gold)":isToday?"var(--gold-dim)":"transparent",
                   border:isToday&&!isSel?"1px solid var(--gold-b)":"1px solid transparent"}}>
                 <span style={{fontSize:12,fontWeight:isToday?700:400,color:isSel?"#0a0a0d":isToday?"var(--gold)":"var(--text)"}}>{day}</span>
-                {hasTours&&<div style={{display:"flex",gap:2,marginTop:2}}>
+                {hasTours&&<div style={{display:"flex",gap:6,marginTop:2}}>
                   {hasTours.map((_,ti)=><div key={ti} style={{width:4,height:4,borderRadius:"50%",background:isSel?"#0a0a0d":"var(--gold)"}}/>)}
                 </div>}
               </div>
@@ -1096,7 +1105,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
             <div style={{fontSize:12,fontWeight:700,color:"var(--gold)",whiteSpace:"nowrap"}}>{doneItems}/{totalItems}</div>
           </div>
           {/* DEPT TABS */}
-          <div style={{display:"flex",gap:5,overflowX:"auto",marginTop:10,paddingBottom:2}}>
+          <div style={{display:"flex",gap:6,overflowX:"auto",marginTop:10,paddingBottom:2}}>
             {config.order.map(d=>{
               const dItems=allItems.filter(x=>x.dept===d);
               const dDone=dItems.filter(x=>checks[x.key]==="ok"||checks[x.key]==="issue").length;
@@ -1151,13 +1160,13 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
               <div className="serif" style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>Détail du problème</div>
               <button onClick={()=>setActiveIssue(null)} style={{width:32,height:32,borderRadius:9,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:18,cursor:"pointer"}}>×</button>
             </div>
-            <div style={{flex:1,padding:"16px 18px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto"}}>
+            <div style={{flex:1,padding:"16px 18px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
               <div style={{fontSize:13,fontWeight:600,color:"var(--t2)"}}>{allItems.find(x=>x.key===activeIssue)?.item}</div>
               <textarea className="field" value={notes[activeIssue]||""} onChange={e=>setNotes(p=>({...p,[activeIssue]:e.target.value}))} placeholder="Décrire le problème en détail..." rows={4} style={{fontSize:14,padding:"12px",resize:"none",lineHeight:1.5}}/>
               <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(activeIssue)}/>
               {photos[activeIssue]
                 ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}>
-                    <img src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
+                    <img loading="lazy" src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
                     <button onClick={()=>setPhotos(p=>({...p,[activeIssue]:null}))} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:16,border:"none",cursor:"pointer"}}>×</button>
                   </div>
                 : <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"14px",borderRadius:12,background:"var(--s2)",border:"1px dashed var(--border)",color:"var(--t2)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Ajouter une photo</button>
@@ -1188,7 +1197,26 @@ function TourConfigModal({config,onSave,onClose}){
   const [cfg,setCfg] = useState(JSON.parse(JSON.stringify(config)));
   const [activeTab,setActiveTab] = useState("base");
   const [newItem,setNewItem] = useState("");
+  const [newDept,setNewDept] = useState("");
+  const [showAddDept,setShowAddDept] = useState(false);
 
+  const addDept = () => {
+    if(!newDept.trim()) return;
+    const d = newDept.trim();
+    if(cfg.order.includes(d)) return;
+    setCfg(c=>({...c, order:[...c.order, d], deptItems:{...c.deptItems, [d]:[]}}));
+    setNewDept("");
+    setShowAddDept(false);
+    setActiveTab(d);
+  };
+  const removeDept = dept => {
+    if(cfg.order.length <= 1) return;
+    const newOrder = cfg.order.filter(d=>d!==dept);
+    const newDeptItems = {...cfg.deptItems};
+    delete newDeptItems[dept];
+    setCfg(c=>({...c, order:newOrder, deptItems:newDeptItems}));
+    setActiveTab(newOrder[0]||"base");
+  };
   const addItem = () => {
     if(!newItem.trim()) return;
     if(activeTab==="base") setCfg(c=>({...c,baseItems:[...c.baseItems,newItem.trim()]}));
@@ -1224,7 +1252,7 @@ function TourConfigModal({config,onSave,onClose}){
           </div>
           <button className="btn btn-gold" onClick={()=>onSave(cfg)} style={{width:"100%",padding:"14px",borderRadius:13,fontSize:14}}>Sauvegarder</button>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
 
           {/* ORDER */}
           <div>
@@ -1234,7 +1262,7 @@ function TourConfigModal({config,onSave,onClose}){
                 <div key={dept} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)"}}>
                   <div style={{width:22,height:22,borderRadius:6,background:"var(--gold-dim)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"var(--gold)"}}>{i+1}</div>
                   <div style={{flex:1,fontSize:13,fontWeight:500,color:"var(--text)"}}>{dept}</div>
-                  <div style={{display:"flex",gap:4}}>
+                  <div style={{display:"flex",gap:6}}>
                     <button className="btn btn-ghost" onClick={()=>moveOrder(i,-1)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>↑</button>
                     <button className="btn btn-ghost" onClick={()=>moveOrder(i,1)}  style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>↓</button>
                   </div>
@@ -1243,10 +1271,20 @@ function TourConfigModal({config,onSave,onClose}){
             </div>
           </div>
 
+          {/* ADD DEPT BUTTON */}
+          {!showAddDept
+            ? <button onClick={()=>setShowAddDept(true)} style={{width:"100%",padding:"10px",borderRadius:11,background:"transparent",border:"1.5px dashed var(--border)",color:"var(--t2)",fontSize:13,cursor:"pointer",marginTop:4}}>+ Ajouter un département</button>
+            : <div style={{display:"flex",gap:8,marginTop:4}}>
+                <input className="field" value={newDept} onChange={e=>setNewDept(e.target.value)} placeholder="Nom du département..." style={{flex:1,padding:"10px 12px",fontSize:13}} onKeyDown={e=>e.key==="Enter"&&addDept()}/>
+                <button onClick={addDept} style={{padding:"10px 14px",borderRadius:11,background:"var(--gold)",color:"#0a0a0d",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>Ajouter</button>
+                <button onClick={()=>{setShowAddDept(false);setNewDept("");}} style={{padding:"10px",borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",cursor:"pointer",fontSize:13}}>×</button>
+              </div>
+          }
+
           {/* ITEMS */}
           <div>
             <div className="tag" style={{marginBottom:10}}>POINTS À VÉRIFIER</div>
-            <div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
+            <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
               {["base",...DEPARTMENTS].map(t=>(
                 <button key={t} className="btn" onClick={()=>setActiveTab(t)}
                   style={{padding:"6px 12px",borderRadius:20,fontSize:11,whiteSpace:"nowrap",flexShrink:0,
@@ -1369,7 +1407,7 @@ function StatsTab({tasks,users,tourHistory,shiftReports}){
         return(
           <div className="card" style={{padding:"15px",borderTop:"2px solid var(--gold)",display:"flex",alignItems:"center",gap:14}}>
             <div style={{flex:1}}>
-              <div style={{display:"flex",gap:2,marginBottom:4}}>
+              <div style={{display:"flex",gap:6,marginBottom:4}}>
                 {[1,2,3,4,5].map(n=><span key={n} style={{fontSize:18,color:n<=avgRating?"var(--gold)":"var(--t3)"}}>★</span>)}
               </div>
               <div style={{fontSize:12,color:"var(--t2)"}}>Note moyenne des journées · Achalandage {avgTraffic}</div>
@@ -1445,7 +1483,7 @@ function StatsTab({tasks,users,tourHistory,shiftReports}){
                         <div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>Par {r.doneBy} · {ago(r.ts)}</div>
                       </div>
                       <div style={{textAlign:"right"}}>
-                        <div style={{display:"flex",gap:3,justifyContent:"flex-end",marginBottom:4}}>
+                        <div style={{display:"flex",gap:6,justifyContent:"flex-end",marginBottom:4}}>
                           {[1,2,3,4,5].map(n=>(
                             <span key={n} style={{fontSize:14,color:n<=r.rating?"var(--gold)":"var(--t3)"}}>★</span>
                           ))}
@@ -1516,7 +1554,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
             <div style={{fontSize:12,color:"var(--t3)"}}>Par {createdBy?.name} · {ago(task.createdAt)}</div>
           </div>
           {task.description&&<div style={{fontSize:14,color:"var(--t2)",lineHeight:1.7,padding:"12px 14px",background:"var(--s2)",borderRadius:12}}>{task.description}</div>}
-          {task.photo&&<div style={{borderRadius:14,overflow:"hidden"}}><img src={task.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/></div>}
+          {task.photo&&<div style={{borderRadius:14,overflow:"hidden"}}><img loading="lazy" src={task.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/></div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {[
               {label:"ASSIGNÉ À",val:<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:20,height:20,borderRadius:6,background:assigned?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:assigned?.id===1?"#0a0a0d":"white"}}>{initials(assigned?.name||"?")}</div><span>{assigned?.name}</span></div>},
@@ -1535,7 +1573,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
               <div className="tag">COMPLÉTER</div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
               {completionPhoto
-                ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}><img src={completionPhoto} alt="" style={{width:"100%",maxHeight:120,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>setPhoto(null)} style={{position:"absolute",top:6,right:6,width:26,height:26,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:14,border:"none"}}>×</button></div>
+                ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}><img loading="lazy" src={completionPhoto} alt="" style={{width:"100%",maxHeight:120,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>setPhoto(null)} style={{position:"absolute",top:6,right:6,width:26,height:26,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:14,border:"none"}}>×</button></div>
                 : <button className="btn btn-outline" onClick={()=>fileRef.current?.click()} style={{padding:"11px",borderRadius:10,fontSize:13}}>📷 Photo preuve</button>
               }
               <input className="field" value={completionNote} onChange={e=>setNote(e.target.value)} placeholder="Note de complétion..." style={{padding:"11px 13px"}}/>
@@ -1641,7 +1679,7 @@ function TaskFormModal({initial,users,onSave,onClose,title}){
           <FL label="PHOTO">
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
             {form.photo
-              ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}><img src={form.photo} alt="" style={{width:"100%",maxHeight:140,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>set("photo")(null)} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:16,border:"none"}}>×</button></div>
+              ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}><img loading="lazy" src={form.photo} alt="" style={{width:"100%",maxHeight:140,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>set("photo")(null)} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:16,border:"none"}}>×</button></div>
               : <button className="btn btn-ghost" onClick={()=>fileRef.current?.click()} style={{width:"100%",padding:"15px",borderRadius:12,fontSize:14}}>📷 Ajouter une photo</button>
             }
           </FL>
@@ -1739,7 +1777,7 @@ function StoreProfileModal({store,onSave,onClose}){
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
             {form.logo
               ? <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px",background:"var(--s2)",borderRadius:12,border:"1px solid var(--border)"}}>
-                  <img src={form.logo} alt="" style={{width:52,height:52,borderRadius:12,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
+                  <img loading="lazy" src={form.logo} alt="" style={{width:52,height:52,borderRadius:12,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>Logo actuel</div>
                     <button className="btn btn-danger" onClick={()=>set("logo")(null)} style={{padding:"5px 12px",borderRadius:8,fontSize:12}}>Supprimer</button>
@@ -1890,10 +1928,10 @@ function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEdi
             <div style={{fontSize:14,fontWeight:700,color:"var(--text)",textTransform:"capitalize"}}>{calDate.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div>
             <button className="btn btn-ghost" onClick={()=>setCalDate(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>›</button>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:8}}>
             {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
             {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
             {Array(daysInMonth).fill(null).map((_,i)=>{
               const day=i+1;
@@ -1907,7 +1945,7 @@ function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEdi
                     background:isSel?"var(--gold)":isToday?"var(--gold-dim)":"transparent",
                     border:isToday&&!isSel?"1px solid var(--gold-b)":"1px solid transparent"}}>
                   <span style={{fontSize:12,fontWeight:isToday?700:400,color:isSel?"#0a0a0d":isToday?"var(--gold)":"var(--text)",marginBottom:3}}>{day}</span>
-                  <div style={{display:"flex",flexDirection:"column",gap:1,width:"100%",padding:"0 2px"}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:6,width:"100%",padding:"0 2px"}}>
                     {dayEvents.slice(0,2).map((ev,ei)=>(
                       <div key={ei} style={{height:4,borderRadius:2,background:isSel?"rgba(10,10,13,0.4)":ev.color,width:"100%"}}/>
                     ))}
@@ -2300,7 +2338,7 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
                   </div>
                   {s.photo
                     ? <div onClick={()=>setSelectedPhoto(s.photo)} style={{cursor:"zoom-in"}}>
-                        <img src={s.photo} alt={s.label} style={{width:"100%",maxHeight:300,objectFit:"contain",background:"var(--s2)",display:"block"}}/>
+                        <img loading="lazy" src={s.photo} alt={s.label} style={{width:"100%",maxHeight:300,objectFit:"contain",background:"var(--s2)",display:"block"}}/>
                         <div style={{padding:"8px 14px",fontSize:11,color:"var(--t3)",textAlign:"center"}}>Appuyer pour agrandir</div>
                       </div>
                     : <div style={{padding:"20px",textAlign:"center",color:"var(--t3)",fontSize:13,background:"var(--s2)"}}>Aucune photo</div>
@@ -2313,7 +2351,7 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
       {/* PHOTO VIEWER */}
       {selectedPhoto&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setSelectedPhoto(null)}>
-          <img src={selectedPhoto} alt="" style={{maxWidth:"100%",maxHeight:"90vh",objectFit:"contain",borderRadius:12}}/>
+          <img loading="lazy" src={selectedPhoto} alt="" style={{maxWidth:"100%",maxHeight:"90vh",objectFit:"contain",borderRadius:12}}/>
           <button className="btn" onClick={()=>setSelectedPhoto(null)} style={{position:"absolute",top:20,right:20,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.15)",color:"white",fontSize:20,border:"none"}}>×</button>
         </div>
       )}
@@ -2560,7 +2598,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
                 <div key={folder.id} className="card card-tap" onClick={()=>setSelectedFolder(folder.id)}
                   style={{padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
                   {/* PREVIEW THUMBNAILS */}
-                  <div style={{display:"flex",gap:3,flexShrink:0}}>
+                  <div style={{display:"flex",gap:6,flexShrink:0}}>
                     {preview.length>0
                       ? preview.map((p,i)=><img key={i} src={p.photo} alt="" style={{width:i===0?48:32,height:i===0?48:32,borderRadius:8,objectFit:"cover",border:"1px solid var(--border)"}}/>)
                       : <div style={{width:48,height:48,borderRadius:12,background:"var(--s2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📁</div>
@@ -2623,7 +2661,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
               ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                   {displayPhotos.map((p,i)=>(
                     <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1"}}>
-                      <img src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}/>
+                      <img loading="lazy" src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}/>
                       {p.id&&selectedFolder!==0&&<button onClick={e=>{e.stopPropagation();onDeletePhoto(selectedFolder,p.id);}} style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:12,border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                     </div>
                   ))}
@@ -2631,7 +2669,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
               : <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {displayPhotos.map((p,i)=>(
                     <div key={p.id||i} className="card card-tap" onClick={()=>setSelectedPhoto(p)} style={{padding:"12px",display:"flex",gap:12,alignItems:"center"}}>
-                      <img src={p.photo} alt="" style={{width:56,height:56,borderRadius:10,objectFit:"cover",flexShrink:0}}/>
+                      <img loading="lazy" src={p.photo} alt="" style={{width:56,height:56,borderRadius:10,objectFit:"cover",flexShrink:0}}/>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.caption||"Sans titre"}</div>
                         {p.source&&<div style={{fontSize:11,color:"var(--gold)",marginTop:2}}>{p.source}</div>}
@@ -2650,7 +2688,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
       {/* PHOTO FULLSCREEN */}
       {selectedPhoto&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setSelectedPhoto(null)}>
-          <img src={selectedPhoto.photo} alt="" style={{maxWidth:"100%",maxHeight:"80vh",objectFit:"contain",borderRadius:12}}/>
+          <img loading="lazy" src={selectedPhoto.photo} alt="" style={{maxWidth:"100%",maxHeight:"80vh",objectFit:"contain",borderRadius:12}}/>
           {selectedPhoto.caption&&<div style={{marginTop:14,fontSize:14,color:"rgba(255,255,255,0.7)",fontWeight:500,textAlign:"center"}}>{selectedPhoto.caption}</div>}
           {selectedPhoto.source&&<div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:4}}>{selectedPhoto.source}</div>}
           <button className="btn" onClick={()=>setSelectedPhoto(null)} style={{position:"absolute",top:20,right:20,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.15)",color:"white",fontSize:20,border:"none"}}>×</button>
@@ -2814,7 +2852,7 @@ function GlobalSearchModal({query,setQuery,tasks,events,announcements,notes,me,g
           style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:16,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}/>
         <button className="btn" onClick={onClose} style={{background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",borderRadius:9,padding:"6px 12px",fontSize:13}}>Fermer</button>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}} onClick={e=>e.stopPropagation()}>
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}} onClick={e=>e.stopPropagation()}>
         {q.length<2
           ? <div style={{textAlign:"center",padding:"48px 20px",color:"var(--t3)",fontSize:14}}>Tapez au moins 2 caractères pour chercher</div>
           : results.length===0
@@ -3059,7 +3097,7 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
         </div>
 
         {/* SCROLLABLE CONTENT */}
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,padding:"14px 18px 40px",display:"flex",flexDirection:"column",gap:10,minHeight:0}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"14px 18px 40px",display:"flex",flexDirection:"column",gap:10,minHeight:0}}>
           
           <div className="tag">PROBLÈMES SIGNALÉS ({tour.issues?.length||0})</div>
           
@@ -3070,7 +3108,7 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
                   <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
                   {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
-                  {issue.photo&&<img src={issue.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+                  {issue.photo&&<img loading="lazy" src={issue.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:10,display:"block"}}/>}
                 </div>
               ))
           }
@@ -3121,10 +3159,10 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
             <button onClick={()=>{setEditEv(null);setShowForm(true);}} style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>+ Ajouter</button>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:4}}>
           {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
           {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
           {Array(days).fill(null).map((_,i)=>{
             const day=i+1,de=byDay[day]||[];
@@ -3132,7 +3170,7 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
             const isS=selDay===day;
             return(<div key={day} onClick={()=>setSelDay(isS?null:day)} style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",background:isS?themeColor:isT?`${themeColor}20`:"transparent"}}>
               <span style={{fontSize:12,fontWeight:isT||isS?700:400,color:isS?"#0a0a0d":isT?themeColor:"var(--text)"}}>{day}</span>
-              <div style={{display:"flex",gap:2,marginTop:2}}>{de.slice(0,3).map((ev,ei)=><div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isS?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>)}</div>
+              <div style={{display:"flex",gap:6,marginTop:2}}>{de.slice(0,3).map((ev,ei)=><div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isS?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>)}</div>
             </div>);
           })}
         </div>
@@ -3146,7 +3184,7 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
               :selEvents.map((e,i)=>(
                 <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,borderLeft:`3px solid ${e.color||themeColor}`,display:"flex",alignItems:"flex-start",gap:8}}>
                   <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div><div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime}—{e.endTime}</div></div>
-                  <div style={{display:"flex",gap:4}}>
+                  <div style={{display:"flex",gap:6}}>
                     <button onClick={()=>{setEditEv(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,background:"var(--s2)",border:"1px solid var(--border)",fontSize:12,cursor:"pointer"}}>✏️</button>
                     <button onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:12,cursor:"pointer"}}>×</button>
                   </div>
@@ -3166,7 +3204,7 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
                   <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}</div>
                 </div>
-                <div style={{display:"flex",gap:4}}>
+                <div style={{display:"flex",gap:6}}>
                   <button onClick={()=>{setEditEv(e);setShowForm(true);}} style={{width:26,height:26,borderRadius:7,background:"var(--s2)",border:"1px solid var(--border)",fontSize:11,cursor:"pointer"}}>✏️</button>
                   <button onClick={()=>setConfirmDel(e)} style={{width:26,height:26,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:11,cursor:"pointer"}}>×</button>
                 </div>
