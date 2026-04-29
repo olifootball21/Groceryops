@@ -367,7 +367,16 @@ export default function App() {
 
   const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert('gallery_folders',{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,'folderCreated'));}catch(e){pushToast('Erreur','warn');}};
   
-  const deleteGalleryFolder=async id=>{try{await sb.del('gallery_folders',id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,'deleted'),'warn');}catch(e){console.error(e)}};
+  const deleteGalleryFolder=async id=>{
+    try{
+      // Delete all photos in folder first
+      const photos=await sb.get('gallery_photos',`folder_id=eq.${id}`);
+      for(const p of photos||[]) await sb.del('gallery_photos',p.id);
+      await sb.del('gallery_folders',id);
+      setGallery(p=>p.filter(f=>f.id!==id));
+      pushToast(T(lang,'deleted'),'warn');
+    }catch(e){console.error(e);}
+  };
   
   const addPhotoToFolder=async(folderId,photo,caption)=>{try{const compressed=await compressImage(photo);const r=await sb.insert('gallery_photos',{folder_id:folderId,photo:compressed,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,'photoAdded'));}catch(e){pushToast('Erreur','warn');}};  
   const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del('gallery_photos',photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,'deleted'),'warn');}catch(e){console.error(e)}};
@@ -403,6 +412,14 @@ export default function App() {
     pushToast("Département renommé !");
   };
 
+  const unarchiveTask = async tid => {
+    try{
+      await sb.update('tasks',tid,{archived:false,archived_at:null});
+      const t=archivedTasks.find(x=>x.id===tid);
+      if(t){setTasks(p=>[{...t,archived:false,archivedAt:null},...p]);setArchivedTasks(p=>p.filter(x=>x.id!==tid));}
+      pushToast("Tâche restaurée !");
+    }catch(e){pushToast("Erreur","warn");}
+  };
   const archiveTask = async tid => {
     // Optimistic
     const t=tasks.find(x=>x.id===tid);
@@ -410,7 +427,9 @@ export default function App() {
     pushToast("Tâche archivée");setModal(null);setActive(null);
     try{await sb.update('tasks',tid,{archived:true,archived_at:new Date().toISOString()});}catch(e){pushToast("Erreur","warn");}
   };
-  const addSchedulePhoto=async(dept,label,photo)=>{try{const ds=await sb.get('schedule_depts');let dr=ds?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert('schedule_depts',{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const r=await sb.insert('schedule_photos',{dept_id:dr.id,label,photo:await compressImage(photo)});if(r?.[0])setSchedules(p=>({...p,[dept]:[{id:r[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast('Horaire ajouté !');}catch(e){pushToast('Erreur','warn');}};
+  const addSchedulePhoto=async(dept,label,photo)=>{
+    // Limit to 10 photos per department
+    if((schedules[dept]||[]).length>=10){pushToast("Max 10 photos par département","warn");return;}try{const ds=await sb.get('schedule_depts');let dr=ds?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert('schedule_depts',{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const r=await sb.insert('schedule_photos',{dept_id:dr.id,label,photo:await compressImage(photo)});if(r?.[0])setSchedules(p=>({...p,[dept]:[{id:r[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast('Horaire ajouté !');}catch(e){pushToast('Erreur','warn');}};
   
   const deleteSchedulePhoto=async(dept,id)=>{try{await sb.del('schedule_photos',id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast('Supprimé','warn');}catch(e){console.error(e)}};
   
@@ -524,7 +543,7 @@ export default function App() {
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
         {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent} onDeleteAnn={deleteAnnouncement} isOwner={isOwner}/>}
-        {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
+        {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort} onUnarchive={unarchiveTask}/>}
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
@@ -724,7 +743,7 @@ function MiniTaskCard({task,getUser,getPri,onClick}){
 }
 
 // ─── TASKS TAB ────────────────────────────────────────────────────
-function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort}){
+function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort,onUnarchive}){
   const [filter,setFilter]   = useState(initFilter==="urgent"||initFilter==="pinned"?"all":initFilter==="done"?"done":initFilter||"active");
   const [priFilter,setPri]   = useState(initFilter==="urgent"?"urgent":"all");
   const [deptFilter,setDept] = useState("all");
@@ -873,7 +892,14 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
             <div style={{fontSize:28,marginBottom:8}}>—</div>
             <div style={{fontSize:14}}>{showArchived?"Aucune tâche archivée":"Aucune tâche trouvée"}</div>
           </div>
-        : filtered.map(t=><TaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)} unseen={!seenTasks?.has(t.id)}/>)
+        : filtered.map(t=>(
+        <div key={t.id}>
+          <TaskCard task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)} unseen={!seenTasks?.has(t.id)}/>
+          {taskFilter==="archived"&&onUnarchive&&(
+            <button onClick={()=>onUnarchive(t.id)} style={{width:"100%",padding:"6px",marginTop:-4,marginBottom:4,borderRadius:"0 0 11px 11px",background:"rgba(42,157,143,0.08)",border:"1px solid rgba(42,157,143,0.2)",borderTop:"none",color:"#2a9d8f",fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>↩ Restaurer cette tâche</button>
+          )}
+        </div>
+      ))
       }
     </div>
   );
@@ -2948,6 +2974,7 @@ function PinLoginScreen({users,onLogin,onJoinRequest}){
         <>
           <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:36,fontFamily:"'DM Sans',sans-serif"}}>Qui es-tu ?</div>
           <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:320}}>
+            {users.length===0&&<div style={{textAlign:"center",color:"rgba(237,232,223,0.3)",fontSize:13,padding:20}}>Chargement...</div>}
             {users.map(u=>(
               <button key={u.id} onClick={()=>setSel(u)} style={{padding:"16px 18px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:12,cursor:"pointer",width:"100%",fontFamily:"'DM Sans',sans-serif"}}>
                 <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#0a0a0d",flexShrink:0}}>{ini(u.name)}</div>
