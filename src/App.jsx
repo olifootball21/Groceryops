@@ -523,7 +523,7 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
-        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent}/>}
+        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent} onDeleteAnn={deleteAnnouncement} isOwner={isOwner}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
@@ -632,7 +632,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent}){
+function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent,onDeleteAnn,isOwner}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
     <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
@@ -646,12 +646,18 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
         <div className="fade-in">
           <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,5).map(a=>(
-              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-              </div>
-            ))}
+            {announcements.slice(0,5).map(a=>{
+              const isSOS=a.text?.includes("🆘");
+              return(
+                <div key={a.id} style={{padding:"12px 14px",background:isSOS?"rgba(230,57,70,0.08)":"rgba(244,162,97,0.08)",border:`1px solid ${isSOS?"rgba(230,57,70,0.3)":"rgba(244,162,97,0.2)"}`,borderRadius:12,borderLeft:`3px solid ${isSOS?"#e63946":"#f4a261"}`,display:"flex",alignItems:"flex-start",gap:8}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,color:isSOS?"#e63946":"var(--text)",lineHeight:1.5,fontWeight:isSOS?700:500}}>{a.text}</div>
+                    <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+                  </div>
+                  {isOwner&&<button onClick={()=>onDeleteAnn(a.id)} style={{width:24,height:24,borderRadius:7,background:"transparent",border:"none",color:"var(--t3)",fontSize:14,cursor:"pointer",flexShrink:0,marginTop:2}}>×</button>}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
