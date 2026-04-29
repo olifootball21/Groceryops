@@ -1,4 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+// ─── IMAGE COMPRESSION ───────────────────────────────────────────
+const compressImage = (dataUrl, maxWidth=800, quality=0.7) => new Promise(resolve => {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
+    canvas.width = img.width * ratio;
+    canvas.height = img.height * ratio;
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    resolve(canvas.toDataURL('image/jpeg', quality));
+  };
+  img.src = dataUrl;
+});
+
 const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc",SH={apikey:SKEY,Authorization:`Bearer ${SKEY}`,"Content-Type":"application/json"};
 const sb={
   get:async(t,q="")=>{const r=await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`,{headers:SH});return r.ok?r.json():[];},
@@ -276,7 +290,7 @@ export default function App() {
   const [creatingTask, setCreatingTask] = useState(false);
   const createTask=async d=>{
     if(creatingTask) return;
-    setCreatingTask(true);try{const r=await sb.insert('tasks',{title:d.title,description:d.description,assigned_to:d.assignedTo,created_by:me.id,priority:d.priority,status:'todo',department:d.department,due_date:d.dueDate,due_time:d.dueTime,photo:d.photo,recurrence:d.recurrence,custom_days:d.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[t,...p]);}pushNotif('Nouvelle tâche',d.title,'task');pushToast('Tâche créée !');setModal(null);setCreatingTask(false);}catch(e){setCreatingTask(false);pushToast('Erreur','warn');}};
+    setCreatingTask(true);try{const r=await sb.insert('tasks',{title:d.title,description:d.description,assigned_to:d.assignedTo,created_by:me.id,priority:d.priority,status:'todo',department:d.department,due_date:d.dueDate,due_time:d.dueTime,photo:d.photo?await compressImage(d.photo):null,recurrence:d.recurrence,custom_days:d.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[t,...p]);}pushNotif('Nouvelle tâche',d.title,'task');pushToast('Tâche créée !');setModal(null);setCreatingTask(false);}catch(e){setCreatingTask(false);pushToast('Erreur','warn');}};
 
   const editTask = async data => {
     try{await sb.update('tasks',data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned||false});setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));pushToast("Tâche modifiée !");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}
@@ -329,7 +343,7 @@ export default function App() {
   
   const deleteGalleryFolder=async id=>{try{await sb.del('gallery_folders',id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,'deleted'),'warn');}catch(e){}};
   
-  const addPhotoToFolder=async(folderId,photo,caption)=>{try{const r=await sb.insert('gallery_photos',{folder_id:folderId,photo,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,'photoAdded'));}catch(e){pushToast('Erreur','warn');}};  
+  const addPhotoToFolder=async(folderId,photo,caption)=>{try{const compressed=await compressImage(photo);const r=await sb.insert('gallery_photos',{folder_id:folderId,photo:compressed,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,'photoAdded'));}catch(e){pushToast('Erreur','warn');}};  
   const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del('gallery_photos',photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,'deleted'),'warn');}catch(e){}};
   
   const renameGalleryFolder = (id, name) => {
@@ -370,7 +384,7 @@ export default function App() {
     pushToast("Tâche archivée");setModal(null);setActive(null);
     try{await sb.update('tasks',tid,{archived:true,archived_at:new Date().toISOString()});}catch(e){pushToast("Erreur","warn");}
   };
-  const addSchedulePhoto=async(dept,label,photo)=>{try{const ds=await sb.get('schedule_depts');let dr=ds?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert('schedule_depts',{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const r=await sb.insert('schedule_photos',{dept_id:dr.id,label,photo});if(r?.[0])setSchedules(p=>({...p,[dept]:[{id:r[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast('Horaire ajouté !');}catch(e){pushToast('Erreur','warn');}};
+  const addSchedulePhoto=async(dept,label,photo)=>{try{const ds=await sb.get('schedule_depts');let dr=ds?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert('schedule_depts',{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const r=await sb.insert('schedule_photos',{dept_id:dr.id,label,photo:await compressImage(photo)});if(r?.[0])setSchedules(p=>({...p,[dept]:[{id:r[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast('Horaire ajouté !');}catch(e){pushToast('Erreur','warn');}};
   
   const deleteSchedulePhoto=async(dept,id)=>{try{await sb.del('schedule_photos',id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast('Supprimé','warn');}catch(e){}};
   
