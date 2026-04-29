@@ -1719,11 +1719,12 @@ function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete,isOwner
               <input className="field" list="roles-list" value={form.role} onChange={e=>set("role")(e.target.value)} placeholder="Ex: Directeur, Gérant(e)..."/>
               <datalist id="roles-list">{["Directeur/Directrice","Dir. Adjoint(e)","Gérant(e)","Assistant(e) gérant"].map(r=><option key={r} value={r}/>)}</datalist>
             </FL>
-            {(isOwner||isCurrentUser)&&<FL label={isOwner&&!isCurrentUser?`NIP de ${form.name||'cet employé'}`:"Mon NIP"}>
-              <input className="field" value={form.pin||""} onChange={e=>set("pin")(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="4 chiffres" maxLength={4} inputMode="numeric" type={isOwner&&!isCurrentUser?"text":"password"}/>
-              <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>{isOwner&&!isCurrentUser?"Visible car vous êtes propriétaire":"Votre NIP personnel"}</div>
-            </FL>}
-          )}
+            {(isOwner||isCurrentUser)&&(
+              <FL label={isOwner&&!isCurrentUser?"NIP - "+(form.name||"employé"):"Mon NIP"}>
+                <input className="field" value={form.pin||""} onChange={e=>set("pin")(e.target.value.split("").filter(c=>c>="0"&&c<="9").slice(0,4).join(""))} placeholder="4 chiffres" maxLength={4} inputMode="numeric" type={isOwner&&!isCurrentUser?"text":"password"}/>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>{isOwner&&!isCurrentUser?"Visible — propriétaire":"Votre NIP"}</div>
+              </FL>
+            )}
           <FL label="COULEUR">
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {COLORS.map(c=>(
