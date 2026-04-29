@@ -278,6 +278,8 @@ export default function App() {
             return mapped;
           });}
         if(A2?.length)setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A2.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});
+        // Check new join requests for owner
+        if(isOwner){try{const JR2=await sb.get('join_requests','status=eq.pending&order=created_at.desc');if(JR2?.length){setJoinRequests(prev=>{const ids=new Set(prev.map(r=>r.id));JR2.forEach(r=>{if(!ids.has(r.id))pushNotif("Nouvelle demande",`${r.name} veut rejoindre l'équipe`,"announce");});return JR2;});}}catch(e){console.error(e);}}
       }catch(e){console.error(e)}
     };
     const iv=setInterval(poll,8000);
@@ -864,7 +866,7 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
           <div>
             <div className="tag" style={{marginBottom:8}}>DÉPARTEMENT</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["all",...DEPARTMENTS].map(d=>(
+              {["all",...((tourConfig?.order)||DEPARTMENTS)].map(d=>(
                 <button key={d} className="btn" onClick={()=>setDept(d)}
                   style={{padding:"5px 11px",borderRadius:20,fontSize:11,
                     background:deptFilter===d?"var(--gold)":"var(--s1)",
@@ -1371,7 +1373,7 @@ function StatsTab({tasks,users,tourHistory,shiftReports}){
   const rate=tasks.length>0?Math.round((tasks.filter(t=>t.status==="done").length/tasks.length)*100):0;
   const late=tasks.filter(t=>t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date());
   const byUser=users.map(u=>({...u,done:tasks.filter(t=>t.assignedTo===u.id&&t.status==="done").length,total:tasks.filter(t=>t.assignedTo===u.id).length,late:tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).sort((a,b)=>b.done-a.done);
-  const byDept=DEPARTMENTS.map(d=>({name:d,total:tasks.filter(t=>t.department===d).length,done:tasks.filter(t=>t.department===d&&t.status==="done").length,late:tasks.filter(t=>t.department===d&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
+  const byDept=[...((tourConfig?.order)||DEPARTMENTS)].map(d=>({name:d,total:tasks.filter(t=>t.department===d).length,done:tasks.filter(t=>t.department===d&&t.status==="done").length,late:tasks.filter(t=>t.department===d&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
   const tourScore=tourHistory.length>0?Math.round(tourHistory.reduce((acc,t)=>acc+(t.score/t.total*100),0)/tourHistory.length):null;
   return(
     <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:16}}>
@@ -1651,7 +1653,7 @@ function TaskFormModal({initial,users,onSave,onClose,title}){
             <FL label="PRIORITÉ"><select className="field" value={form.priority} onChange={e=>set("priority")(e.target.value)}>{PRIORITIES.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></FL>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <FL label="DÉPARTEMENT"><select className="field" value={form.department} onChange={e=>set("department")(e.target.value)}>{DEPARTMENTS.map(d=><option key={d} value={d}>{d}</option>)}</select></FL>
+            <FL label="DÉPARTEMENT"><select className="field" value={form.department} onChange={e=>set("department")(e.target.value)}>{[...((tourConfig?.order)||DEPARTMENTS)].map(d=><option key={d} value={d}>{d}</option>)}</select></FL>
             <FL label="STATUT"><select className="field" value={form.status} onChange={e=>set("status")(e.target.value)}>{Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></FL>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1698,7 +1700,7 @@ function EditTaskModal({task,users,onSave,onClose}){
 }
 
 // ─── USER MODALS ──────────────────────────────────────────────────
-function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
+function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete,isOwner,isCurrentUser}){
   const [form,setForm]=useState({...initial});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const [confirmDel,setConfirmDel]=useState(false);
@@ -1717,6 +1719,10 @@ function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
               <input className="field" list="roles-list" value={form.role} onChange={e=>set("role")(e.target.value)} placeholder="Ex: Directeur, Gérant(e)..."/>
               <datalist id="roles-list">{["Directeur/Directrice","Dir. Adjoint(e)","Gérant(e)","Assistant(e) gérant"].map(r=><option key={r} value={r}/>)}</datalist>
             </FL>
+            {(isOwner||isCurrentUser)&&<FL label={isOwner&&!isCurrentUser?`NIP de ${form.name||'cet employé'}`:"Mon NIP"}>
+              <input className="field" value={form.pin||""} onChange={e=>set("pin")(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="4 chiffres" maxLength={4} inputMode="numeric" type={isOwner&&!isCurrentUser?"text":"password"}/>
+              <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>{isOwner&&!isCurrentUser?"Visible car vous êtes propriétaire":"Votre NIP personnel"}</div>
+            </FL>}
           )}
           <FL label="COULEUR">
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -2172,7 +2178,7 @@ function AnnouncementModal({me,users,onSave,onClose}){
           </FL>
           <FL label="DESTINATAIRES">
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["all",...DEPARTMENTS].map(d=>(
+              {["all",...((tourConfig?.order)||DEPARTMENTS)].map(d=>(
                 <button key={d} className="btn" onClick={()=>setDept(d)}
                   style={{padding:"7px 13px",borderRadius:20,fontSize:12,whiteSpace:"nowrap",
                     background:dept===d?"var(--gold)":"var(--s2)",color:dept===d?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
