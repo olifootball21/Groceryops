@@ -1265,6 +1265,7 @@ function TourConfigModal({config,onSave,onClose}){
                   <div style={{display:"flex",gap:6}}>
                     <button className="btn btn-ghost" onClick={()=>moveOrder(i,-1)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>↑</button>
                     <button className="btn btn-ghost" onClick={()=>moveOrder(i,1)}  style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>↓</button>
+                    <button onClick={()=>{if(cfg.order.length>1){const o=cfg.order.filter(d=>d!==dept);const di={...cfg.deptItems};delete di[dept];setCfg(c=>({...c,order:o,deptItems:di}));setActiveTab(o[0]||'base');}}} style={{width:28,height:28,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.2)",color:"#e63946",fontSize:14,cursor:"pointer",padding:0}}>×</button>
                   </div>
                 </div>
               ))}
@@ -1285,7 +1286,7 @@ function TourConfigModal({config,onSave,onClose}){
           <div>
             <div className="tag" style={{marginBottom:10}}>POINTS À VÉRIFIER</div>
             <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
-              {["base",...DEPARTMENTS].map(t=>(
+              {["base",...cfg.order].map(t=>(
                 <button key={t} className="btn" onClick={()=>setActiveTab(t)}
                   style={{padding:"6px 12px",borderRadius:20,fontSize:11,whiteSpace:"nowrap",flexShrink:0,
                     background:activeTab===t?"var(--gold)":"var(--s2)",color:activeTab===t?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
