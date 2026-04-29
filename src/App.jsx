@@ -1083,8 +1083,8 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
   };
 
   return(
-    <div style={{position:"fixed",inset:0,background:"var(--s1)",zIndex:50,display:"flex",flexDirection:"column"}}>
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{position:"fixed",inset:0,background:"var(--s1)",zIndex:50,display:"flex",flexDirection:"column",height:"100%",height:"100dvh"}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
         {/* HEADER */}
         <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1121,7 +1121,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* ITEMS */}
-        <div style={{flex:1,overflowY:"scroll",WebkitOverflowScrolling:"touch",padding:"14px 16px 8px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain",padding:"14px 16px 8px",display:"flex",flexDirection:"column",gap:8,minHeight:0}}>
           <div className="tag" style={{marginBottom:4}}>{currentDept}</div>
           {deptItems.map(({item,key})=>{
             const status=checks[key];
@@ -1179,7 +1179,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         )}
 
         {/* FOOTER */}
-        <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0,position:"sticky",bottom:0,background:"var(--s1)",zIndex:10}}>
+        <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0,background:"var(--s1)"}}>
           <button className="btn btn-gold" onClick={handleSave} disabled={saving} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,opacity:saving?0.6:1}}>
             {saving?"Sauvegarde...":"Terminer la tournée · "+pct+"% complété"}
           </button>
