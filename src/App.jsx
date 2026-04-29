@@ -231,7 +231,7 @@ export default function App() {
           sb.get("store_profile"),
         ]);
         if(U?.length){const u=U.map(x=>({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));setUsers(u);setMe(u.find(x=>x.isOwner)||u[0]);
-          try{const sv=JSON.parse(localStorage.getItem('groceryops_user')||'null');if(sv&&sv.id&&(Date.now()-sv.ts)<28800000){const su=u.find(x=>x.id===sv.id);if(su){setLoginUser(su);setMe(su);}}}catch(e){}
+          try{const sv=JSON.parse(localStorage.getItem('groceryops_user')||'null');if(sv&&sv.id&&(Date.now()-sv.ts)<28800000){const su=u.find(x=>x.id===sv.id);if(su){setLoginUser(su);setMe(su);}}}catch(e){console.error(e)}
         }
         if(T?.length){setTasks(T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))})));}
         if(A?.length)setAnnouncements(A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
@@ -244,7 +244,7 @@ export default function App() {
         if(GF?.length)setGallery(GF.map(f=>({id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),photos:(GP||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))})));
         const [SD,SP]=await Promise.all([sb.get("schedule_depts","order=sort_order"),sb.get("schedule_photos","order=created_at.desc")]);
         if(SD?.length){const nd=[],ns={};SD.forEach(d=>{nd.push(d.name);ns[d.name]=(SP||[]).filter(p=>p.dept_id===d.id).map(p=>({id:p.id,label:p.label,photo:p.photo||null,ts:new Date(p.created_at).getTime()}));});setScheduleDepts(nd);setSchedules(ns);}
-        try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){}
+        try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){console.error(e)}
         // Load tour config
         try{
           const TC=await sb.get("app_settings","key=eq.tour_config");
@@ -252,7 +252,7 @@ export default function App() {
             const cfg=JSON.parse(TC[0].value);
             setTourConfig(cfg);
           }
-        }catch(e){}
+        }catch(e){console.error(e)}
       }catch(e){console.error(e);}
       setReady(true);
     })();
@@ -269,7 +269,7 @@ export default function App() {
         const [T2,C2,A2]=await Promise.all([sb.get("tasks","archived=eq.false&order=created_at.desc"),sb.get("comments","order=created_at"),sb.get("announcements","order=created_at.desc")]);
         if(T2?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T2.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C2||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
         if(A2?.length)setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A2.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});
-      }catch(e){}
+      }catch(e){console.error(e)}
     };
     const iv=setInterval(poll,8000);
     return()=>clearInterval(iv);
@@ -285,6 +285,18 @@ export default function App() {
 
   const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
   const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
+  // Reset all saving states when modal closes
+  const resetSavingStates = () => {
+    setSavingEdit(false);
+    setSavingEditEvent(false);
+    setSavingUser2(false);
+    setSavingAnn(false);
+    setSavingEvent(false);
+    setCreatingTask(false);
+    setUpdatingTask(null);
+    isSaving.current = false;
+  };
+
   const clearAllNotifs = () => setNotifs([]);
   const deleteNotif = id => setNotifs(p=>p.filter(n=>n.id!==id));
   const clickNotif = n => {
@@ -345,7 +357,7 @@ export default function App() {
     setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));
     setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);
     pushToast("Épinglée !");
-    try{await sb.update('tasks',taskId,{pinned:!task.pinned});}catch(e){}
+    try{await sb.update('tasks',taskId,{pinned:!task.pinned});}catch(e){console.error(e)}
   };
   
   const addComment = async (taskId,text) => {
@@ -355,10 +367,10 @@ export default function App() {
 
   const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert('gallery_folders',{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,'folderCreated'));}catch(e){pushToast('Erreur','warn');}};
   
-  const deleteGalleryFolder=async id=>{try{await sb.del('gallery_folders',id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,'deleted'),'warn');}catch(e){}};
+  const deleteGalleryFolder=async id=>{try{await sb.del('gallery_folders',id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,'deleted'),'warn');}catch(e){console.error(e)}};
   
   const addPhotoToFolder=async(folderId,photo,caption)=>{try{const compressed=await compressImage(photo);const r=await sb.insert('gallery_photos',{folder_id:folderId,photo:compressed,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,'photoAdded'));}catch(e){pushToast('Erreur','warn');}};  
-  const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del('gallery_photos',photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,'deleted'),'warn');}catch(e){}};
+  const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del('gallery_photos',photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,'deleted'),'warn');}catch(e){console.error(e)}};
   
   const renameGalleryFolder = (id, name) => {
     setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
@@ -400,9 +412,9 @@ export default function App() {
   };
   const addSchedulePhoto=async(dept,label,photo)=>{try{const ds=await sb.get('schedule_depts');let dr=ds?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert('schedule_depts',{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const r=await sb.insert('schedule_photos',{dept_id:dr.id,label,photo:await compressImage(photo)});if(r?.[0])setSchedules(p=>({...p,[dept]:[{id:r[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast('Horaire ajouté !');}catch(e){pushToast('Erreur','warn');}};
   
-  const deleteSchedulePhoto=async(dept,id)=>{try{await sb.del('schedule_photos',id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast('Supprimé','warn');}catch(e){}};
+  const deleteSchedulePhoto=async(dept,id)=>{try{await sb.del('schedule_photos',id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast('Supprimé','warn');}catch(e){console.error(e)}};
   
-  const saveNote=async(uid,text)=>{try{const ex=await sb.get('notes',`user_id=eq.${uid}`);if(ex?.length)await sb.update('notes',ex[0].id,{text});else await sb.insert('notes',{user_id:uid,text});setNotes(p=>({...p,[uid]:text}));}catch(e){}};
+  const saveNote=async(uid,text)=>{try{const ex=await sb.get('notes',`user_id=eq.${uid}`);if(ex?.length)await sb.update('notes',ex[0].id,{text});else await sb.insert('notes',{user_id:uid,text});setNotes(p=>({...p,[uid]:text}));}catch(e){console.error(e)}};
 
   const [savingUser, setSavingUser] = useState(false);
   const createUser=async d=>{if(savingUser)return;setSavingUser(true);try{const r=await sb.insert('users',{name:d.name,role:d.role,color:d.color,is_owner:false,pin:'1111'});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:'1111'}]);pushToast(`${d.name} ajouté !`);setModal(null);setSavingUser(false);}catch(e){setSavingUser(false);pushToast('Erreur','warn');}};
@@ -441,18 +453,18 @@ export default function App() {
   const editEvent=async data=>{if(savingEditEvent)return;setSavingEditEvent(true);try{await sb.update('events',data.id,{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members});setEvents(p=>p.map(e=>e.id===data.id?data:e));pushToast('Événement modifié !');setModal(null);setSavingEditEvent(false);}catch(e){setSavingEditEvent(false);pushToast('Erreur','warn');}};  
   const deleteEvent=async id=>{
     setEvents(p=>p.filter(e=>e.id!==id)); setModal(null); // optimistic
-    try{await sb.del('events',id);}catch(e){}};  
+    try{await sb.del('events',id);}catch(e){console.error(e)}};  
   const [savingAnn, setSavingAnn] = useState(false);
   const createAnnouncement=async d=>{
     if(savingAnn) return; setSavingAnn(true);try{const r=await sb.insert('announcements',{text:d.text,dept:d.dept,created_by:me.id});if(r?.[0])setAnnouncements(p=>[{...r[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif('Annonce',d.text.slice(0,60),'announce');pushToast('Annonce envoyée !');setModal(null);setSavingAnn(false);}catch(e){setSavingAnn(false);pushToast('Erreur','warn');}};
   const deleteAnnouncement=async id=>{
     setAnnouncements(p=>p.filter(a=>a.id!==id)); // optimistic
-    try{await sb.del('announcements',id);}catch(e){}};
+    try{await sb.del('announcements',id);}catch(e){console.error(e)}};
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
   const sendJoinRequest=async(name,role)=>{try{await sb.insert("join_requests",{name,role,status:"pending"});pushToast("Demande envoyée !");}catch(e){pushToast("Erreur","warn");}};
   const approveRequest=async req=>{try{const colors=["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261"];const c=colors[users.length%colors.length];const r=await sb.insert("users",{name:req.name,role:req.role,color:c,is_owner:false,pin:"1111"});if(r?.[0]){setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);await sb.update("join_requests",req.id,{status:"approved"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"approved"}:x));pushToast(`${req.name} approuvé !`);}}catch(e){pushToast("Erreur","warn");}};
-  const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));}catch(e){}};
+  const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));}catch(e){console.error(e)}};
   const getUser = id=>users.find(u=>u.id===id);
   const getPri  = id=>PRIORITIES.find(p=>p.id===id);
   const stats = {
@@ -470,7 +482,7 @@ export default function App() {
 
   if(!ready)return(<div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap');@keyframes spin{to{transform:rotate(360deg);}}`}</style><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div><div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/></div>);
 
-  if(!loginUser)return(<PinLoginScreen users={users} onLogin={u=>{setLoginUser(u);setMe(u);try{localStorage.setItem('groceryops_user',JSON.stringify({id:u.id,ts:Date.now()}));}catch(e){};}} onJoinRequest={sendJoinRequest}/>);
+  if(!loginUser)return(<PinLoginScreen users={users} onLogin={u=>{setLoginUser(u);setMe(u);try{localStorage.setItem('groceryops_user',JSON.stringify({id:u.id,ts:Date.now()}));}catch(e){console.error(e)};}} onJoinRequest={sendJoinRequest}/>);
 
   return (
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",maxWidth:430,margin:"0 auto",position:"relative"}}>
@@ -513,7 +525,7 @@ export default function App() {
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
         {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
-      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){}}}/>}
+      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
         {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports}/>}
@@ -590,7 +602,7 @@ export default function App() {
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
-      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={async c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");try{const ex=await sb.get("app_settings","key=eq.tour_config");if(ex?.length)await sb.update("app_settings",ex[0].id,{value:JSON.stringify(c)});else await sb.insert("app_settings",{key:"tour_config",value:JSON.stringify(c)});}catch(e){}}} onClose={()=>setModal(null)}/>}
+      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={async c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");try{const ex=await sb.get("app_settings","key=eq.tour_config");if(ex?.length)await sb.update("app_settings",ex[0].id,{value:JSON.stringify(c)});else await sb.insert("app_settings",{key:"tour_config",value:JSON.stringify(c)});}catch(e){console.error(e)}}} onClose={()=>setModal(null)}/>}
       {modal==="changePin"&&<ChangePinModal me={me} onSave={async newPin=>{try{await sb.update('users',me.id,{pin:newPin});setUsers(p=>p.map(u=>u.id===me.id?{...u,pin:newPin}:u));setMe(p=>({...p,pin:newPin}));pushToast('NIP modifié !');setModal(null);}catch(e){pushToast('Erreur','warn');}}} onClose={()=>setModal(null)}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
