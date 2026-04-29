@@ -230,7 +230,9 @@ export default function App() {
           sb.get("tour_history","order=created_at.desc"),
           sb.get("store_profile"),
         ]);
-        if(U?.length){const u=U.map(x=>({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));setUsers(u);setMe(u.find(x=>x.isOwner)||u[0]);}
+        if(U?.length){const u=U.map(x=>({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));setUsers(u);setMe(u.find(x=>x.isOwner)||u[0]);
+          try{const sv=JSON.parse(localStorage.getItem('groceryops_user')||'null');if(sv&&sv.id&&(Date.now()-sv.ts)<28800000){const su=u.find(x=>x.id===sv.id);if(su){setLoginUser(su);setMe(su);}}}catch(e){}
+        }
         if(T?.length){setTasks(T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))})));}
         if(A?.length)setAnnouncements(A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
         if(E?.length)setEvents(E.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));
@@ -256,10 +258,13 @@ export default function App() {
     })();
   },[]);
 
-  // Poll every 15s
+  const isSaving = useRef(false);
+
+  // Poll every 8s - pause during saves
   useEffect(()=>{
     if(!ready)return;
     const poll=async()=>{
+      if(isSaving.current)return; // skip poll during saves
       try{
         const [T2,C2,A2]=await Promise.all([sb.get("tasks","archived=eq.false&order=created_at.desc"),sb.get("comments","order=created_at"),sb.get("announcements","order=created_at.desc")]);
         if(T2?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T2.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C2||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
@@ -269,6 +274,12 @@ export default function App() {
     const iv=setInterval(poll,8000);
     return()=>clearInterval(iv);
   },[ready]);
+  // Auto-clean notifications older than 7 days
+  useEffect(()=>{
+    const sevenDays = 7*24*3600*1000;
+    setNotifs(p=>p.filter(n=>Date.now()-n.ts < sevenDays));
+  },[]);
+
   const unread  = notifs.filter(n=>!n.read).length;
   const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
 
@@ -290,10 +301,13 @@ export default function App() {
   const [creatingTask, setCreatingTask] = useState(false);
   const createTask=async d=>{
     if(creatingTask) return;
-    setCreatingTask(true);try{const r=await sb.insert('tasks',{title:d.title,description:d.description,assigned_to:d.assignedTo,created_by:me.id,priority:d.priority,status:'todo',department:d.department,due_date:d.dueDate,due_time:d.dueTime,photo:d.photo?await compressImage(d.photo):null,recurrence:d.recurrence,custom_days:d.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[t,...p]);}pushNotif('Nouvelle tâche',d.title,'task');pushToast('Tâche créée !');setModal(null);setCreatingTask(false);}catch(e){setCreatingTask(false);pushToast('Erreur','warn');}};
+    setCreatingTask(true);
+    isSaving.current=true;try{const r=await sb.insert('tasks',{title:d.title,description:d.description,assigned_to:d.assignedTo,created_by:me.id,priority:d.priority,status:'todo',department:d.department,due_date:d.dueDate,due_time:d.dueTime,photo:d.photo?await compressImage(d.photo):null,recurrence:d.recurrence,custom_days:d.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[t,...p]);}pushNotif('Nouvelle tâche',d.title,'task');pushToast('Tâche créée !');setModal(null);setCreatingTask(false);isSaving.current=false;}catch(e){setCreatingTask(false);isSaving.current=false;pushToast('Erreur','warn');}};
 
+  const [savingEdit, setSavingEdit] = useState(false);
   const editTask = async data => {
-    try{await sb.update('tasks',data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned||false});setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));pushToast("Tâche modifiée !");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}
+    if(savingEdit) return; setSavingEdit(true);
+    try{await sb.update('tasks',data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned||false});setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));pushToast("Tâche modifiée !");setModal(null);setActive(null);setSavingEdit(false);}catch(e){setSavingEdit(false);pushToast("Erreur","warn");}
   };
 
   const [updatingTask, setUpdatingTask] = useState(null);
@@ -392,14 +406,14 @@ export default function App() {
 
   const [savingUser, setSavingUser] = useState(false);
   const createUser=async d=>{if(savingUser)return;setSavingUser(true);try{const r=await sb.insert('users',{name:d.name,role:d.role,color:d.color,is_owner:false,pin:'1111'});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:'1111'}]);pushToast(`${d.name} ajouté !`);setModal(null);setSavingUser(false);}catch(e){setSavingUser(false);pushToast('Erreur','warn');}};
-  const updateUser=async d=>{try{await sb.update('users',d.id,{name:d.name,role:d.role,color:d.color,pin:d.pin||'1111'});setUsers(p=>p.map(u=>u.id===d.id?d:u));if(me.id===d.id)setMe(d);pushToast('Profil mis à jour !');setModal(null);setEditUser(null);}catch(e){pushToast('Erreur','warn');}};
+  const [savingUser2,setSavingUser2]=useState(false);const updateUser=async d=>{if(savingUser2)return;setSavingUser2(true);try{await sb.update('users',d.id,{name:d.name,role:d.role,color:d.color,pin:d.pin||'1111'});setUsers(p=>p.map(u=>u.id===d.id?d:u));if(me.id===d.id)setMe(d);pushToast('Profil mis à jour !');setModal(null);setEditUser(null);setSavingUser2(false);}catch(e){setSavingUser2(false);pushToast('Erreur','warn');}};
   const deleteUser=async uid=>{try{await sb.del('users',uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast('Supprimé','warn');setModal(null);setEditUser(null);}catch(e){pushToast('Erreur','warn');}};
   const deleteTask=async tid=>{
     // Optimistic - remove from UI immediately
     setTasks(p=>p.filter(t=>t.id!==tid)); setModal(null); setActive(null); pushToast('Supprimée','warn');
     try{await sb.del('tasks',tid);}catch(e){pushToast('Erreur (non supprimé)','warn');}};
 
-  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');const pts=(tour.issues||[]).filter(i=>i.photo);if(pts.length>0){try{const fn=`Tournées · ${tour.date}`;const gf=await sb.get('gallery_folders');let tf=gf?.find(f=>f.name===fn);if(!tf){const nf=await sb.insert('gallery_folders',{name:fn,created_by:me.id});tf=nf?.[0];if(tf)setGallery(p=>[{id:tf.id,name:fn,createdBy:me.id,ts:Date.now(),photos:[]},...p]);}if(tf?.id){for(const iss of pts){const cap=`${tour.shift} · ${iss.item}`;const pr=await sb.insert('gallery_photos',{folder_id:tf.id,photo:iss.photo,caption:cap,added_by:me.id});if(pr?.[0])setGallery(p=>p.map(f=>f.id===tf.id?{...f,photos:[{id:pr[0].id,photo:iss.photo,caption:cap,addedBy:me.id,ts:Date.now()},...f.photos]}:f));}}}catch(e){console.error(e);}}pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};;
+  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');const pts=(tour.issues||[]).filter(i=>i.photo);if(pts.length>0){try{const fn="Photos Tournées";const gf=await sb.get('gallery_folders');let tf=gf?.find(f=>f.name===fn);if(!tf){const nf=await sb.insert('gallery_folders',{name:fn,created_by:me.id});tf=nf?.[0];if(tf)setGallery(p=>[{id:tf.id,name:fn,createdBy:me.id,ts:Date.now(),photos:[]},...p]);}if(tf?.id){for(const iss of pts){const cap=`${tour.date} · ${tour.shift} · ${iss.item}`;const pr=await sb.insert('gallery_photos',{folder_id:tf.id,photo:iss.photo,caption:cap,added_by:me.id});if(pr?.[0])setGallery(p=>p.map(f=>f.id===tf.id?{...f,photos:[{id:pr[0].id,photo:iss.photo,caption:cap,addedBy:me.id,ts:Date.now()},...f.photos]}:f));}}}catch(e){console.error(e);}}pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};;
 
   // Reminders disabled
 
@@ -423,7 +437,8 @@ export default function App() {
 
   const [savingEvent, setSavingEvent] = useState(false);
   const createEvent=async data=>{if(savingEvent)return;setSavingEvent(true);try{const r=await sb.insert('events',{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members,created_by:me.id});if(r?.[0])setEvents(p=>[{...r[0],startTime:r[0].start_time,endTime:r[0].end_time,createdBy:me.id,customDays:r[0].custom_days||[],members:r[0].members||[]},...p]);pushNotif(`Nouvel événement: ${data.title}`,`${data.date}`,'event');pushToast('Événement créé !');setModal(null);setSavingEvent(false);}catch(e){setSavingEvent(false);pushToast('Erreur','warn');}};  
-  const editEvent=async data=>{try{await sb.update('events',data.id,{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members});setEvents(p=>p.map(e=>e.id===data.id?data:e));pushToast('Événement modifié !');setModal(null);}catch(e){pushToast('Erreur','warn');}};  
+  const [savingEditEvent, setSavingEditEvent] = useState(false);
+  const editEvent=async data=>{if(savingEditEvent)return;setSavingEditEvent(true);try{await sb.update('events',data.id,{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members});setEvents(p=>p.map(e=>e.id===data.id?data:e));pushToast('Événement modifié !');setModal(null);setSavingEditEvent(false);}catch(e){setSavingEditEvent(false);pushToast('Erreur','warn');}};  
   const deleteEvent=async id=>{
     setEvents(p=>p.filter(e=>e.id!==id)); setModal(null); // optimistic
     try{await sb.del('events',id);}catch(e){}};  
@@ -455,7 +470,7 @@ export default function App() {
 
   if(!ready)return(<div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap');@keyframes spin{to{transform:rotate(360deg);}}`}</style><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div><div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/></div>);
 
-  if(!loginUser)return(<PinLoginScreen users={users} onLogin={u=>{setLoginUser(u);setMe(u);}} onJoinRequest={sendJoinRequest}/>);
+  if(!loginUser)return(<PinLoginScreen users={users} onLogin={u=>{setLoginUser(u);setMe(u);try{localStorage.setItem('groceryops_user',JSON.stringify({id:u.id,ts:Date.now()}));}catch(e){};}} onJoinRequest={sendJoinRequest}/>);
 
   return (
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",maxWidth:430,margin:"0 auto",position:"relative"}}>
