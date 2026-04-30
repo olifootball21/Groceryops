@@ -1700,7 +1700,7 @@ function EditTaskModal({task,users,onSave,onClose}){
 }
 
 // ─── USER MODALS ──────────────────────────────────────────────────
-function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete,isOwner,isCurrentUser}){
+function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
   const [form,setForm]=useState({...initial});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const [confirmDel,setConfirmDel]=useState(false);
@@ -1719,6 +1719,7 @@ function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete,isOwner
               <input className="field" list="roles-list" value={form.role} onChange={e=>set("role")(e.target.value)} placeholder="Ex: Directeur, Gérant(e)..."/>
               <datalist id="roles-list">{["Directeur/Directrice","Dir. Adjoint(e)","Gérant(e)","Assistant(e) gérant"].map(r=><option key={r} value={r}/>)}</datalist>
             </FL>
+          )}
           <FL label="COULEUR">
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {COLORS.map(c=>(
