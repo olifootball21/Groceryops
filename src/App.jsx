@@ -75,7 +75,7 @@ const INIT_TOUR_CONFIG = {
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────
-const ago = ts => {
+const ago = ts => {if(!ts||isNaN(ts))return"";
   if(!ts) return "";
   const d = Date.now()-ts;
   if(d<60000) return "À l'instant";
@@ -495,8 +495,8 @@ export default function App() {
   const sendJoinRequest=async(name,role)=>{try{await sb.insert("join_requests",{name,role,status:"pending"});pushToast("Demande envoyée !");}catch(e){pushToast("Erreur","warn");}};
   const approveRequest=async req=>{try{const colors=["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261"];const c=colors[users.length%colors.length];const r=await sb.insert("users",{name:req.name,role:req.role,color:c,is_owner:false,pin:"1111"});if(r?.[0]){setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);await sb.update("join_requests",req.id,{status:"approved"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"approved"}:x));pushToast(`${req.name} approuvé !`);}}catch(e){pushToast("Erreur","warn");}};
   const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));}catch(e){console.error(e)}};
-  const getUser = id=>users.find(u=>u.id===id);
-  const getPri  = id=>PRIORITIES.find(p=>p.id===id);
+  const getUser = id=>users.find(u=>u.id===id)||{id:0,name:"Utilisateur supprimé",role:"",color:"#666",isOwner:false};
+  const getPri  = id=>PRIORITIES.find(p=>p.id===id)||{id:"normal",label:"Normale",color:"#666"};
   const stats = {
     todo:tasks.filter(t=>t.status==="todo").length,
     inprogress:tasks.filter(t=>t.status==="inprogress").length,
@@ -523,7 +523,7 @@ export default function App() {
       <div style={{position:"sticky",top:0,zIndex:30,background:dark?"rgba(10,10,13,0.93)":"rgba(247,245,240,0.93)",backdropFilter:"blur(18px)",borderBottom:"1px solid var(--border)",padding:"13px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>isOwner&&setModal("storeProfile")}>
           {store.logo
-            ? <img loading="lazy" src={store.logo} alt="" style={{width:34,height:34,borderRadius:9,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
+            ? <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={store.logo} alt="" style={{width:34,height:34,borderRadius:9,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
             : <div style={{width:34,height:34,borderRadius:9,background:"var(--gold-dim)",border:"1px solid var(--gold-b)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"var(--gold)"}}>
                 {store.name.slice(0,2).toUpperCase()}
               </div>
@@ -926,7 +926,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
         </div>
       </div>
       {task.description&&<div style={{fontSize:13,color:"var(--t2)",marginBottom:10,lineHeight:1.5,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{task.description}</div>}
-      {task.photo&&<div style={{borderRadius:10,overflow:"hidden",marginBottom:10,height:90}}><img loading="lazy" src={task.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>}
+      {task.photo&&<div style={{borderRadius:10,overflow:"hidden",marginBottom:10,height:90}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",alignItems:"center",gap:7}}>
           <div style={{width:22,height:22,borderRadius:6,background:u?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:u?.id===1?"#0a0a0d":"white"}}>{initials(u?.name||"?")}</div>
@@ -1168,7 +1168,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
               <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(activeIssue)}/>
               {photos[activeIssue]
                 ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}>
-                    <img loading="lazy" src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
+                    <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
                     <button onClick={()=>setPhotos(p=>({...p,[activeIssue]:null}))} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:16,border:"none",cursor:"pointer"}}>×</button>
                   </div>
                 : <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"14px",borderRadius:12,background:"var(--s2)",border:"1px dashed var(--border)",color:"var(--t2)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Ajouter une photo</button>
@@ -1557,7 +1557,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
             <div style={{fontSize:12,color:"var(--t3)"}}>Par {createdBy?.name} · {ago(task.createdAt)}</div>
           </div>
           {task.description&&<div style={{fontSize:14,color:"var(--t2)",lineHeight:1.7,padding:"12px 14px",background:"var(--s2)",borderRadius:12}}>{task.description}</div>}
-          {task.photo&&<div style={{borderRadius:14,overflow:"hidden"}}><img loading="lazy" src={task.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/></div>}
+          {task.photo&&<div style={{borderRadius:14,overflow:"hidden"}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/></div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {[
               {label:"ASSIGNÉ À",val:<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:20,height:20,borderRadius:6,background:assigned?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:assigned?.id===1?"#0a0a0d":"white"}}>{initials(assigned?.name||"?")}</div><span>{assigned?.name}</span></div>},
@@ -1576,7 +1576,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
               <div className="tag">COMPLÉTER</div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
               {completionPhoto
-                ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}><img loading="lazy" src={completionPhoto} alt="" style={{width:"100%",maxHeight:120,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>setPhoto(null)} style={{position:"absolute",top:6,right:6,width:26,height:26,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:14,border:"none"}}>×</button></div>
+                ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={completionPhoto} alt="" style={{width:"100%",maxHeight:120,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>setPhoto(null)} style={{position:"absolute",top:6,right:6,width:26,height:26,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:14,border:"none"}}>×</button></div>
                 : <button className="btn btn-outline" onClick={()=>fileRef.current?.click()} style={{padding:"11px",borderRadius:10,fontSize:13}}>📷 Photo preuve</button>
               }
               <input className="field" value={completionNote} onChange={e=>setNote(e.target.value)} placeholder="Note de complétion..." style={{padding:"11px 13px"}}/>
@@ -1682,7 +1682,7 @@ function TaskFormModal({initial,users,onSave,onClose,title}){
           <FL label="PHOTO">
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
             {form.photo
-              ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}><img loading="lazy" src={form.photo} alt="" style={{width:"100%",maxHeight:140,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>set("photo")(null)} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:16,border:"none"}}>×</button></div>
+              ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={form.photo} alt="" style={{width:"100%",maxHeight:140,objectFit:"cover",display:"block"}}/><button className="btn" onClick={()=>set("photo")(null)} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:16,border:"none"}}>×</button></div>
               : <button className="btn btn-ghost" onClick={()=>fileRef.current?.click()} style={{width:"100%",padding:"15px",borderRadius:12,fontSize:14}}>📷 Ajouter une photo</button>
             }
           </FL>
@@ -1780,7 +1780,7 @@ function StoreProfileModal({store,onSave,onClose}){
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
             {form.logo
               ? <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px",background:"var(--s2)",borderRadius:12,border:"1px solid var(--border)"}}>
-                  <img loading="lazy" src={form.logo} alt="" style={{width:52,height:52,borderRadius:12,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
+                  <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={form.logo} alt="" style={{width:52,height:52,borderRadius:12,objectFit:"cover",border:"1.5px solid var(--gold-b)"}}/>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>Logo actuel</div>
                     <button className="btn btn-danger" onClick={()=>set("logo")(null)} style={{padding:"5px 12px",borderRadius:8,fontSize:12}}>Supprimer</button>
@@ -2341,7 +2341,7 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
                   </div>
                   {s.photo
                     ? <div onClick={()=>setSelectedPhoto(s.photo)} style={{cursor:"zoom-in"}}>
-                        <img loading="lazy" src={s.photo} alt={s.label} style={{width:"100%",maxHeight:300,objectFit:"contain",background:"var(--s2)",display:"block"}}/>
+                        <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={s.photo} alt={s.label} style={{width:"100%",maxHeight:300,objectFit:"contain",background:"var(--s2)",display:"block"}}/>
                         <div style={{padding:"8px 14px",fontSize:11,color:"var(--t3)",textAlign:"center"}}>Appuyer pour agrandir</div>
                       </div>
                     : <div style={{padding:"20px",textAlign:"center",color:"var(--t3)",fontSize:13,background:"var(--s2)"}}>Aucune photo</div>
@@ -2354,7 +2354,7 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
       {/* PHOTO VIEWER */}
       {selectedPhoto&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setSelectedPhoto(null)}>
-          <img loading="lazy" src={selectedPhoto} alt="" style={{maxWidth:"100%",maxHeight:"90vh",objectFit:"contain",borderRadius:12}}/>
+          <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={selectedPhoto} alt="" style={{maxWidth:"100%",maxHeight:"90vh",objectFit:"contain",borderRadius:12}}/>
           <button className="btn" onClick={()=>setSelectedPhoto(null)} style={{position:"absolute",top:20,right:20,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.15)",color:"white",fontSize:20,border:"none"}}>×</button>
         </div>
       )}
@@ -2664,7 +2664,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
               ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                   {displayPhotos.map((p,i)=>(
                     <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1"}}>
-                      <img loading="lazy" src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}/>
+                      <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}/>
                       {p.id&&selectedFolder!==0&&<button onClick={e=>{e.stopPropagation();onDeletePhoto(selectedFolder,p.id);}} style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:12,border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                     </div>
                   ))}
@@ -2672,7 +2672,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
               : <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {displayPhotos.map((p,i)=>(
                     <div key={p.id||i} className="card card-tap" onClick={()=>setSelectedPhoto(p)} style={{padding:"12px",display:"flex",gap:12,alignItems:"center"}}>
-                      <img loading="lazy" src={p.photo} alt="" style={{width:56,height:56,borderRadius:10,objectFit:"cover",flexShrink:0}}/>
+                      <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={p.photo} alt="" style={{width:56,height:56,borderRadius:10,objectFit:"cover",flexShrink:0}}/>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.caption||"Sans titre"}</div>
                         {p.source&&<div style={{fontSize:11,color:"var(--gold)",marginTop:2}}>{p.source}</div>}
@@ -2691,7 +2691,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
       {/* PHOTO FULLSCREEN */}
       {selectedPhoto&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setSelectedPhoto(null)}>
-          <img loading="lazy" src={selectedPhoto.photo} alt="" style={{maxWidth:"100%",maxHeight:"80vh",objectFit:"contain",borderRadius:12}}/>
+          <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={selectedPhoto.photo} alt="" style={{maxWidth:"100%",maxHeight:"80vh",objectFit:"contain",borderRadius:12}}/>
           {selectedPhoto.caption&&<div style={{marginTop:14,fontSize:14,color:"rgba(255,255,255,0.7)",fontWeight:500,textAlign:"center"}}>{selectedPhoto.caption}</div>}
           {selectedPhoto.source&&<div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:4}}>{selectedPhoto.source}</div>}
           <button className="btn" onClick={()=>setSelectedPhoto(null)} style={{position:"absolute",top:20,right:20,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.15)",color:"white",fontSize:20,border:"none"}}>×</button>
@@ -3111,7 +3111,7 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
                   <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
                   {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
-                  {issue.photo&&<img loading="lazy" src={issue.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+                  {issue.photo&&<img loading="lazy" onError={e=>{e.target.style.display="none";}} src={issue.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:10,display:"block"}}/>}
                 </div>
               ))
           }
