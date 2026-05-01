@@ -132,7 +132,7 @@ body{font-family:'DM Sans',sans-serif;color:${dark?"#ede8df":"#1c1c1e"};}
 .field::placeholder{color:var(--t3);}
 option{background:${dark?"#141418":"#fff"};}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(5px);z-index:50;display:flex;flex-direction:column;justify-content:flex-end;}
-.sheet{background:var(--s1);border-radius:22px 22px 0 0;display:flex;flex-direction:column;max-height:93vh;}
+.sheet{background:var(--s1);border-radius:22px 22px 0 0;display:flex;flex-direction:column;max-height:93vh;max-height:93dvh;overflow:hidden;}
 .handle{width:40px;height:4px;border-radius:2px;background:var(--border);margin:12px auto 2px;flex-shrink:0;}
 .slide-up{animation:slideUp .28s cubic-bezier(.4,0,.2,1) both;}
 @keyframes slideUp{from{opacity:0;transform:translateY(100%);}to{opacity:1;transform:translateY(0);}}
@@ -1552,7 +1552,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"4px 18px 16px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain",flex:1,minHeight:0,padding:"4px 18px 80px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               <span className="pill" style={{background:p?.bg,color:p?.color,border:`1px solid ${p?.border}`}}>{p?.label}</span>
@@ -1572,7 +1572,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
             <div style={{fontSize:12,color:"var(--t3)"}}>Par {createdBy?.name} · {ago(task.createdAt)}</div>
           </div>
           {task.description&&<div style={{fontSize:14,color:"var(--t2)",lineHeight:1.7,padding:"12px 14px",background:"var(--s2)",borderRadius:12}}>{task.description}</div>}
-          {task.photo&&<div style={{borderRadius:14,overflow:"hidden"}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/></div>}
+          {task.photo&&<div style={{borderRadius:14,overflow:"hidden",flexShrink:0,height:160}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {[
               {label:"ASSIGNÉ À",val:<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:20,height:20,borderRadius:6,background:assigned?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:assigned?.id===1?"#0a0a0d":"white"}}>{initials(assigned?.name||"?")}</div><span>{assigned?.name}</span></div>},
