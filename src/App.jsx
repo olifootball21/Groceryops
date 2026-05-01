@@ -1355,6 +1355,9 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
                   ? <span className="pill" style={{background:"var(--gold-dim)",color:"var(--gold)",border:"1px solid var(--gold-b)"}}>OWNER</span>
                   : <><div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{active}</div><div style={{fontSize:10,color:"var(--t3)"}}>tâche{active!==1?"s":""}</div></>
                 }
+                {isOwner&&!u.isOwner&&(
+                  <div style={{fontSize:10,color:"var(--t3)",marginTop:2}}>NIP: {u.pin||"1111"}</div>
+                )}
               </div>
             </div>
           );
@@ -2957,14 +2960,14 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
               {item.label}
             </button>
           ))}
-          <button className="btn" onClick={()=>setShowSwitch(p=>!p)}
+          {isOwner&&<button className="btn" onClick={()=>setShowSwitch(p=>!p)}
             style={{width:"100%",padding:"14px 16px",borderRadius:13,justifyContent:"flex-start",gap:14,
               background:"var(--gold-dim)",border:"1px solid var(--gold-b)",color:"var(--gold)",fontSize:14,fontWeight:600}}>
             <span style={{fontSize:18}}>👤</span>
             Changer de compte
             <span style={{marginLeft:"auto"}}>{showSwitch?"▲":"▼"}</span>
-          </button>
-          {showSwitch&&(
+          </button>}
+          {isOwner&&showSwitch&&(
             <div style={{display:"flex",flexDirection:"column",gap:7,paddingLeft:8}}>
               {users.map(u=>(
                 <button key={u.id} className="btn" onClick={()=>onSwitchUser(u)}
