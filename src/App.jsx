@@ -1,16 +1,24 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 // ─── IMAGE COMPRESSION ───────────────────────────────────────────
-const compressImage = (dataUrl, maxWidth=800, quality=0.7) => new Promise(resolve => {
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.createElement('canvas');
-    const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
-    canvas.width = img.width * ratio;
-    canvas.height = img.height * ratio;
-    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-    resolve(canvas.toDataURL('image/jpeg', quality));
-  };
-  img.src = dataUrl;
+const compressImage = (dataUrl, maxWidth=600, quality=0.6) => new Promise(resolve => {
+  if(!dataUrl){resolve(null);return;}
+  try{
+    const img = new Image();
+    img.onload = () => {
+      try{
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      }catch(e){resolve(dataUrl);}
+    };
+    img.onerror = ()=>resolve(dataUrl);
+    // Timeout safety - if compression takes more than 5s, use original
+    setTimeout(()=>resolve(dataUrl), 5000);
+    img.src = dataUrl;
+  }catch(e){resolve(dataUrl);}
 });
 
 const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc",SH={apikey:SKEY,Authorization:`Bearer ${SKEY}`,"Content-Type":"application/json"};
@@ -1062,6 +1070,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
   const fileRef = useRef();
   const [photoTarget,setPhotoTarget] = useState(null);
   const [activeIssue,setActiveIssue] = useState(null);
+  const [photoLoading,setPhotoLoading] = useState(false);
 
   const deptItems = allItems.filter(x=>x.dept===currentDept);
   const totalItems = allItems.length;
@@ -1070,7 +1079,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
 
   const handleFile = e => {
     const f=e.target.files[0]; if(!f) return;
-    const r=new FileReader(); r.onload=ev=>setPhotos(p=>({...p,[photoTarget]:ev.target.result})); r.readAsDataURL(f);
+    setPhotoLoading(true);const r=new FileReader();r.onload=async ev=>{const c=await compressImage(ev.target.result,600,0.5);setPhotos(p=>({...p,[photoTarget]:c||ev.target.result}));setPhotoLoading(false);};r.onerror=()=>setPhotoLoading(false);r.readAsDataURL(f);
   };
 
   const [saving, setSaving] = useState(false);
@@ -1166,12 +1175,14 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
               <div style={{fontSize:13,fontWeight:600,color:"var(--t2)"}}>{allItems.find(x=>x.key===activeIssue)?.item}</div>
               <textarea className="field" value={notes[activeIssue]||""} onChange={e=>setNotes(p=>({...p,[activeIssue]:e.target.value}))} placeholder="Décrire le problème en détail..." rows={4} style={{fontSize:14,padding:"12px",resize:"none",lineHeight:1.5}}/>
               <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(activeIssue)}/>
-              {photos[activeIssue]
-                ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}>
-                    <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
-                    <button onClick={()=>setPhotos(p=>({...p,[activeIssue]:null}))} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:16,border:"none",cursor:"pointer"}}>×</button>
-                  </div>
-                : <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"14px",borderRadius:12,background:"var(--s2)",border:"1px dashed var(--border)",color:"var(--t2)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Ajouter une photo</button>
+              {photoLoading
+                ? <div style={{padding:24,textAlign:"center",color:"var(--t2)",fontSize:13}}>📷 Compression en cours...</div>
+                : photos[activeIssue]
+                  ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}>
+                      <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
+                      <button onClick={()=>setPhotos(p=>({...p,[activeIssue]:null}))} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:16,border:"none",cursor:"pointer"}}>×</button>
+                    </div>
+                  : <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"14px",borderRadius:12,background:"var(--s2)",border:"1px dashed var(--border)",color:"var(--t2)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Ajouter une photo</button>
               }
               {photos[activeIssue]&&(
                 <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"10px",borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Changer la photo</button>
@@ -1536,7 +1547,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date()&&task.status!=="done";
   const canEdit=isOwner||me.id===task.createdBy||me.id===task.assignedTo;
   const canComplete=true; // All users can complete any task
-  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setPhoto(ev.target.result);r.readAsDataURL(f);};
+  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{const c=await compressImage(ev.target.result);setPhoto(c||ev.target.result);};r.readAsDataURL(f);};
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
@@ -1634,7 +1645,7 @@ function TaskFormModal({initial,users,onSave,onClose,title,tourConfig}){
   const fileRef=useRef();
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const toggleDay=d=>setForm(p=>({...p,customDays:p.customDays?.includes(d)?p.customDays.filter(x=>x!==d):[...(p.customDays||[]),d]}));
-  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>set("photo")(ev.target.result);r.readAsDataURL(f);};
+  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{const c=await compressImage(ev.target.result);set("photo")(c||ev.target.result);};r.readAsDataURL(f);};
   const handleSave=()=>{if(!form.title.trim()){alert("Veuillez entrer un titre");return;}onSave(form);};
   return(
     <div className="overlay" onClick={onClose}>
@@ -2243,7 +2254,7 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
   const handleFile = e => {
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
-    r.onload=ev=>{ onAdd(selectedDept, label||"Semaine du "+new Date().toLocaleDateString("fr-CA",{day:"numeric",month:"long"}), ev.target.result); setLabel(""); setShowAdd(false); };
+    r.onload=async ev=>{const c=await compressImage(ev.target.result);onAdd(selectedDept, label||"Semaine du "+new Date().toLocaleDateString("fr-CA",{day:"numeric",month:"long"}), c||ev.target.result); setLabel(""); setShowAdd(false);};
     r.readAsDataURL(f);
   };
 
@@ -2538,8 +2549,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
   const handleFile = e => {
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
-    r.onload=ev=>{ onAddPhoto(selectedFolder,ev.target.result,caption||"Sans titre"); setCaption(""); };
-    r.readAsDataURL(f);
+    r.onload=async ev=>{const c=await compressImage(ev.target.result);onAddPhoto(selectedFolder,c||ev.target.result,caption||"Sans titre");setCaption("");};r.readAsDataURL(f);
   };
 
   const currentFolder = gallery.find(f=>f.id===selectedFolder);
