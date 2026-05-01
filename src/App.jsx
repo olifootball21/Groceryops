@@ -554,11 +554,11 @@ export default function App() {
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",paddingBottom:100,position:"relative",zIndex:1}}>
         {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent} onDeleteAnn={deleteAnnouncement} isOwner={isOwner}/>}
-        {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort} onUnarchive={unarchiveTask}/>}
+        {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort} onUnarchive={unarchiveTask} tourConfig={tourConfig}/>}
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
-        {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports}/>}
+        {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports} tourConfig={tourConfig}/>}
         {tab==="gallery"  && <GalleryTab gallery={gallery} allAppPhotos={allAppPhotos} me={me} getUser={getUser} lang={lang} themeColor={themeColor} onCreateFolder={createGalleryFolder} onDeleteFolder={deleteGalleryFolder} onAddPhoto={addPhotoToFolder} onDeletePhoto={deletePhotoFromFolder} onRenameFolder={renameGalleryFolder}/>}
         {tab==="schedule" && <ScheduleTab schedules={schedules} scheduleDepts={scheduleDepts} me={me} isOwner={isOwner} onAdd={addSchedulePhoto} onDelete={deleteSchedulePhoto} onAddDept={addScheduleDept} onRemoveDept={removeScheduleDept} onRenameDept={renameScheduleDept}/>}
         {tab==="notes"    && <NotesTab notes={notes} me={me} onSave={saveNote}/>}
@@ -754,7 +754,7 @@ function MiniTaskCard({task,getUser,getPri,onClick}){
 }
 
 // ─── TASKS TAB ────────────────────────────────────────────────────
-function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort,onUnarchive}){
+function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort,onUnarchive,tourConfig}){
   const [filter,setFilter]   = useState(initFilter==="urgent"||initFilter==="pinned"?"all":initFilter==="done"?"done":initFilter||"active");
   const [priFilter,setPri]   = useState(initFilter==="urgent"?"urgent":"all");
   const [deptFilter,setDept] = useState("all");
@@ -1365,7 +1365,7 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
 }
 
 // ─── STATS TAB ────────────────────────────────────────────────────
-function StatsTab({tasks,users,tourHistory,shiftReports}){
+function StatsTab({tasks,users,tourHistory,shiftReports,tourConfig}){
   const [period,setPeriod]=useState(7);
   const since=Date.now()-period*86400000;
   const inPeriod=tasks.filter(t=>t.createdAt>=since);
@@ -1532,6 +1532,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
   const p=getPri(task.priority); const assigned=getUser(task.assignedTo); const createdBy=getUser(task.createdBy); const s=STATUS_META[task.status];
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date()&&task.status!=="done";
   const canEdit=isOwner||me.id===task.createdBy||me.id===task.assignedTo;
+  const canComplete=true; // All users can complete any task
   const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setPhoto(ev.target.result);r.readAsDataURL(f);};
   return(
     <div className="overlay" onClick={onClose}>
@@ -1571,7 +1572,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
               </div>
             ))}
           </div>
-          {canEdit&&task.status!=="done"&&(
+          {task.status!=="done"&&(
             <div style={{display:"flex",flexDirection:"column",gap:10,padding:"14px",background:"var(--s2)",borderRadius:14}}>
               <div className="tag">COMPLÉTER</div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
@@ -1625,7 +1626,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
 }
 
 // ─── NEW/EDIT TASK MODAL ──────────────────────────────────────────
-function TaskFormModal({initial,users,onSave,onClose,title}){
+function TaskFormModal({initial,users,onSave,onClose,title,tourConfig}){
   const [form,setForm]=useState(initial);
   const fileRef=useRef();
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
@@ -2157,7 +2158,7 @@ function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
 }
 
 // ─── ANNOUNCEMENT MODAL ───────────────────────────────────────────
-function AnnouncementModal({me,users,onSave,onClose}){
+function AnnouncementModal({me,users,onSave,onClose,tourConfig}){
   const [text,setText]=useState("");
   const [dept,setDept]=useState("all");
   return(
