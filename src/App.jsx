@@ -153,7 +153,6 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [showUrgency, setShowUrgency]   = useState(false);
-  const [shiftReports, setShiftReports] = useState([]);
   const [showGlobalSearch, setGlobalSearch] = useState(false);
   const [globalQuery, setGlobalQuery]   = useState("");
 
@@ -370,13 +369,6 @@ export default function App() {
 
   // Reminders disabled
 
-  const saveShiftReport = report => {
-    setShiftReports(p=>[{...report, id:Date.now(), createdBy:me.id, ts:Date.now()},...p]);
-    pushNotif(`Rapport de shift — ${report.shift}`, `${me.name} · Note: ${report.rating}/5`, "report");
-    pushToast("Rapport sauvegardé !");
-    setModal(null);
-  };
-
   const applyTemplate = template => {
     template.tasks.forEach((t,i) => {
       setTimeout(()=>{
@@ -410,8 +402,6 @@ export default function App() {
     pinned:tasks.filter(t=>t.pinned&&t.status!=="done").length,
   };
 
-  const [showPDFInfo, setShowPDFInfo] = useState(false);
-  const exportPDF = () => { setShowPDFInfo(true); };
 
   const css = makeCSS(dark, themeColor);
 
@@ -462,7 +452,7 @@ export default function App() {
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
-        {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports}/>}
+        
         {tab==="gallery"  && <GalleryTab gallery={gallery} allAppPhotos={allAppPhotos} me={me} getUser={getUser} lang={lang} themeColor={themeColor} onCreateFolder={createGalleryFolder} onDeleteFolder={deleteGalleryFolder} onAddPhoto={addPhotoToFolder} onDeletePhoto={deletePhotoFromFolder} onRenameFolder={renameGalleryFolder}/>}
         {tab==="schedule" && <ScheduleTab schedules={schedules} scheduleDepts={scheduleDepts} me={me} isOwner={isOwner} onAdd={addSchedulePhoto} onDelete={deleteSchedulePhoto} onAddDept={addScheduleDept} onRemoveDept={removeScheduleDept} onRenameDept={renameScheduleDept}/>}
         {tab==="notes"    && <NotesTab notes={notes} me={me} onSave={saveNote}/>}
@@ -480,7 +470,6 @@ export default function App() {
           {id:"gallery", label:T(lang,"gallery"),  icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>},
           {id:"notes",   label:T(lang,"notes"),    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},
           {id:"comm",    label:T(lang,"comm"),     icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>},
-          {id:"stats",   label:T(lang,"stats"),    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>},
         ].map(({id,label,icon,badge})=>(
           <button key={id} className="nav-tab" onClick={()=>{setTab(id);if(id!=="tasks")setTaskFilter("all");}}
             style={{color:tab===id?"var(--gold)":"var(--t3)",position:"relative",flex:1}}>
@@ -505,22 +494,7 @@ export default function App() {
       {modal==="editUser"     && editUser && <EditUserModal user={editUser} me={me} isOwner={isOwner} onSave={updateUser} onDelete={deleteUser} onClose={()=>{setModal(null);setEditUser(null);}}/>}
       {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead}/>}
       {modal==="switchUser"   && <SwitchUserModal users={users} me={me} onSwitch={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}} onClose={()=>setModal(null)}/>}
-      {showPDFInfo && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPDFInfo(false)}>
-          <div className="scale-in" style={{background:"var(--s1)",borderRadius:20,padding:28,width:"100%",maxWidth:340,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:36,textAlign:"center",marginBottom:14}}>📄</div>
-            <div className="serif" style={{fontSize:20,fontWeight:700,marginBottom:10,color:"var(--text)",textAlign:"center"}}>Export PDF</div>
-            <div style={{fontSize:14,color:"var(--t2)",lineHeight:1.7,marginBottom:20,textAlign:"center"}}>
-              L'export PDF génère un rapport complet avec toutes vos tâches, statistiques et tournées de plancher.
-              <br/><br/>
-              <span style={{color:"var(--gold)",fontWeight:600}}>Cette fonctionnalité sera pleinement active une fois l'app hébergée sur votre serveur.</span>
-              <br/><br/>
-              Le rapport inclura : tâches, performance par membre, départements, tournées et historique.
-            </div>
-            <button className="btn btn-gold" onClick={()=>setShowPDFInfo(false)} style={{width:"100%",padding:"14px",borderRadius:13,fontSize:14}}>Compris !</button>
-          </div>
-        </div>
-      )}
+
       {modal==="newEvent"       && <EventFormModal title="Nouvel événement" initial={{title:"",description:"",date:todayStr(),startTime:"09:00",endTime:"10:00",members:[me.id],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}} users={users} me={me} onSave={createEvent} onClose={()=>setModal(null)}/>}
       {modal==="editEvent"      && editTaskData && <EventFormModal title="Modifier l'événement" initial={{...editTaskData}} users={users} me={me} onSave={editEvent} onDelete={deleteEvent} onClose={()=>{setModal(null);setEditTaskData(null);}}/>}
       {modal==="newAnnouncement"&& <AnnouncementModal me={me} users={users} onSave={createAnnouncement} onClose={()=>setModal(null)}/>}
@@ -528,12 +502,11 @@ export default function App() {
           onSwitchUser={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}}
           onSettings={()=>setModal("settings")}
           onStoreProfile={()=>setModal("storeProfile")}
-          onExportPDF={()=>{setShowPDFInfo(true);setModal(null);}}
           onSearch={()=>{setGlobalSearch(true);setModal(null);}}
           onSOS={()=>{setShowUrgency(true);setModal(null);}}
           onClose={()=>setModal(null)}
         />}
-      {modal==="shiftReport"  && <ShiftReportModal me={me} onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
+      
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={s=>{setStore(s);setModal(null);pushToast("Profil mis à jour !");}} onClose={()=>setModal(null)}/>}
@@ -567,7 +540,7 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent,onDeleteAnn,isOwner,onShiftReport}){
+function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent,onDeleteAnn,isOwner}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
     <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
@@ -618,8 +591,6 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
           {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
           {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
           {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
-          {label:"Rapport de shift",  icon:"📊", action:onShiftReport, color:"#2a9d8f"},
-
         ].map(s=>(
           <button key={s.label} className="btn card-tap" onClick={s.action}
             style={{padding:"14px 12px",borderRadius:14,background:"transparent",border:`1.5px solid ${themeColor}`,flexDirection:"column",gap:6,alignItems:"flex-start"}}>
@@ -1208,164 +1179,6 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-// ─── STATS TAB ────────────────────────────────────────────────────
-function StatsTab({tasks,users,tourHistory,shiftReports}){
-  const [period,setPeriod]=useState(7);
-  const since=Date.now()-period*86400000;
-  const inPeriod=tasks.filter(t=>t.createdAt>=since);
-  const completed=tasks.filter(t=>t.completedAt&&t.completedAt>=since);
-  const rate=tasks.length>0?Math.round((tasks.filter(t=>t.status==="done").length/tasks.length)*100):0;
-  const late=tasks.filter(t=>t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date());
-  const byUser=users.map(u=>({...u,done:tasks.filter(t=>t.assignedTo===u.id&&t.status==="done").length,total:tasks.filter(t=>t.assignedTo===u.id).length,late:tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).sort((a,b)=>b.done-a.done);
-  const byDept=DEPARTMENTS.map(d=>({name:d,total:tasks.filter(t=>t.department===d).length,done:tasks.filter(t=>t.department===d&&t.status==="done").length,late:tasks.filter(t=>t.department===d&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
-  const tourScore=tourHistory.length>0?Math.round(tourHistory.reduce((acc,t)=>acc+(t.score/t.total*100),0)/tourHistory.length):null;
-  return(
-    <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:16}}>
-      <div><div className="tag" style={{marginBottom:4}}>PERFORMANCE</div><div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>Statistiques</div></div>
-      <div style={{display:"flex",gap:8}}>
-        {[7,14,30].map(d=>(
-          <button key={d} className="btn" onClick={()=>setPeriod(d)} style={{flex:1,padding:"9px",borderRadius:12,fontSize:13,fontWeight:600,background:period===d?"var(--gold)":"var(--s2)",color:period===d?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
-            {d}j
-          </button>
-        ))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        {[
-          {label:"Créées",val:inPeriod.length,color:"var(--gold)"},
-          {label:"Complétées",val:completed.length,color:"#2a9d8f"},
-          {label:"Taux",val:`${rate}%`,color:"var(--gold)"},
-          {label:"En retard",val:late.length,color:"#e63946"},
-        ].map(s=>(
-          <div key={s.label} className="card" style={{padding:"15px",borderTop:`2px solid ${s.color}`}}>
-            <div className="serif" style={{fontSize:30,fontWeight:700,color:s.color,lineHeight:1}}>{s.val}</div>
-            <div style={{fontSize:12,color:"var(--t2)",marginTop:6,fontWeight:500}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      {tourScore!==null&&(
-        <div className="card" style={{padding:"15px",borderTop:"2px solid var(--gold)",display:"flex",alignItems:"center",gap:14}}>
-          <div><div className="serif" style={{fontSize:28,fontWeight:700,color:"var(--gold)"}}>{tourScore}%</div><div style={{fontSize:12,color:"var(--t2)",marginTop:4}}>Score moyen des tournées</div></div>
-          <div style={{marginLeft:"auto",fontSize:12,color:"var(--t3)"}}>{tourHistory.length} tournée{tourHistory.length>1?"s":""}</div>
-        </div>
-      )}
-      {shiftReports?.length>0&&(()=>{
-        const avgRating = Math.round(shiftReports.reduce((a,r)=>a+r.rating,0)/shiftReports.length*10)/10;
-        const avgTraffic = ["faible","moyen","fort"][Math.round(shiftReports.reduce((a,r)=>a+(r.traffic==="fort"?2:r.traffic==="moyen"?1:0),0)/shiftReports.length)];
-        return(
-          <div className="card" style={{padding:"15px",borderTop:"2px solid var(--gold)",display:"flex",alignItems:"center",gap:14}}>
-            <div style={{flex:1}}>
-              <div style={{display:"flex",gap:2,marginBottom:4}}>
-                {[1,2,3,4,5].map(n=><span key={n} style={{fontSize:18,color:n<=avgRating?"var(--gold)":"var(--t3)"}}>★</span>)}
-              </div>
-              <div style={{fontSize:12,color:"var(--t2)"}}>Note moyenne des journées · Achalandage {avgTraffic}</div>
-            </div>
-            <div style={{textAlign:"right",fontSize:12,color:"var(--t3)"}}>{shiftReports.length} rapport{shiftReports.length>1?"s":""}</div>
-          </div>
-        );
-      })()}
-      <div>
-        <div className="tag" style={{marginBottom:10}}>PAR MEMBRE</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {byUser.map(u=>(
-            <div key={u.id} className="card" style={{padding:"14px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:9}}>
-                <div style={{width:30,height:30,borderRadius:8,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:u.id===1?"#0a0a0d":"white"}}>{initials(u.name)}</div>
-                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{u.name}</div><div style={{fontSize:11,color:"var(--t2)"}}>{u.role}</div></div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:15,fontWeight:700,color:"#2a9d8f"}}>{u.done}<span style={{fontSize:11,color:"var(--t3)",fontWeight:400}}>/{u.total}</span></div>
-                  {u.late>0&&<div style={{fontSize:10,color:"#e63946",fontWeight:600}}>{u.late} en retard</div>}
-                </div>
-              </div>
-              <div style={{height:4,background:"var(--s2)",borderRadius:2,overflow:"hidden"}}>
-                <div style={{height:"100%",width:`${u.total>0?Math.round(u.done/u.total*100):0}%`,background:"linear-gradient(90deg,var(--gold),#a8853b)",borderRadius:2,transition:"width 1s"}}/>
-              </div>
-              <div style={{fontSize:10,color:"var(--t3)",marginTop:4,textAlign:"right"}}>{u.total>0?Math.round(u.done/u.total*100):0}%</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div>
-        <div className="tag" style={{marginBottom:10}}>PAR DÉPARTEMENT</div>
-        <div style={{display:"flex",flexDirection:"column",gap:7}}>
-          {byDept.map(d=>(
-            <div key={d.name} className="card" style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:6}}>{d.name}</div>
-                <div style={{height:4,background:"var(--s2)",borderRadius:2,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${d.total>0?Math.round(d.done/d.total*100):0}%`,background:"linear-gradient(90deg,var(--gold),#a8853b)",borderRadius:2}}/>
-                </div>
-              </div>
-              <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{d.done}<span style={{fontSize:11,color:"var(--t3)"}}>/{d.total}</span></div>
-                {d.late>0&&<div style={{fontSize:10,color:"#e63946"}}>{d.late} en retard</div>}
-              </div>
-            </div>
-          ))}
-          {byDept.length===0&&<div style={{textAlign:"center",padding:"24px",color:"var(--t3)",fontSize:13}}>Aucune donnée</div>}
-        </div>
-      </div>
-      {/* RAPPORT DE JOURNÉE HISTORIQUE */}
-      <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <div className="tag">RAPPORTS DE JOURNÉE</div>
-          <span style={{fontSize:11,color:"var(--t3)"}}>{shiftReports.length} rapport{shiftReports.length!==1?"s":""}</span>
-        </div>
-        {shiftReports.length===0
-          ? <div className="card" style={{padding:"24px",textAlign:"center"}}>
-              <div style={{fontSize:28,marginBottom:8}}>📊</div>
-              <div style={{fontSize:13,color:"var(--t3)"}}>Aucun rapport encore</div>
-              <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>Les rapports apparaîtront ici après chaque journée</div>
-            </div>
-          : <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {shiftReports.slice(0,20).map(r=>{
-                const trafficColor = r.traffic==="fort"?"#e63946":r.traffic==="moyen"?"#f4a261":"#2a9d8f";
-                const trafficLabel = r.traffic==="fort"?"🔴 Fort":r.traffic==="moyen"?"🟡 Moyen":"🟢 Faible";
-                return(
-                  <div key={r.id} className="card" style={{padding:"16px"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                      <div>
-                        <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>
-                          {new Date(r.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}
-                        </div>
-                        <div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>Par {r.doneBy} · {ago(r.ts)}</div>
-                      </div>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{display:"flex",gap:3,justifyContent:"flex-end",marginBottom:4}}>
-                          {[1,2,3,4,5].map(n=>(
-                            <span key={n} style={{fontSize:14,color:n<=r.rating?"var(--gold)":"var(--t3)"}}>★</span>
-                          ))}
-                        </div>
-                        <span style={{fontSize:11,fontWeight:700,color:trafficColor}}>{trafficLabel}</span>
-                      </div>
-                    </div>
-                    {r.highlights&&(
-                      <div style={{marginBottom:8,padding:"8px 12px",background:"rgba(42,157,143,0.08)",borderRadius:10,borderLeft:"2px solid #2a9d8f"}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"#2a9d8f",marginBottom:3}}>POINTS POSITIFS</div>
-                        <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{r.highlights}</div>
-                      </div>
-                    )}
-                    {r.incidents&&(
-                      <div style={{marginBottom:8,padding:"8px 12px",background:"rgba(230,57,70,0.07)",borderRadius:10,borderLeft:"2px solid #e63946"}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"#e63946",marginBottom:3}}>INCIDENTS</div>
-                        <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{r.incidents}</div>
-                      </div>
-                    )}
-                    {r.notes&&(
-                      <div style={{padding:"8px 12px",background:"var(--s2)",borderRadius:10}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"var(--t3)",marginBottom:3}}>NOTES</div>
-                        <div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5}}>{r.notes}</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-        }
       </div>
     </div>
   );
@@ -2547,89 +2360,6 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
   );
 }
 
-// ─── SHIFT REPORT MODAL ───────────────────────────────────────────
-function ShiftReportModal({me,onSave,onClose}){
-  const [form,setForm] = useState({
-    shift: SHIFTS[0], date: todayStr(),
-    traffic:"moyen", rating:4, incidents:"", highlights:"", notes:""
-  });
-  const set = k => v => setForm(p=>({...p,[k]:v}));
-  return(
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
-        <div className="handle"/>
-        <div style={{padding:"4px 18px 12px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📊 Rapport de shift</div>
-            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-          </div>
-          <button className="btn btn-gold" onClick={()=>onSave({...form,doneBy:me.name})} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15}}>
-            Soumettre le rapport
-          </button>
-        </div>
-        <div style={{overflowY:"auto",flex:1,padding:"16px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <FL label="QUART">
-              <select className="field" value={form.shift} onChange={e=>set("shift")(e.target.value)}>
-                {SHIFTS.map(s=><option key={s} value={s}>{s}</option>)}
-              </select>
-            </FL>
-            <FL label="DATE">
-              <input type="date" className="field" value={form.date} onChange={e=>set("date")(e.target.value)}/>
-            </FL>
-          </div>
-
-          <FL label="ACHALANDAGE">
-            <div style={{display:"flex",gap:8}}>
-              {[{id:"faible",label:"🟢 Faible"},{id:"moyen",label:"🟡 Moyen"},{id:"fort",label:"🔴 Fort"}].map(t=>(
-                <button key={t.id} className="btn" onClick={()=>set("traffic")(t.id)}
-                  style={{flex:1,padding:"12px",borderRadius:12,fontSize:13,fontWeight:600,
-                    background:form.traffic===t.id?"var(--gold)":"var(--s2)",
-                    color:form.traffic===t.id?"#0a0a0d":"var(--t2)",
-                    border:"1px solid var(--border)"}}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </FL>
-
-          <FL label="NOTE GÉNÉRALE DU SHIFT">
-            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-              {[1,2,3,4,5].map(n=>(
-                <button key={n} className="btn" onClick={()=>set("rating")(n)}
-                  style={{width:50,height:50,borderRadius:12,fontSize:20,
-                    background:form.rating>=n?"var(--gold)":"var(--s2)",
-                    color:form.rating>=n?"#0a0a0d":"var(--t3)",
-                    border:"1px solid var(--border)"}}>
-                  ★
-                </button>
-              ))}
-            </div>
-            <div style={{textAlign:"center",fontSize:13,color:"var(--gold)",marginTop:6,fontWeight:600}}>
-              {["","Très difficile","Difficile","Correct","Bien","Excellent !"][form.rating]}
-            </div>
-          </FL>
-
-          <FL label="POINTS POSITIFS">
-            <textarea className="field" value={form.highlights} onChange={e=>set("highlights")(e.target.value)}
-              placeholder="Ex: Bonne équipe aujourd'hui, livraison à l'heure..." rows={2} style={{resize:"none"}}/>
-          </FL>
-
-          <FL label="INCIDENTS / PROBLÈMES">
-            <textarea className="field" value={form.incidents} onChange={e=>set("incidents")(e.target.value)}
-              placeholder="Ex: Bris d'équipement, conflit client, manque de stock..." rows={2} style={{resize:"none"}}/>
-          </FL>
-
-          <FL label="NOTES ADDITIONNELLES">
-            <textarea className="field" value={form.notes} onChange={e=>set("notes")(e.target.value)}
-              placeholder="Autres observations..." rows={2} style={{resize:"none"}}/>
-          </FL>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── TEMPLATES MODAL ──────────────────────────────────────────────
 function TemplatesModal({templates,onApply,onClose,lang}){
   const [selected,setSelected] = useState(null);
@@ -2770,7 +2500,7 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
   );
 }
 
-function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onClose}){
+function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onSearch,onSOS,onClose}){
   const [showSwitch,setShowSwitch] = useState(false);
   return(
     <div className="overlay" onClick={onClose}>
@@ -2788,7 +2518,6 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
             {icon:"🔍", label:"Recherche globale",              action:onSearch},
             {icon:"⚙",  label:"Paramètres",                    action:onSettings},
             ...(isOwner?[{icon:"🏪", label:"Profil du magasin", action:onStoreProfile}]:[]),
-            {icon:"📄", label:"Exporter en PDF",                action:onExportPDF},
             {icon:"🆘", label:"Alerte urgence (SOS)",           action:onSOS, danger:true},
           ].map(item=>(
             <button key={item.label} className="btn" onClick={item.action}
