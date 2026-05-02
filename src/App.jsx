@@ -1,32 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-// ─── IMAGE COMPRESSION ───────────────────────────────────────────
-const compressImage = (dataUrl, maxWidth=600, quality=0.6) => new Promise(resolve => {
-  if(!dataUrl){resolve(null);return;}
-  try{
-    const img = new Image();
-    img.onload = () => {
-      try{
-        const canvas = document.createElement('canvas');
-        const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
-        canvas.width = Math.round(img.width * ratio);
-        canvas.height = Math.round(img.height * ratio);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      }catch(e){resolve(dataUrl);}
-    };
-    img.onerror = ()=>resolve(dataUrl);
-    // Timeout safety - if compression takes more than 5s, use original
-    setTimeout(()=>resolve(dataUrl), 5000);
-    img.src = dataUrl;
-  }catch(e){resolve(dataUrl);}
-});
 
-const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc",SH={apikey:SKEY,Authorization:`Bearer ${SKEY}`,"Content-Type":"application/json"};
+const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib2txcnVicmFyc25na2h1eHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjAwMDAsImV4cCI6MjA5Mjc5NjAwMH0.hWCE9C0__HpvP3TRru7l8rAME314c9-i2xj_XS9h2Bc",H={apikey:SKEY,Authorization:`Bearer ${SKEY}`,"Content-Type":"application/json"};
 const sb={
-  get:async(t,q="")=>{const r=await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`,{headers:SH});return r.ok?r.json():[];},
-  insert:async(t,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}`,{method:"POST",headers:{...SH,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
-  update:async(t,id,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"PATCH",headers:{...SH,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
-  del:async(t,id)=>{await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"DELETE",headers:SH});},
+  get:async(t,q="")=>{const r=await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`,{headers:H});return r.ok?r.json():[];},
+  insert:async(t,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}`,{method:"POST",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
+  update:async(t,id,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"PATCH",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
+  del:async(t,id)=>{await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"DELETE",headers:H});},
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────
@@ -73,6 +52,11 @@ const INIT_USERS = [
 ];
 
 const INIT_TASKS = [];
+const INIT_TASKS_OLD = [
+  { id:1, title:"Prix circulaire à vérifier", description:"Confirmer que tous les prix du circulaire sont affichés correctement.", assignedTo:2, createdBy:1, priority:"urgent", status:"todo", department:"Épicerie", dueDate:"2026-04-24", dueTime:"09:00", photo:null, comments:[{id:1,userId:1,text:"Priorité absolue pour demain matin!",ts:Date.now()-3600000}], createdAt:Date.now()-7200000, recurrence:"none", pinned:true },
+  { id:2, title:"Nettoyage réfrigérateurs viande", description:"Nettoyage complet et désinfection des surfaces.", assignedTo:3, createdBy:1, priority:"high", status:"inprogress", department:"Viande", dueDate:"2026-04-23", dueTime:"", photo:null, comments:[], createdAt:Date.now()-86400000, recurrence:"weekly", pinned:false },
+  { id:3, title:"Commander emballages boulangerie", description:"Stock bas — commander boîtes et sacs.", assignedTo:2, createdBy:2, priority:"normal", status:"done", department:"Boulangerie", dueDate:"2026-04-22", dueTime:"", photo:null, comments:[{id:2,userId:2,text:"Commande placée ✓",ts:Date.now()-1800000}], createdAt:Date.now()-172800000, completedAt:Date.now()-3600000, recurrence:"monthly", pinned:false },
+];
 
 const INIT_STORE = { name:"Mon IGA", number:"IGA-001", address:"123 rue Principale, Montréal", logo:null };
 
@@ -83,7 +67,7 @@ const INIT_TOUR_CONFIG = {
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────
-const ago = ts => {if(!ts||isNaN(ts))return"";
+const ago = ts => {
   if(!ts) return "";
   const d = Date.now()-ts;
   if(d<60000) return "À l'instant";
@@ -132,7 +116,7 @@ body{font-family:'DM Sans',sans-serif;color:${dark?"#ede8df":"#1c1c1e"};}
 .field::placeholder{color:var(--t3);}
 option{background:${dark?"#141418":"#fff"};}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(5px);z-index:50;display:flex;flex-direction:column;justify-content:flex-end;}
-.sheet{background:var(--s1);border-radius:22px 22px 0 0;display:flex;flex-direction:column;max-height:93vh;max-height:93dvh;overflow:hidden;}
+.sheet{background:var(--s1);border-radius:22px 22px 0 0;display:flex;flex-direction:column;max-height:93vh;}
 .handle{width:40px;height:4px;border-radius:2px;background:var(--border);margin:12px auto 2px;flex-shrink:0;}
 .slide-up{animation:slideUp .28s cubic-bezier(.4,0,.2,1) both;}
 @keyframes slideUp{from{opacity:0;transform:translateY(100%);}to{opacity:1;transform:translateY(0);}}
@@ -154,47 +138,81 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
 
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
-  const [dark, setDark]               = useState(true);
-  const [lang, setLang]               = useState("fr");
-  const [themeColor, setThemeColor]   = useState("#C9A84C");
-  const [gallery, setGallery]         = useState([]);
-  const [users, setUsers]             = useState(INIT_USERS);
-  const [me, setMe]                   = useState(INIT_USERS[0]||{id:1,name:"Olivier",role:"Propriétaire",color:"#C9A84C",isOwner:true,pin:"1111"});
-  const [loginUser, setLoginUser]     = useState(null);
-  const [tasks, setTasks]             = useState(INIT_TASKS);
-  const [store, setStore]             = useState(INIT_STORE);
-  const [tourConfig, setTourConfig]   = useState(INIT_TOUR_CONFIG);
+  const [dark, setDark]           = useState(true);
+  const [lang, setLang]           = useState("fr");
+  const [themeColor, setThemeColor] = useState("#C9A84C");
+  const [gallery, setGallery]     = useState([
+    { id:1, name:"Montage été", photos:[], createdBy:1, ts:Date.now()-86400000 },
+    { id:2, name:"Inspection MAPAQ", photos:[], createdBy:1, ts:Date.now()-172800000 },
+  ]);
+  const [users, setUsers]         = useState(INIT_USERS);
+  const [tasks, setTasks]         = useState(INIT_TASKS);
+  const [store, setStore]         = useState(INIT_STORE);
+  const [tourConfig, setTourConfig] = useState(INIT_TOUR_CONFIG);
   const [tourHistory, setTourHistory] = useState([]);
-  const [events, setEvents]           = useState([]);
+  const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [showUrgency, setShowUrgency] = useState(false);
+  const [showUrgency, setShowUrgency]   = useState(false);
+  const [shiftReports, setShiftReports] = useState([]);
   const [showGlobalSearch, setGlobalSearch] = useState(false);
-  const [globalQuery, setGlobalQuery] = useState("");
-  const [ready, setReady]             = useState(false);
-  const [joinRequests, setJoinRequests] = useState([]);
-  const [selectedTour, setSelectedTour] = useState(null);
-  const [notifs, setNotifs]           = useState([]);
+  const [globalQuery, setGlobalQuery]   = useState("");
+
+  const TASK_TEMPLATES = [
+    { name:"Ouverture magasin", tasks:[
+      {title:"Vérifier les caisses", department:"Service", priority:"urgent"},
+      {title:"Allumer les lumières et systèmes", department:"Général", priority:"urgent"},
+      {title:"Vérifier températures réfrigérateurs", department:"Viande", priority:"urgent"},
+      {title:"Mettre les spéciaux en place", department:"Épicerie", priority:"high"},
+      {title:"Vérifier l'entrée et le stationnement", department:"Vestibule", priority:"normal"},
+    ]},
+    { name:"Fermeture magasin", tasks:[
+      {title:"Compter les caisses", department:"Service", priority:"urgent"},
+      {title:"Vérifier les réfrigérateurs fermés", department:"Viande", priority:"urgent"},
+      {title:"Nettoyer les allées principales", department:"Épicerie", priority:"high"},
+      {title:"Sortir les poubelles", department:"Général", priority:"normal"},
+      {title:"Vérifier les portes et alarmes", department:"Général", priority:"urgent"},
+    ]},
+    { name:"Inspection complète", tasks:[
+      {title:"Vérifier les dates d'expiration", department:"Épicerie", priority:"urgent"},
+      {title:"Inspection boucherie/viande", department:"Viande", priority:"urgent"},
+      {title:"Inspection poissonnerie", department:"Poisson", priority:"urgent"},
+      {title:"Vérifier affichages des prix", department:"Épicerie", priority:"high"},
+      {title:"Inspection propreté générale", department:"Général", priority:"high"},
+    ]},
+  ];
+  const [schedules, setSchedules] = useState({
+    "Viande":        [{id:1, label:"Semaine du 21 avril", photo:null, ts:Date.now()-86400000}],
+    "Boulangerie":   [{id:2, label:"Semaine du 21 avril", photo:null, ts:Date.now()-86400000}],
+    "Épicerie":      [],
+    "Fruits & Légumes":[],
+    "PAM":           [],
+    "Poisson":       [],
+    "Service":       [],
+    "Charcuterie":   [],
+  });
+  const [scheduleDepts, setScheduleDepts] = useState(["Viande","Boulangerie","Épicerie","Fruits & Légumes","PAM","Poisson","Service","Charcuterie"]);
+  const [notes, setNotes] = useState({});  // keyed by userId
   const [archivedTasks, setArchivedTasks] = useState([]);
-  const [scheduleDepts, setScheduleDepts] = useState([]);
-  const [schedules, setSchedules]     = useState({});
-  const [notes, setNotes]             = useState({});
-  const [modal, setModal]             = useState(null);
-  const [active, setActive]           = useState(null);
-  const [tab, setTab]                 = useState("home");
-  const [toast, setToast]             = useState(null);
-  const [taskFilter, setTaskFilter]   = useState("active");
-  const [taskSort, setTaskSort]       = useState("date");
-  const [seenTasks, setSeenTasks]     = useState(new Set());
-  const [editUser, setEditUser]       = useState(null);
+  const [taskSort, setTaskSort] = useState("date");
+  const [me, setMe]               = useState(INIT_USERS[0]);
+  const [tab, setTab]             = useState("home");
+  const [taskFilter, setTaskFilter] = useState("all");
+  const [seenTasks, setSeenTasks] = useState(new Set([1,2,3]));
+  const [notifs, setNotifs] = useState([]);
+  const [modal, setModal]         = useState(null);
+  const [activeTask, setActive]   = useState(null);
+  const [editUser, setEditUser]   = useState(null);
   const [editTaskData, setEditTaskData] = useState(null);
-  const [activeTour, setActiveTour]   = useState(null);
-  const [showPDFInfo, setShowPDFInfo] = useState(false);
+  const [activeTour, setActiveTour] = useState(null);
+  const [selectedTour, setSelectedTour] = useState(null);
+  const [ready, setReady]               = useState(false);
+  const [loginUser, setLoginUser]       = useState(null);
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [toast, setToast]         = useState(null);
 
-  const isOwner = me?.isOwner||false;
 
-    // Load data from Supabase on mount
   useEffect(()=>{
-    (async()=>{
+    const load=async()=>{
       try{
         const [U,T,C,A,E,TR,S]=await Promise.all([
           sb.get("users","order=id"),
@@ -205,174 +223,102 @@ export default function App() {
           sb.get("tour_history","order=created_at.desc"),
           sb.get("store_profile"),
         ]);
-        if(U?.length){const u=U.map(x=>({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));setUsers(u);setMe(u.find(x=>x.isOwner)||u[0]);
-          try{const sv=JSON.parse(localStorage.getItem('groceryops_user')||'null');if(sv&&sv.id&&(Date.now()-sv.ts)<28800000){const su=u.find(x=>x.id===sv.id);if(su){setLoginUser(su);setMe(su);}}}catch(e){console.error(e)}
-        }
+        if(U?.length){const u=U.map(x=>({id:x.id,name:x.name,role:x.role,color:x.color,isOwner:x.is_owner,pin:x.pin||"1111"}));setUsers(u);setMe(u.find(x=>x.isOwner)||u[0]);}
         if(T?.length){setTasks(T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))})));}
-        if(A?.length)setAnnouncements(A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));
-        if(E?.length)setEvents(E.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));
-        if(TR?.length)setTourHistory(TR.map(t=>({...t,doneBy:t.done_by,startTime:t.start_time,issues:t.issues||[],ts:new Date(t.created_at).getTime()})));
-        if(S?.length)setStore({name:S[0].name,number:S[0].number,address:S[0].address||"",logo:S[0].logo||null});
-        const N=await sb.get("notes");
-        if(N?.length){const m={};N.forEach(n=>{m[n.user_id]=n.text;});setNotes(m);}
-        const [GF,GP]=await Promise.all([sb.get("gallery_folders","order=created_at.desc"),sb.get("gallery_photos","order=created_at.desc")]);
-        if(GF?.length)setGallery(GF.map(f=>({id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),photos:(GP||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))})));
-        const [SD,SP]=await Promise.all([sb.get("schedule_depts","order=sort_order"),sb.get("schedule_photos","order=created_at.desc")]);
+        if(A?.length){setAnnouncements(A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()})));}
+        if(E?.length){setEvents(E.map(e=>({...e,startTime:e.start_time,endTime:e.end_time,createdBy:e.created_by,customDays:e.custom_days||[],members:e.members||[]})));}
+        if(TR?.length){setTourHistory(TR.map(t=>({...t,doneBy:t.done_by,startTime:t.start_time,issues:t.issues||[],ts:new Date(t.created_at).getTime()})));}
+        if(S?.length){setStore({name:S[0].name,number:S[0].number,address:S[0].address||"",logo:S[0].logo||null});}
+        // Notes
+        const N=await sb.get("notes");if(N?.length){const m={};N.forEach(n=>{m[n.user_id]=n.text;});setNotes(m);}
+        // Schedules
+        const SD=await sb.get("schedule_depts","order=sort_order"),SP=await sb.get("schedule_photos","order=created_at.desc");
         if(SD?.length){const nd=[],ns={};SD.forEach(d=>{nd.push(d.name);ns[d.name]=(SP||[]).filter(p=>p.dept_id===d.id).map(p=>({id:p.id,label:p.label,photo:p.photo||null,ts:new Date(p.created_at).getTime()}));});setScheduleDepts(nd);setSchedules(ns);}
-        try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){console.error(e)}
-        // Load tour config
-        try{
-          const TC=await sb.get("app_settings","key=eq.tour_config");
-          if(TC?.length&&TC[0].value){
-            const cfg=JSON.parse(TC[0].value);
-            setTourConfig(cfg);
-          }
-        }catch(e){console.error(e)}
-      }catch(e){console.error(e);}
+        // Gallery
+        const GF=await sb.get("gallery_folders","order=created_at.desc"),GP=await sb.get("gallery_photos","order=created_at.desc");
+        if(GF?.length){setGallery(GF.map(f=>({id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),photos:(GP||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))})));}
+        // Join requests
+        try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){}
+      }catch(e){console.error("Load error:",e);}
       setReady(true);
-    })();
-  },[]);
-
-  const isSaving = useRef(false);
-  const isHidden = useRef(false);
-  useEffect(()=>{
-    const onVis=()=>{isHidden.current=document.hidden;};
-    document.addEventListener('visibilitychange',onVis);
-    return()=>document.removeEventListener('visibilitychange',onVis);
-  },[]);
-
-  // Poll every 8s - pause during saves
-  useEffect(()=>{
-    if(!ready)return;
-    const poll=async()=>{
-      if(isSaving.current||isHidden.current)return; // skip poll during saves or when hidden
-      try{
-        const [T2,C2,A2]=await Promise.all([sb.get("tasks","archived=eq.false&order=created_at.desc"),sb.get("comments","order=created_at"),sb.get("announcements","order=created_at.desc")]);
-        if(T2?.length){setTasks(prev=>{
-            const ids=new Set(prev.map(t=>t.id));
-            const mapped=T2.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C2||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));
-            // Only update if something changed
-            const hasNew=mapped.some(t=>!ids.has(t.id));
-            const hasChanged=mapped.some(t=>{const prev_t=prev.find(p=>p.id===t.id);return prev_t&&(prev_t.status!==t.status||prev_t.pinned!==t.pinned);});
-            if(!hasNew&&!hasChanged) return prev; // No change - skip re-render
-            mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});
-            return mapped;
-          });}
-        if(A2?.length)setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A2.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});
-        // Check new join requests for owner
-        if(isOwner){try{const JR2=await sb.get('join_requests','status=eq.pending&order=created_at.desc');if(JR2?.length){setJoinRequests(prev=>{const ids=new Set(prev.map(r=>r.id));JR2.forEach(r=>{if(!ids.has(r.id))pushNotif("Nouvelle demande",`${r.name} veut rejoindre l'équipe`,"announce");});return JR2;});}}catch(e){console.error(e);}}
-      }catch(e){console.error(e)}
     };
-    const iv=setInterval(poll,8000);
-    return()=>clearInterval(iv);
-  },[ready]);
-  // Auto-clean notifications older than 7 days
-  useEffect(()=>{
-    const sevenDays = 7*24*3600*1000;
-    setNotifs(p=>p.filter(n=>Date.now()-n.ts < sevenDays));
+    load();
   },[]);
-
-  const unread  = notifs.filter(n=>!n.read).length;
-  const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
 
   const pushToast = (msg,type="ok") => { setToast({msg,type,k:Date.now()}); setTimeout(()=>setToast(null),3000); };
   const pushNotif = (text,sub,type="task") => setNotifs(p=>[{id:Date.now(),text,sub,type,ts:Date.now(),read:false},...p]);
-  // Reset all saving states when modal closes
-  const resetSavingStates = () => {
-    setSavingEdit(false);
-    setSavingEditEvent(false);
-    setSavingUser2(false);
-    setSavingAnn(false);
-    setSavingEvent(false);
-    setCreatingTask(false);
-    setUpdatingTask(null);
-    isSaving.current = false;
-  };
+
+  // Polling every 15s
+  useEffect(()=>{
+    if(!ready)return;
+    const poll=async()=>{
+      try{
+        const T=await sb.get("tasks","archived=eq.false&order=created_at.desc");
+        const C=await sb.get("comments","order=created_at");
+        if(T?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
+        const A=await sb.get("announcements","order=created_at.desc");
+        if(A?.length){setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});}
+      }catch(e){}
+    };
+    const iv=setInterval(poll,15000);
+    return()=>clearInterval(iv);
+  },[ready]);
+
+  const isOwner = me.isOwner;
+  const unread  = notifs.filter(n=>!n.read).length;
+  const unseenCount = tasks.filter(t=>!seenTasks.has(t.id)).length;
+
 
   const clearAllNotifs = () => setNotifs([]);
-  const deleteNotif = id => setNotifs(p=>p.filter(n=>n.id!==id));
-  const clickNotif = n => {
-    setNotifs(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));
-    if(n.type==="task"||n.type==="done"||n.type==="reminder"){
-      const t=tasks.find(x=>x.title===n.sub||n.sub?.includes(x.title));
-      if(t){setActive(t);setModal("taskDetail");setTab("tasks");}else setTab("tasks");
-    } else setTab("comm");
-  };
   const markAllRead = () => setNotifs(p=>p.map(n=>({...n,read:true})));
 
   const openTask = t => { setSeenTasks(p=>new Set([...p,t.id])); setActive(t); setModal("taskDetail"); };
 
-  const [creatingTask, setCreatingTask] = useState(false);
-  const createTask=async d=>{
-    if(creatingTask) return;
-    setCreatingTask(true);
-    isSaving.current=true;try{const r=await sb.insert('tasks',{title:d.title,description:d.description,assigned_to:d.assignedTo,created_by:me.id,priority:d.priority,status:'todo',department:d.department,due_date:d.dueDate,due_time:d.dueTime,photo:d.photo?await compressImage(d.photo):null,recurrence:d.recurrence,custom_days:d.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[t,...p]);}pushNotif('Nouvelle tâche',d.title,'task');pushToast('Tâche créée !');setModal(null);setCreatingTask(false);isSaving.current=false;}catch(e){setCreatingTask(false);isSaving.current=false;pushToast('Erreur','warn');}};
+  const createTask=async data=>{try{const r=await sb.insert("tasks",{title:data.title,description:data.description,assigned_to:data.assignedTo,created_by:me.id,priority:data.priority,status:"todo",department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:false,archived:false});if(r?.[0]){const t={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null};setTasks(p=>[t,...p]);}pushNotif(`Nouvelle tâche`,data.title,"task");pushToast("Tâche créée !");setModal(null);}catch(e){pushToast("Erreur","warn");}};
 
-  const [savingEdit, setSavingEdit] = useState(false);
-  const editTask = async data => {
-    if(savingEdit) return; setSavingEdit(true);
-    try{await sb.update('tasks',data.id,{title:data.title,description:data.description,assigned_to:data.assignedTo,priority:data.priority,status:data.status,department:data.department,due_date:data.dueDate,due_time:data.dueTime,photo:data.photo,recurrence:data.recurrence,custom_days:data.customDays,pinned:data.pinned||false});setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));pushToast("Tâche modifiée !");setModal(null);setActive(null);setSavingEdit(false);}catch(e){setSavingEdit(false);pushToast("Erreur","warn");}
+  const editTask = data => {
+    setTasks(p=>p.map(t=>t.id===data.id?{...data}:t));
+    pushToast("Tâche modifiée !"); setModal(null); setActive(null);
   };
 
-  const [updatingTask, setUpdatingTask] = useState(null);
-  const updateStatus = async (taskId,status,note,photo) => {
-    if(updatingTask===taskId) return;
-    setUpdatingTask(taskId);
-    // OPTIMISTIC UPDATE - update UI immediately
+  const updateStatus = (taskId,status,note,photo) => {
     const now=Date.now();
-    setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==='done'?now:null}:t));
-    setActive(p=>p?.id===taskId?{...p,status,completedAt:status==='done'?now:null}:p);
-    try{
-      await sb.update('tasks',taskId,{status,completed_at:status==='done'?new Date().toISOString():null,...(photo?{photo}:{})});
-      if(status==='done'&&note){const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text:'✓ '+note});if(r?.[0]){const c={id:r[0].id,userId:me.id,text:'✓ '+note,ts:now};setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...(t.comments||[]),c],...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...(p.comments||[]),c]}:p);}}
-      else{setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==='done'?now:null,...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:status==='done'?now:null}:p);}
-      if(status==='done'){
-        const t=tasks.find(x=>x.id===taskId);
-        pushNotif('Tâche complétée',t?.title,'done');
-        pushToast('Complété !');
-        setUpdatingTask(null);
-        // Handle recurring tasks
-        if(t?.recurrence&&t.recurrence!=='none'){
-          try{
-            const nextDate=nextDue(t.recurrence,t.customDays);
-            const r=await sb.insert('tasks',{title:t.title,description:t.description,assigned_to:t.assignedTo,created_by:t.createdBy,priority:t.priority,status:'todo',department:t.department,due_date:nextDate,due_time:t.dueTime,photo:null,recurrence:t.recurrence,custom_days:t.customDays,pinned:false,archived:false});
-            if(r?.[0]){const nt={...r[0],assignedTo:r[0].assigned_to,createdBy:r[0].created_by,dueDate:r[0].due_date,dueTime:r[0].due_time,customDays:r[0].custom_days||[],createdAt:new Date(r[0].created_at).getTime(),comments:[],completedAt:null,pinned:false};setTasks(p=>[nt,...p]);pushNotif('Tâche récurrente créée',t.title,'task');}
-          }catch(e){console.error('Recurring task error:',e);}
-        }
+    const update = t=>({...t,status,completedAt:status==="done"?now:null,
+      ...(status==="done"&&note?{comments:[...t.comments,{id:now,userId:me.id,text:"✓ "+note,ts:now}]}:{}),
+      ...(status==="done"&&photo?{photo}:{}),
+    });
+    setTasks(p=>p.map(t=>{
+      if(t.id!==taskId) return t;
+      const updated=update(t);
+      if(status==="done"&&t.recurrence&&t.recurrence!=="none"){
+        const next={...t,id:now+1,status:"todo",comments:[],createdAt:now,completedAt:null,dueDate:nextDue(t.recurrence,t.customDays),photo:null,pinned:false};
+        setTimeout(()=>{setTasks(p2=>[...p2,next]);pushNotif("Tâche récurrente créée",t.title,"task");},600);
       }
-    }catch(e){pushToast('Erreur','warn');}
+      return updated;
+    }));
+    if(status==="done"){const t=tasks.find(x=>x.id===taskId);pushNotif("Tâche complétée",t?.title,"done");pushToast("Complété !");}
+    setActive(p=>p?.id===taskId?update(p):p);
   };
-  
-  const togglePin = async taskId => {
-    const task=tasks.find(t=>t.id===taskId);if(!task)return;
-    // Optimistic
+
+  const togglePin = taskId => {
     setTasks(p=>p.map(t=>t.id===taskId?{...t,pinned:!t.pinned}:t));
     setActive(p=>p?.id===taskId?{...p,pinned:!p.pinned}:p);
     pushToast("Épinglée !");
-    try{await sb.update('tasks',taskId,{pinned:!task.pinned});}catch(e){console.error(e)}
-  };
-  
-  const addComment = async (taskId,text) => {
-    if(!text.trim()) return;
-    try{const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text});if(r?.[0]){const c={id:r[0].id,userId:me.id,text,ts:new Date(r[0].created_at).getTime()};setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...(t.comments||[]),c]}:t));setActive(p=>p?{...p,comments:[...(p.comments||[]),c]}:p);const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});}}catch(e){console.error(e);}
   };
 
-  const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert('gallery_folders',{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,'folderCreated'));}catch(e){pushToast('Erreur','warn');}};
-  
-  const deleteGalleryFolder=async id=>{
-    try{
-      // Delete all photos in folder first
-      const photos=await sb.get('gallery_photos',`folder_id=eq.${id}`);
-      for(const p of photos||[]) await sb.del('gallery_photos',p.id);
-      await sb.del('gallery_folders',id);
-      setGallery(p=>p.filter(f=>f.id!==id));
-      pushToast(T(lang,'deleted'),'warn');
-    }catch(e){console.error(e);}
+  const addComment = (taskId,text) => {
+    if(!text.trim()) return;
+    const c={id:Date.now(),userId:me.id,text,ts:Date.now()};
+    setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));
+    setActive(p=>p?{...p,comments:[...p.comments,c]}:p);
+    const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));
+    mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});
   };
-  
-  const addPhotoToFolder=async(folderId,photo,caption)=>{try{const compressed=await compressImage(photo);const r=await sb.insert('gallery_photos',{folder_id:folderId,photo:compressed,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,'photoAdded'));}catch(e){pushToast('Erreur','warn');}};  
-  const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del('gallery_photos',photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,'deleted'),'warn');}catch(e){console.error(e)}};
-  
+
+  const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert("gallery_folders",{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,"folderCreated"));}catch(e){pushToast("Erreur","warn");}};
+  const deleteGalleryFolder=async id=>{try{await sb.del("gallery_folders",id);setGallery(p=>p.filter(f=>f.id!==id));pushToast(T(lang,"deleted"),"warn");}catch(e){};};
+  const addPhotoToFolder=async(folderId,photo,caption)=>{try{const r=await sb.insert("gallery_photos",{folder_id:folderId,photo,caption,added_by:me.id});if(r?.[0])setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:[{id:r[0].id,photo,caption,addedBy:me.id,ts:Date.now()},...f.photos]}:f));pushToast(T(lang,"photoAdded"));}catch(e){pushToast("Erreur","warn");}};
+  const deletePhotoFromFolder=async(folderId,photoId)=>{try{await sb.del("gallery_photos",photoId);setGallery(p=>p.map(f=>f.id===folderId?{...f,photos:f.photos.filter(p=>p.id!==photoId)}:f));pushToast(T(lang,"deleted"),"warn");}catch(e){}};
   const renameGalleryFolder = (id, name) => {
     setGallery(p=>p.map(f=>f.id===id?{...f,name}:f));
     pushToast(T(lang,"saved"));
@@ -404,65 +350,58 @@ export default function App() {
     pushToast("Département renommé !");
   };
 
-  const unarchiveTask = async tid => {
-    try{
-      await sb.update('tasks',tid,{archived:false,archived_at:null});
-      const t=archivedTasks.find(x=>x.id===tid);
-      if(t){setTasks(p=>[{...t,archived:false,archivedAt:null},...p]);setArchivedTasks(p=>p.filter(x=>x.id!==tid));}
-      pushToast("Tâche restaurée !");
-    }catch(e){pushToast("Erreur","warn");}
+  const archiveTask=async tid=>{try{await sb.update("tasks",tid,{archived:true,archived_at:new Date().toISOString()});const t=tasks.find(x=>x.id===tid);if(t){setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]);setTasks(p=>p.filter(x=>x.id!==tid));}pushToast("Tâche archivée");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}};
+  const addSchedulePhoto = (dept, label, photo) => {
+    setSchedules(p=>({...p,[dept]:[{id:Date.now(),label,photo,ts:Date.now()}, ...(p[dept]||[])]}));
+    pushToast("Horaire ajouté !");
   };
-  const archiveTask = async tid => {
-    // Optimistic
-    const t=tasks.find(x=>x.id===tid);
-    if(t){setArchivedTasks(p=>[{...t,archivedAt:Date.now()},...p]);setTasks(p=>p.filter(x=>x.id!==tid));}
-    pushToast("Tâche archivée");setModal(null);setActive(null);
-    try{await sb.update('tasks',tid,{archived:true,archived_at:new Date().toISOString()});}catch(e){pushToast("Erreur","warn");}
+  const deleteSchedulePhoto = (dept, id) => {
+    setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));
+    pushToast("Horaire supprimé","warn");
   };
-  const addSchedulePhoto=async(dept,label,photo)=>{
-    // Limit to 10 photos per department
-    if((schedules[dept]||[]).length>=10){pushToast("Max 10 photos par département","warn");return;}try{const ds=await sb.get('schedule_depts');let dr=ds?.find(d=>d.name===dept);if(!dr){const nd=await sb.insert('schedule_depts',{name:dept,sort_order:0});dr=nd?.[0];}if(dr?.id){const r=await sb.insert('schedule_photos',{dept_id:dr.id,label,photo:await compressImage(photo)});if(r?.[0])setSchedules(p=>({...p,[dept]:[{id:r[0].id,label,photo,ts:Date.now()},...(p[dept]||[])]}));}pushToast('Horaire ajouté !');}catch(e){pushToast('Erreur','warn');}};
-  
-  const deleteSchedulePhoto=async(dept,id)=>{try{await sb.del('schedule_photos',id);setSchedules(p=>({...p,[dept]:(p[dept]||[]).filter(s=>s.id!==id)}));pushToast('Supprimé','warn');}catch(e){console.error(e)}};
-  
-  const saveNote=async(uid,text)=>{try{const ex=await sb.get('notes',`user_id=eq.${uid}`);if(ex?.length)await sb.update('notes',ex[0].id,{text});else await sb.insert('notes',{user_id:uid,text});setNotes(p=>({...p,[uid]:text}));}catch(e){console.error(e)}};
+  const saveNote=async(userId,text)=>{try{const ex=await sb.get("notes",`user_id=eq.${userId}`);if(ex?.length)await sb.update("notes",ex[0].id,{text});else await sb.insert("notes",{user_id:userId,text});setNotes(p=>({...p,[userId]:text}));}catch(e){}};
 
-  const [savingUser, setSavingUser] = useState(false);
-  const createUser=async d=>{if(savingUser)return;setSavingUser(true);try{const r=await sb.insert('users',{name:d.name,role:d.role,color:d.color,is_owner:false,pin:'1111'});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:'1111'}]);pushToast(`${d.name} ajouté !`);setModal(null);setSavingUser(false);}catch(e){setSavingUser(false);pushToast('Erreur','warn');}};
-  const [savingUser2,setSavingUser2]=useState(false);const updateUser=async d=>{if(savingUser2)return;setSavingUser2(true);try{await sb.update('users',d.id,{name:d.name,role:d.role,color:d.color,pin:d.pin||'1111'});setUsers(p=>p.map(u=>u.id===d.id?d:u));if(me.id===d.id)setMe(d);pushToast('Profil mis à jour !');setModal(null);setEditUser(null);setSavingUser2(false);}catch(e){setSavingUser2(false);pushToast('Erreur','warn');}};
-  const deleteUser=async uid=>{try{await sb.del('users',uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast('Supprimé','warn');setModal(null);setEditUser(null);}catch(e){pushToast('Erreur','warn');}};
-  const deleteTask=async tid=>{
-    // Optimistic - remove from UI immediately
-    setTasks(p=>p.filter(t=>t.id!==tid)); setModal(null); setActive(null); pushToast('Supprimée','warn');
-    try{await sb.del('tasks',tid);}catch(e){pushToast('Erreur (non supprimé)','warn');}};
+  const createUser=async data=>{try{const r=await sb.insert("users",{name:data.name,role:data.role,color:data.color,is_owner:false,pin:"1111"});if(r?.[0])setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);pushToast(`${data.name} ajouté !`);setModal(null);}catch(e){pushToast("Erreur","warn");}};
+  const updateUser=async data=>{try{await sb.update("users",data.id,{name:data.name,role:data.role,color:data.color,pin:data.pin||"1111"});setUsers(p=>p.map(u=>u.id===data.id?data:u));if(me.id===data.id)setMe(data);pushToast("Profil mis à jour !");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}};
+  const deleteUser=async uid=>{try{await sb.del("users",uid);setUsers(p=>p.filter(u=>u.id!==uid));pushToast("Supprimé","warn");setModal(null);setEditUser(null);}catch(e){pushToast("Erreur","warn");}};
+  const deleteTask=async tid=>{try{await sb.del("tasks",tid);setTasks(p=>p.filter(t=>t.id!==tid));pushToast("Supprimée","warn");setModal(null);setActive(null);}catch(e){pushToast("Erreur","warn");}};
 
-  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');const pts=(tour.issues||[]).filter(i=>i.photo);if(pts.length>0){try{const fn="Photos Tournées";const gf=await sb.get('gallery_folders');let tf=gf?.find(f=>f.name===fn);if(!tf){const nf=await sb.insert('gallery_folders',{name:fn,created_by:me.id});tf=nf?.[0];if(tf)setGallery(p=>[{id:tf.id,name:fn,createdBy:me.id,ts:Date.now(),photos:[]},...p]);}if(tf?.id){for(const iss of pts){const cap=`${tour.date} · ${tour.shift} · ${iss.item}`;const pr=await sb.insert('gallery_photos',{folder_id:tf.id,photo:iss.photo,caption:cap,added_by:me.id});if(pr?.[0])setGallery(p=>p.map(f=>f.id===tf.id?{...f,photos:[{id:pr[0].id,photo:iss.photo,caption:cap,addedBy:me.id,ts:Date.now()},...f.photos]}:f));}}}catch(e){console.error(e);}}try{localStorage.removeItem(draftKey);}catch(e){} pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};;
+  const saveTour=async tour=>{try{const si=tour.issues||[];const r=await sb.insert("tour_history",{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:si.map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift} complétée`,`Score: ${tour.score}/${tour.total}`,'done');pushToast(`Tournée sauvegardée !`);setActiveTour(null);setModal(null);}catch(e){console.error(e);pushToast("Erreur","warn");}};
 
   // Reminders disabled
 
-  const [savingEvent, setSavingEvent] = useState(false);
-  const createEvent=async data=>{if(savingEvent)return;setSavingEvent(true);try{const r=await sb.insert('events',{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members,created_by:me.id});if(r?.[0])setEvents(p=>[{...r[0],startTime:r[0].start_time,endTime:r[0].end_time,createdBy:me.id,customDays:r[0].custom_days||[],members:r[0].members||[]},...p]);pushNotif(`Nouvel événement: ${data.title}`,`${data.date}`,'event');pushToast('Événement créé !');setModal(null);setSavingEvent(false);}catch(e){setSavingEvent(false);pushToast('Erreur','warn');}};  
-  const [savingEditEvent, setSavingEditEvent] = useState(false);
-  const editEvent=async data=>{if(savingEditEvent)return;setSavingEditEvent(true);try{await sb.update('events',data.id,{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members});setEvents(p=>p.map(e=>e.id===data.id?data:e));pushToast('Événement modifié !');setModal(null);setSavingEditEvent(false);}catch(e){setSavingEditEvent(false);pushToast('Erreur','warn');}};  
-  const deleteEvent=async id=>{
-    setEvents(p=>p.filter(e=>e.id!==id)); setModal(null); // optimistic
-    try{await sb.del('events',id);}catch(e){console.error(e)}};  
-  const [savingAnn, setSavingAnn] = useState(false);
-  const createAnnouncement=async d=>{
-    if(savingAnn) return; setSavingAnn(true);try{const r=await sb.insert('announcements',{text:d.text,dept:d.dept,created_by:me.id});if(r?.[0])setAnnouncements(p=>[{...r[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif('Annonce',d.text.slice(0,60),'announce');pushToast('Annonce envoyée !');setModal(null);setSavingAnn(false);}catch(e){setSavingAnn(false);pushToast('Erreur','warn');}};
-  const deleteAnnouncement=async id=>{
-    setAnnouncements(p=>p.filter(a=>a.id!==id)); // optimistic
-    try{await sb.del('announcements',id);}catch(e){console.error(e)}};
+  const saveShiftReport = report => {
+    setShiftReports(p=>[{...report, id:Date.now(), createdBy:me.id, ts:Date.now()},...p]);
+    pushNotif(`Rapport de shift — ${report.shift}`, `${me.name} · Note: ${report.rating}/5`, "report");
+    pushToast("Rapport sauvegardé !");
+    setModal(null);
+  };
+
+  const applyTemplate = template => {
+    template.tasks.forEach((t,i) => {
+      setTimeout(()=>{
+        const task = {...t, id:Date.now()+i, createdBy:me.id, assignedTo:users[0]?.id, status:"todo", comments:[], createdAt:Date.now(), dueDate:todayStr(), dueTime:"", photo:null, recurrence:"none", customDays:[], pinned:false, description:""};
+        setTasks(p=>[task,...p]);
+      }, i*50);
+    });
+    pushToast(`Template "${template.name}" appliqué !`);
+    setModal(null);
+  };
+
+  const createEvent = data => { setEvents(p=>[{...data,id:Date.now(),createdBy:me.id},...p]); pushNotif(`Nouvel événement: ${data.title}`,`${data.date} à ${data.startTime}`,"event"); pushToast("Événement créé !"); setModal(null); };
+  const editEvent   = data => { setEvents(p=>p.map(e=>e.id===data.id?data:e)); pushToast("Événement modifié !"); setModal(null); };
+  const deleteEvent = id   => { setEvents(p=>p.filter(e=>e.id!==id)); pushToast("Événement supprimé","warn"); setModal(null); };
+  const createAnnouncement=async data=>{try{const r=await sb.insert("announcements",{text:data.text,dept:data.dept,created_by:me.id});if(r?.[0])setAnnouncements(p=>[{...r[0],createdBy:me.id,ts:Date.now()},...p]);pushNotif(`Annonce`,data.text.slice(0,60),"announce");pushToast("Annonce envoyée !");setModal(null);}catch(e){pushToast("Erreur","warn");}};
+  const deleteAnnouncement=async id=>{try{await sb.del("announcements",id);setAnnouncements(p=>p.filter(a=>a.id!==id));pushToast("Annonce supprimée","warn");}catch(e){}};
   const sendUrgency = msg => { pushNotif("🆘 URGENCE",msg,"urgency"); setAnnouncements(p=>[{id:Date.now(),text:"🆘 URGENCE: "+msg,dept:"all",createdBy:me.id,ts:Date.now()},...p]); setShowUrgency(false); pushToast("Alerte urgence envoyée !"); };
 
   const sendJoinRequest=async(name,role)=>{try{await sb.insert("join_requests",{name,role,status:"pending"});pushToast("Demande envoyée !");}catch(e){pushToast("Erreur","warn");}};
-  const approveRequest=async req=>{try{const colors=["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261"];const c=colors[users.length%colors.length];const r=await sb.insert("users",{name:req.name,role:req.role,color:c,is_owner:false,pin:"1111"});if(r?.[0]){setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);await sb.update("join_requests",req.id,{status:"approved"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"approved"}:x));pushToast(`${req.name} approuvé !`);}}catch(e){pushToast("Erreur","warn");}};
-  const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));}catch(e){console.error(e)}};
+  const approveRequest=async req=>{try{const colors=["#3b82f6","#2a9d8f","#8b5cf6","#ec4899","#f4a261"];const color=colors[users.length%colors.length];const r=await sb.insert("users",{name:req.name,role:req.role,color,is_owner:false,pin:"1111"});if(r?.[0]){setUsers(p=>[...p,{...r[0],isOwner:false,pin:"1111"}]);await sb.update("join_requests",req.id,{status:"approved"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"approved"}:x));pushToast(`${req.name} approuvé !`);}}catch(e){pushToast("Erreur","warn");}};
+  const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));pushToast("Refusé","warn");}catch(e){}};
+  const deleteNotif=id=>setNotifs(p=>p.filter(n=>n.id!==id));
+  const clickNotif=n=>{setNotifs(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));if(n.type==="task"||n.type==="done"||n.type==="reminder"||n.type==="mention"){const t=tasks.find(x=>x.title===n.sub||n.sub?.includes(x.title));if(t){setActive(t);setModal("taskDetail");setTab("tasks");}else setTab("tasks");}else setTab("comm");};
   const getUser = id=>users.find(u=>u.id===id)||{id:0,name:"Utilisateur supprimé",role:"",color:"#666",isOwner:false};
-  const getPri  = id=>PRIORITIES.find(p=>p.id===id)||{id:"normal",label:"Normale",color:"#666"};
-  // Cache common filters
-  const activeTasks = tasks.filter(t=>t.status!=="done");
-  const urgentTasks = tasks.filter(t=>t.priority==="urgent"&&t.status!=="done");
+  const getPri  = id=>PRIORITIES.find(p=>p.id===id);
   const stats = {
     todo:tasks.filter(t=>t.status==="todo").length,
     inprogress:tasks.filter(t=>t.status==="inprogress").length,
@@ -471,15 +410,14 @@ export default function App() {
     pinned:tasks.filter(t=>t.pinned&&t.status!=="done").length,
   };
 
-
+  const [showPDFInfo, setShowPDFInfo] = useState(false);
   const exportPDF = () => { setShowPDFInfo(true); };
 
   const css = makeCSS(dark, themeColor);
 
-
   if(!ready)return(<div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap');@keyframes spin{to{transform:rotate(360deg);}}`}</style><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div><div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/></div>);
 
-  if(!loginUser)return(<PinLoginScreen users={users} onLogin={u=>{setLoginUser(u);setMe(u);try{localStorage.setItem('groceryops_user',JSON.stringify({id:u.id,ts:Date.now()}));}catch(e){console.error(e)};}} onJoinRequest={sendJoinRequest}/>);
+  if(!loginUser)return(<PinLoginScreen users={users} onLogin={u=>{setLoginUser(u);setMe(u);}} onJoinRequest={sendJoinRequest}/>);
 
   return (
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",maxWidth:430,margin:"0 auto",position:"relative"}}>
@@ -510,7 +448,7 @@ export default function App() {
               style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)"}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </button>
-            {unread>0&&<span key={`b${unread}`} style={{position:"absolute",top:-3,right:-3,width:16,height:16,borderRadius:"50%",background:"#e63946",border:`2px solid var(--bg)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:"white",pointerEvents:"none"}}>{unread}</span>}
+            {unread>0&&<span style={{position:"absolute",top:-3,right:-3,width:16,height:16,borderRadius:"50%",background:"#e63946",border:`2px solid var(--bg)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:"white",pointerEvents:"none"}}>{unread}</span>}
           </div>
           <button className="btn" onClick={()=>setModal("accountMenu")} style={{width:34,height:34,borderRadius:10,background:"var(--gold)",fontSize:11,fontWeight:700,color:"#0a0a0d",border:"none"}}>
             {initials(me.name)}
@@ -519,13 +457,12 @@ export default function App() {
       </div>
 
       {/* CONTENT */}
-      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",paddingBottom:100,position:"relative",zIndex:1}}>
-        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent} onDeleteAnn={deleteAnnouncement} isOwner={isOwner}/>}
-        {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort} onUnarchive={unarchiveTask} tourConfig={tourConfig}/>}
-      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
+      <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
+        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent}/>}
+        {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
-        {tab==="stats" && <div/>}
+        {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports}/>}
         {tab==="gallery"  && <GalleryTab gallery={gallery} allAppPhotos={allAppPhotos} me={me} getUser={getUser} lang={lang} themeColor={themeColor} onCreateFolder={createGalleryFolder} onDeleteFolder={deleteGalleryFolder} onAddPhoto={addPhotoToFolder} onDeletePhoto={deletePhotoFromFolder} onRenameFolder={renameGalleryFolder}/>}
         {tab==="schedule" && <ScheduleTab schedules={schedules} scheduleDepts={scheduleDepts} me={me} isOwner={isOwner} onAdd={addSchedulePhoto} onDelete={deleteSchedulePhoto} onAddDept={addScheduleDept} onRemoveDept={removeScheduleDept} onRenameDept={renameScheduleDept}/>}
         {tab==="notes"    && <NotesTab notes={notes} me={me} onSave={saveNote}/>}
@@ -543,7 +480,7 @@ export default function App() {
           {id:"gallery", label:T(lang,"gallery"),  icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>},
           {id:"notes",   label:T(lang,"notes"),    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},
           {id:"comm",    label:T(lang,"comm"),     icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>},
-          // stats tab removed
+          {id:"stats",   label:T(lang,"stats"),    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>},
         ].map(({id,label,icon,badge})=>(
           <button key={id} className="nav-tab" onClick={()=>{setTab(id);if(id!=="tasks")setTaskFilter("all");}}
             style={{color:tab===id?"var(--gold)":"var(--t3)",position:"relative",flex:1}}>
@@ -563,10 +500,10 @@ export default function App() {
       {/* MODALS */}
       {modal==="newTask"      && <NewTaskModal    users={users} onSave={createTask} onClose={()=>setModal(null)}/>}
       {modal==="editTask"     && editTaskData && <EditTaskModal task={editTaskData} users={users} onSave={editTask} onClose={()=>{setModal(null);setEditTaskData(null);}}/>}
-      {modal==="taskDetail"   && active && <TaskDetailModal task={active} users={users} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onStatus={updateStatus} onComment={addComment} onDelete={deleteTask} onArchive={archiveTask} onEdit={t=>{setEditTaskData(t);setModal("editTask");}} onPin={togglePin} onClose={()=>{setModal(null);setActive(null);}}/>}
+      {modal==="taskDetail"   && activeTask && <TaskDetailModal task={activeTask} users={users} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onStatus={updateStatus} onComment={addComment} onDelete={deleteTask} onArchive={archiveTask} onEdit={t=>{setEditTaskData(t);setModal("editTask");}} onPin={togglePin} onClose={()=>{setModal(null);setActive(null);}}/>}
       {modal==="newUser"      && <NewUserModal    onSave={createUser} onClose={()=>setModal(null)}/>}
       {modal==="editUser"     && editUser && <EditUserModal user={editUser} me={me} isOwner={isOwner} onSave={updateUser} onDelete={deleteUser} onClose={()=>{setModal(null);setEditUser(null);}}/>}
-      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead} onDeleteNotif={deleteNotif} onClickNotif={n=>{clickNotif(n);setModal(null);}}/>}
+      {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead}/>}
       {modal==="switchUser"   && <SwitchUserModal users={users} me={me} onSwitch={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}} onClose={()=>setModal(null)}/>}
       {showPDFInfo && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPDFInfo(false)}>
@@ -591,16 +528,17 @@ export default function App() {
           onSwitchUser={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}}
           onSettings={()=>setModal("settings")}
           onStoreProfile={()=>setModal("storeProfile")}
-          
+          onExportPDF={()=>{setShowPDFInfo(true);setModal(null);}}
           onSearch={()=>{setGlobalSearch(true);setModal(null);}}
-          onSOS={()=>{setShowUrgency(true);setModal(null);}} onChangePin={()=>{setModal("changePin");}}
+          onSOS={()=>{setShowUrgency(true);setModal(null);}}
           onClose={()=>setModal(null)}
         />}
-      
+      {modal==="shiftReport"  && <ShiftReportModal me={me} onSave={saveShiftReport} onClose={()=>setModal(null)}/>}
+      {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
-      {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
-      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={async c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");try{const ex=await sb.get("app_settings","key=eq.tour_config");if(ex?.length)await sb.update("app_settings",ex[0].id,{value:JSON.stringify(c)});else await sb.insert("app_settings",{key:"tour_config",value:JSON.stringify(c)});}catch(e){console.error(e)}}} onClose={()=>setModal(null)}/>}
-      {modal==="changePin"&&<ChangePinModal me={me} onSave={async newPin=>{try{await sb.update('users',me.id,{pin:newPin});setUsers(p=>p.map(u=>u.id===me.id?{...u,pin:newPin}:u));setMe(p=>({...p,pin:newPin}));pushToast('NIP modifié !');setModal(null);}catch(e){pushToast('Erreur','warn');}}} onClose={()=>setModal(null)}/>}
+      {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={s=>{setStore(s);setModal(null);pushToast("Profil mis à jour !");}} onClose={()=>setModal(null)}/>}
+      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
+      {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Tournée supprimée","warn");}catch(e){pushToast("Erreur","warn");}}}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
       {/* TOAST */}
@@ -629,10 +567,10 @@ function StatBox({label,value,sub,onClick,themeColor}){
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────
-function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent,onDeleteAnn,isOwner}){
+function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColor,getUser,getPri,onNew,onGoTo,onTask,onNewEvent,onEditEvent,onDeleteEvent,onDeleteAnn,isOwner,onShiftReport}){
   const pinned = tasks.filter(t=>t.pinned&&t.status!=="done");
   return(
-    <div style={{padding:"22px 16px 80px",display:"flex",flexDirection:"column",gap:20}}>
+    <div style={{padding:"22px 16px 0",display:"flex",flexDirection:"column",gap:20}}>
       <div className="fade-in">
         <div className="tag" style={{marginBottom:5}}>BONJOUR</div>
         <div className="serif" style={{fontSize:32,fontWeight:700,letterSpacing:"-0.5px",color:"var(--text)",lineHeight:1.1}}>{me.name}</div>
@@ -643,18 +581,12 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
         <div className="fade-in">
           <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,5).map(a=>{
-              const isSOS=a.text?.includes("🆘");
-              return(
-                <div key={a.id} style={{padding:"12px 14px",background:isSOS?"rgba(230,57,70,0.08)":"rgba(244,162,97,0.08)",border:`1px solid ${isSOS?"rgba(230,57,70,0.3)":"rgba(244,162,97,0.2)"}`,borderRadius:12,borderLeft:`3px solid ${isSOS?"#e63946":"#f4a261"}`,display:"flex",alignItems:"flex-start",gap:8}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:13,color:isSOS?"#e63946":"var(--text)",lineHeight:1.5,fontWeight:isSOS?700:500}}>{a.text}</div>
-                    <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-                  </div>
-                  {isOwner&&<button onClick={()=>onDeleteAnn(a.id)} style={{width:24,height:24,borderRadius:7,background:"transparent",border:"none",color:"var(--t3)",fontSize:14,cursor:"pointer",flexShrink:0,marginTop:2}}>×</button>}
-                </div>
-              );
-            })}
+            {announcements.slice(0,5).map(a=>(
+              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5,fontWeight:500}}>{a.text}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -686,7 +618,7 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
           {label:T(lang,"startTour"),     icon:"🚶", action:()=>onGoTo("tour"), color:"var(--gold)"},
           {label:T(lang,"announce"),      icon:"📢", action:()=>onGoTo("comm"), color:"#f4a261"},
           {label:T(lang,"myNotes"),       icon:"📝", action:()=>onGoTo("notes"), color:"#8b5cf6"},
-
+          {label:"Rapport de shift",  icon:"📊", action:onShiftReport, color:"#2a9d8f"},
 
         ].map(s=>(
           <button key={s.label} className="btn card-tap" onClick={s.action}
@@ -697,7 +629,19 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
         ))}
       </div>
 
-
+      {announcements?.length>0&&(
+        <div className="fade-in">
+          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {announcements.slice(0,3).map(a=>(
+              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
+                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{a.text}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
 
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
@@ -708,7 +652,7 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
 }
 
 function MiniTaskCard({task,getUser,getPri,onClick}){
-  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status]||{label:task.status,color:'#888',bg:'#88818',border:'#888'};
+  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status]||{label:task.status,color:"#888",bg:"#88818",border:"#888"};
   return(
     <div className="card card-tap" onClick={onClick} style={{padding:"13px 15px",display:"flex",gap:10,alignItems:"center",borderLeft:`3px solid ${p?.color}`}}>
       <div style={{flex:1,minWidth:0}}>
@@ -721,7 +665,7 @@ function MiniTaskCard({task,getUser,getPri,onClick}){
 }
 
 // ─── TASKS TAB ────────────────────────────────────────────────────
-function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort,onUnarchive,tourConfig}){
+function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort}){
   const [filter,setFilter]   = useState(initFilter==="urgent"||initFilter==="pinned"?"all":initFilter==="done"?"done":initFilter||"active");
   const [priFilter,setPri]   = useState(initFilter==="urgent"?"urgent":"all");
   const [deptFilter,setDept] = useState("all");
@@ -752,7 +696,6 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
     (showArchived||(
       filter==="all"  ? true :
       filter==="active" ? t.status!=="done" :
-      filter==="mine"   ? t.assignedTo===me.id&&t.status!=="done" :
       t.status===filter
     ))&&
     (priFilter==="all"||t.priority===priFilter)&&
@@ -833,7 +776,7 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
           <div>
             <div className="tag" style={{marginBottom:8}}>DÉPARTEMENT</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["all",...((tourConfig?.order)||DEPARTMENTS)].map(d=>(
+              {["all",...DEPARTMENTS].map(d=>(
                 <button key={d} className="btn" onClick={()=>setDept(d)}
                   style={{padding:"5px 11px",borderRadius:20,fontSize:11,
                     background:deptFilter===d?"var(--gold)":"var(--s1)",
@@ -877,7 +820,7 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
 }
 
 function TaskCard({task,getUser,getPri,onClick,unseen}){
-  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status]||{label:task.status,color:'#888',bg:'#88818',border:'#888'};
+  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status]||{label:task.status,color:"#888",bg:"#88818",border:"#888"};
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date()&&task.status!=="done";
   return(
     <div className="card card-tap" onClick={onClick} style={{padding:"15px",borderLeft:`3px solid ${p?.color}`}}>
@@ -887,7 +830,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
           {task.pinned&&<span style={{fontSize:12,color:"var(--gold)"}}>★</span>}
           <div style={{fontSize:15,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.title}</div>
         </div>
-        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,marginLeft:8}}>
+        <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0,marginLeft:8}}>
           {task.recurrence&&task.recurrence!=="none"&&<span className="recur-tag">↻</span>}
           <span className="pill" style={{background:s.bg,color:s.color,border:`1px solid ${s.border}`}}>{s.label}</span>
         </div>
@@ -901,17 +844,16 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
           <span style={{fontSize:11,color:"var(--t3)"}}>· {task.department}</span>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {(task.comments?.length||0)>0&&<span style={{fontSize:11,color:"var(--t3)"}}>💬 {task.comments?.length||0}</span>}
+          {task.comments?.length||0>0&&<span style={{fontSize:11,color:"var(--t3)"}}>💬 {task.comments?.length||0}</span>}
           {task.dueDate&&<span style={{fontSize:11,color:overdue?"#e63946":"var(--t3)",fontWeight:overdue?700:400}}>{overdue?"⚠ ":""}{new Date(task.dueDate).toLocaleDateString("fr-CA",{month:"short",day:"numeric"})}{task.dueTime?" "+task.dueTime:""}</span>}
         </div>
       </div>
-
     </div>
   );
 }
 
 // ─── TOUR TAB ─────────────────────────────────────────────────────
-function TourTab({tourHistory,tourConfig,me,isOwner,onSelectTour,onStart,onEditConfig}){
+function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -968,10 +910,10 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onSelectTour,onStart,onEditC
           <div style={{fontSize:14,fontWeight:700,color:"var(--text)",textTransform:"capitalize"}}>{calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div>
           <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()+1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>›</button>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
           {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,color:"var(--t3)",fontWeight:700,padding:"4px 0"}}>{d}</div>)}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
           {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
           {Array(daysInMonth).fill(null).map((_,i)=>{
             const day=i+1;
@@ -985,7 +927,7 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onSelectTour,onStart,onEditC
                   background:isSel?"var(--gold)":isToday?"var(--gold-dim)":"transparent",
                   border:isToday&&!isSel?"1px solid var(--gold-b)":"1px solid transparent"}}>
                 <span style={{fontSize:12,fontWeight:isToday?700:400,color:isSel?"#0a0a0d":isToday?"var(--gold)":"var(--text)"}}>{day}</span>
-                {hasTours&&<div style={{display:"flex",gap:6,marginTop:2}}>
+                {hasTours&&<div style={{display:"flex",gap:2,marginTop:2}}>
                   {hasTours.map((_,ti)=><div key={ti} style={{width:4,height:4,borderRadius:"50%",background:isSel?"#0a0a0d":"var(--gold)"}}/>)}
                 </div>}
               </div>
@@ -996,16 +938,13 @@ function TourTab({tourHistory,tourConfig,me,isOwner,onSelectTour,onStart,onEditC
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div className="tag" style={{marginBottom:4}}>{new Date(selectedDay+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
             {selectedTours.map((t,i)=>(
-              <div key={i} style={{display:"flex",gap:8,alignItems:"stretch"}}>
-                <div onClick={()=>onSelectTour&&onSelectTour(t)} style={{flex:1,padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</span><span style={{color:"var(--t3)"}}>›</span></div>
-                  </div>
-                  <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
-                  {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
+              <div key={i} className="card-tap" onClick={()=>onSelectTour(t)} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)",cursor:"pointer"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{t.shift}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontSize:12,fontWeight:700,color:"var(--gold)"}}>{t.score}/{t.total}</div><span style={{color:"var(--t3)"}}>›</span></div>
                 </div>
-                <button onClick={()=>onSelectTour&&onSelectTour(t)} style={{width:32,borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",fontSize:13,cursor:"pointer",flexShrink:0}}>›</button>
+                <div style={{fontSize:11,color:"var(--t2)",marginTop:3}}>{t.doneBy} · {t.duration} · {t.startTime}</div>
+                {t.issues?.length>0&&<div style={{fontSize:11,color:"#e63946",marginTop:4}}>⚠ {t.issues.length} problème{t.issues.length>1?"s":""} signalé{t.issues.length>1?"s":""}</div>}
               </div>
             ))}
           </div>
@@ -1022,25 +961,17 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
     ...(config.deptItems[dept]||[]).map(item=>({dept,item,key:`${dept}__spec__${item}`})),
   ]);
 
-  // Restore saved progress from localStorage
   const draftKey = `groceryops_tour_${shift}_${me?.id}`;
   const savedDraft = (() => { try{ return JSON.parse(localStorage.getItem(draftKey)||'null'); }catch(e){return null;} })();
   const [checks,setChecks]   = useState(savedDraft?.checks||{});
-  const [photos,setPhotos]   = useState(savedDraft?.photos||{});
   const [notes,setNotes]     = useState(savedDraft?.notes||{});
+  const [photos,setPhotos]   = useState(savedDraft?.photos||{});
   const [currentDept,setCurrentDept] = useState(savedDraft?.currentDept||config.order[0]);
   const fileRef = useRef();
   const [photoTarget,setPhotoTarget] = useState(null);
-
-  // Auto-save progress to localStorage
-  useEffect(()=>{
-    try{
-      // Don't save photos (too heavy) - just checks and notes
-      localStorage.setItem(draftKey, JSON.stringify({checks,notes,currentDept,ts:Date.now()}));
-    }catch(e){}
-  },[checks,notes,currentDept]);
   const [activeIssue,setActiveIssue] = useState(null);
   const [photoLoading,setPhotoLoading] = useState(false);
+  useEffect(()=>{try{localStorage.setItem(draftKey,JSON.stringify({checks,notes,currentDept,ts:Date.now()}));}catch(e){};},[checks,notes,currentDept]);
 
   const deptItems = allItems.filter(x=>x.dept===currentDept);
   const totalItems = allItems.length;
@@ -1049,13 +980,10 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
 
   const handleFile = e => {
     const f=e.target.files[0]; if(!f) return;
-    setPhotoLoading(true);const r=new FileReader();r.onload=async ev=>{const c=await compressImage(ev.target.result,600,0.5);setPhotos(p=>({...p,[photoTarget]:c||ev.target.result}));setPhotoLoading(false);};r.onerror=()=>setPhotoLoading(false);r.readAsDataURL(f);
+    const r=new FileReader(); r.onload=ev=>setPhotos(p=>({...p,[photoTarget]:ev.target.result})); r.readAsDataURL(f);
   };
 
-  const [saving, setSaving] = useState(false);
   const handleSave = () => {
-    if(saving) return;
-    setSaving(true);
     const issues = allItems.filter(x=>checks[x.key]==="issue").map(x=>({...x,note:notes[x.key],photo:photos[x.key]}));
     const elapsed = Math.round((Date.now()-startTime)/60000);
     const duration = elapsed<60?`${elapsed} min`:`${Math.floor(elapsed/60)}h${elapsed%60>0?" "+elapsed%60+"min":""}`;
@@ -1067,11 +995,10 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
   };
 
   return(
-    <div style={{position:"fixed",inset:0,background:"var(--s1)",zIndex:50,display:"flex",flexDirection:"column",height:"100%",height:"100dvh"}}>
-      <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column"}}>
+      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column"}}>
         {/* HEADER */}
         <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
-          {savedDraft&&<div style={{background:"rgba(42,157,143,0.12)",border:"1px solid rgba(42,157,143,0.3)",borderRadius:10,padding:"7px 12px",marginBottom:10,fontSize:12,color:"#2a9d8f",fontWeight:600}}>↩ Reprise de ta tournée — progression restaurée !</div>}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
               <div className="tag" style={{marginBottom:3}}>TOURNÉE</div>
@@ -1087,7 +1014,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
             <div style={{fontSize:12,fontWeight:700,color:"var(--gold)",whiteSpace:"nowrap"}}>{doneItems}/{totalItems}</div>
           </div>
           {/* DEPT TABS */}
-          <div style={{display:"flex",gap:6,overflowX:"auto",marginTop:10,paddingBottom:2}}>
+          <div style={{display:"flex",gap:5,overflowX:"auto",marginTop:10,paddingBottom:2}}>
             {config.order.map(d=>{
               const dItems=allItems.filter(x=>x.dept===d);
               const dDone=dItems.filter(x=>checks[x.key]==="ok"||checks[x.key]==="issue").length;
@@ -1106,7 +1033,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* ITEMS */}
-        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px 16px 100px",minHeight:0}}>
+        <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
           <div className="tag" style={{marginBottom:4}}>{currentDept}</div>
           {deptItems.map(({item,key})=>{
             const status=checks[key];
@@ -1121,7 +1048,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                         border:`1px solid ${status==="ok"?"rgba(42,157,143,0.4)":"var(--border)"}`}}>
                       ✓
                     </button>
-                    <button className="btn" onClick={()=>{setChecks(p=>{const n={...p,[key]:p[key]==="issue"?undefined:"issue"};if(n[key]==="issue")setTimeout(()=>setActiveIssue(key),50);return n;});}}
+                    <button className="btn" onClick={()=>setChecks(p=>({...p,[key]:p[key]==="issue"?undefined:"issue"}))}
                       style={{width:36,height:36,borderRadius:10,fontSize:16,
                         background:status==="issue"?"rgba(230,57,70,0.12)":"var(--s1)",
                         border:`1px solid ${status==="issue"?"rgba(230,57,70,0.35)":"var(--border)"}`}}>
@@ -1129,46 +1056,28 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
                     </button>
                   </div>
                 </div>
-
+                {status==="issue"&&(
+                  <div style={{padding:"0 14px 12px",display:"flex",flexDirection:"column",gap:8}}>
+                    <input className="field" value={notes[key]||""} onChange={e=>setNotes(p=>({...p,[key]:e.target.value}))} placeholder="Décrire le problème..." style={{fontSize:13,padding:"10px 12px"}}/>
+                    <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(key)}/>
+                    {photos[key]
+                      ? <div style={{position:"relative",borderRadius:10,overflow:"hidden"}}>
+                          <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={photos[key]} alt="" style={{width:"100%",maxHeight:100,objectFit:"cover",display:"block"}}/>
+                          <button className="btn" onClick={()=>setPhotos(p=>({...p,[key]:null}))} style={{position:"absolute",top:5,right:5,width:24,height:24,borderRadius:"50%",background:"rgba(0,0,0,0.65)",color:"white",fontSize:13,border:"none"}}>×</button>
+                        </div>
+                      : <button className="btn btn-ghost" onClick={()=>{setPhotoTarget(key);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"9px",borderRadius:10,fontSize:12}}>📷 Ajouter une photo</button>
+                    }
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* ISSUE DETAIL POPUP */}
-        {activeIssue&&(
-          <div style={{position:"absolute",inset:0,background:"var(--s1)",zIndex:20,display:"flex",flexDirection:"column"}}>
-            <div style={{padding:"16px 18px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-              <div className="serif" style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>Détail du problème</div>
-              <button onClick={()=>setActiveIssue(null)} style={{width:32,height:32,borderRadius:9,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:18,cursor:"pointer"}}>×</button>
-            </div>
-            <div style={{flex:1,padding:"16px 18px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
-              <div style={{fontSize:13,fontWeight:600,color:"var(--t2)"}}>{allItems.find(x=>x.key===activeIssue)?.item}</div>
-              <textarea className="field" value={notes[activeIssue]||""} onChange={e=>setNotes(p=>({...p,[activeIssue]:e.target.value}))} placeholder="Décrire le problème en détail..." rows={4} style={{fontSize:14,padding:"12px",resize:"none",lineHeight:1.5}}/>
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:"none"}} onClick={()=>setPhotoTarget(activeIssue)}/>
-              {photoLoading
-                ? <div style={{padding:24,textAlign:"center",color:"var(--t2)",fontSize:13}}>📷 Compression en cours...</div>
-                : photos[activeIssue]
-                  ? <div style={{position:"relative",borderRadius:12,overflow:"hidden"}}>
-                      <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={photos[activeIssue]} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/>
-                      <button onClick={()=>setPhotos(p=>({...p,[activeIssue]:null}))} style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:16,border:"none",cursor:"pointer"}}>×</button>
-                    </div>
-                  : <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"14px",borderRadius:12,background:"var(--s2)",border:"1px dashed var(--border)",color:"var(--t2)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Ajouter une photo</button>
-              }
-              {photos[activeIssue]&&(
-                <button onClick={()=>{setPhotoTarget(activeIssue);setTimeout(()=>fileRef.current?.click(),50);}} style={{padding:"10px",borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📷 Changer la photo</button>
-              )}
-            </div>
-            <div style={{padding:"12px 18px 32px",borderTop:"1px solid var(--border)",flexShrink:0}}>
-              <button onClick={()=>setActiveIssue(null)} style={{width:"100%",padding:"14px",borderRadius:12,background:"var(--gold)",color:"#0a0a0d",fontSize:15,fontWeight:700,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif"}}>Confirmer</button>
-            </div>
-          </div>
-        )}
-
         {/* FOOTER */}
-        <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0,background:"var(--s1)"}}>
-          <button className="btn btn-gold" onClick={handleSave} disabled={saving} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,opacity:saving?0.6:1}}>
-            {saving?"Sauvegarde...":"Terminer la tournée · "+pct+"% complété"}
+        <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0}}>
+          <button className="btn btn-gold" onClick={handleSave} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15}}>
+            Terminer la tournée · {pct}% complété
           </button>
         </div>
       </div>
@@ -1181,26 +1090,7 @@ function TourConfigModal({config,onSave,onClose}){
   const [cfg,setCfg] = useState(JSON.parse(JSON.stringify(config)));
   const [activeTab,setActiveTab] = useState("base");
   const [newItem,setNewItem] = useState("");
-  const [newDept,setNewDept] = useState("");
-  const [showAddDept,setShowAddDept] = useState(false);
 
-  const addDept = () => {
-    if(!newDept.trim()) return;
-    const d = newDept.trim();
-    if(cfg.order.includes(d)) return;
-    setCfg(c=>({...c, order:[...c.order, d], deptItems:{...c.deptItems, [d]:[]}}));
-    setNewDept("");
-    setShowAddDept(false);
-    setActiveTab(d);
-  };
-  const removeDept = dept => {
-    if(cfg.order.length <= 1) return;
-    const newOrder = cfg.order.filter(d=>d!==dept);
-    const newDeptItems = {...cfg.deptItems};
-    delete newDeptItems[dept];
-    setCfg(c=>({...c, order:newOrder, deptItems:newDeptItems}));
-    setActiveTab(newOrder[0]||"base");
-  };
   const addItem = () => {
     if(!newItem.trim()) return;
     if(activeTab==="base") setCfg(c=>({...c,baseItems:[...c.baseItems,newItem.trim()]}));
@@ -1236,7 +1126,7 @@ function TourConfigModal({config,onSave,onClose}){
           </div>
           <button className="btn btn-gold" onClick={()=>onSave(cfg)} style={{width:"100%",padding:"14px",borderRadius:13,fontSize:14}}>Sauvegarder</button>
         </div>
-        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{flex:1,overflowY:"auto",padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
 
           {/* ORDER */}
           <div>
@@ -1246,31 +1136,20 @@ function TourConfigModal({config,onSave,onClose}){
                 <div key={dept} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--s2)",borderRadius:11,border:"1px solid var(--border)"}}>
                   <div style={{width:22,height:22,borderRadius:6,background:"var(--gold-dim)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"var(--gold)"}}>{i+1}</div>
                   <div style={{flex:1,fontSize:13,fontWeight:500,color:"var(--text)"}}>{dept}</div>
-                  <div style={{display:"flex",gap:6}}>
+                  <div style={{display:"flex",gap:4}}>
                     <button className="btn btn-ghost" onClick={()=>moveOrder(i,-1)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>↑</button>
                     <button className="btn btn-ghost" onClick={()=>moveOrder(i,1)}  style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>↓</button>
-                    <button onClick={()=>{if(cfg.order.length>1){const o=cfg.order.filter(d=>d!==dept);const di={...cfg.deptItems};delete di[dept];setCfg(c=>({...c,order:o,deptItems:di}));setActiveTab(o[0]||'base');}}} style={{width:28,height:28,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.2)",color:"#e63946",fontSize:14,cursor:"pointer",padding:0}}>×</button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* ADD DEPT BUTTON */}
-          {!showAddDept
-            ? <button onClick={()=>setShowAddDept(true)} style={{width:"100%",padding:"10px",borderRadius:11,background:"transparent",border:"1.5px dashed var(--border)",color:"var(--t2)",fontSize:13,cursor:"pointer",marginTop:4}}>+ Ajouter un département</button>
-            : <div style={{display:"flex",gap:8,marginTop:4}}>
-                <input className="field" value={newDept} onChange={e=>setNewDept(e.target.value)} placeholder="Nom du département..." style={{flex:1,padding:"10px 12px",fontSize:13}} onKeyDown={e=>e.key==="Enter"&&addDept()}/>
-                <button onClick={addDept} style={{padding:"10px 14px",borderRadius:11,background:"var(--gold)",color:"#0a0a0d",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>Ajouter</button>
-                <button onClick={()=>{setShowAddDept(false);setNewDept("");}} style={{padding:"10px",borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",cursor:"pointer",fontSize:13}}>×</button>
-              </div>
-          }
-
           {/* ITEMS */}
           <div>
             <div className="tag" style={{marginBottom:10}}>POINTS À VÉRIFIER</div>
-            <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
-              {["base",...cfg.order].map(t=>(
+            <div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
+              {["base",...DEPARTMENTS].map(t=>(
                 <button key={t} className="btn" onClick={()=>setActiveTab(t)}
                   style={{padding:"6px 12px",borderRadius:20,fontSize:11,whiteSpace:"nowrap",flexShrink:0,
                     background:activeTab===t?"var(--gold)":"var(--s2)",color:activeTab===t?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
@@ -1306,21 +1185,6 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
         {isOwner&&<button className="btn btn-gold" onClick={onAdd} style={{padding:"9px 16px",borderRadius:12,fontSize:13}}>+ Ajouter</button>}
       </div>
       {!isOwner&&<div className="card" style={{padding:"12px 16px",textAlign:"center",fontSize:13,color:"var(--t2)"}}>Seul le propriétaire peut gérer l'équipe</div>}
-      {isOwner&&joinRequests?.filter(r=>r.status==="pending").length>0&&(
-        <div>
-          <div className="tag" style={{marginBottom:10}}>DEMANDES D'ACCÈS</div>
-          {joinRequests.filter(r=>r.status==="pending").map(r=>(
-            <div key={r.id} className="card" style={{padding:14,borderLeft:"3px solid #f4a261",marginBottom:8}}>
-              <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{r.name}</div>
-              <div style={{fontSize:12,color:"var(--t2)",marginBottom:10}}>{r.role}</div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>onApprove(r)} style={{flex:1,padding:10,borderRadius:11,background:"rgba(42,157,143,0.1)",border:"1px solid rgba(42,157,143,0.3)",color:"#2a9d8f",fontSize:13,fontWeight:700,cursor:"pointer"}}>✓ Approuver</button>
-                <button onClick={()=>onReject(r)} style={{flex:1,padding:10,borderRadius:11,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:13,cursor:"pointer"}}>✕ Refuser</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {users.map(u=>{
           const active=tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done").length;
@@ -1350,22 +1214,180 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
 }
 
 // ─── STATS TAB ────────────────────────────────────────────────────
+function StatsTab({tasks,users,tourHistory,shiftReports}){
+  const [period,setPeriod]=useState(7);
+  const since=Date.now()-period*86400000;
+  const inPeriod=tasks.filter(t=>t.createdAt>=since);
+  const completed=tasks.filter(t=>t.completedAt&&t.completedAt>=since);
+  const rate=tasks.length>0?Math.round((tasks.filter(t=>t.status==="done").length/tasks.length)*100):0;
+  const late=tasks.filter(t=>t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date());
+  const byUser=users.map(u=>({...u,done:tasks.filter(t=>t.assignedTo===u.id&&t.status==="done").length,total:tasks.filter(t=>t.assignedTo===u.id).length,late:tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).sort((a,b)=>b.done-a.done);
+  const byDept=DEPARTMENTS.map(d=>({name:d,total:tasks.filter(t=>t.department===d).length,done:tasks.filter(t=>t.department===d&&t.status==="done").length,late:tasks.filter(t=>t.department===d&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
+  const tourScore=tourHistory.length>0?Math.round(tourHistory.reduce((acc,t)=>acc+(t.score/t.total*100),0)/tourHistory.length):null;
+  return(
+    <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:16}}>
+      <div><div className="tag" style={{marginBottom:4}}>PERFORMANCE</div><div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>Statistiques</div></div>
+      <div style={{display:"flex",gap:8}}>
+        {[7,14,30].map(d=>(
+          <button key={d} className="btn" onClick={()=>setPeriod(d)} style={{flex:1,padding:"9px",borderRadius:12,fontSize:13,fontWeight:600,background:period===d?"var(--gold)":"var(--s2)",color:period===d?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
+            {d}j
+          </button>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        {[
+          {label:"Créées",val:inPeriod.length,color:"var(--gold)"},
+          {label:"Complétées",val:completed.length,color:"#2a9d8f"},
+          {label:"Taux",val:`${rate}%`,color:"var(--gold)"},
+          {label:"En retard",val:late.length,color:"#e63946"},
+        ].map(s=>(
+          <div key={s.label} className="card" style={{padding:"15px",borderTop:`2px solid ${s.color}`}}>
+            <div className="serif" style={{fontSize:30,fontWeight:700,color:s.color,lineHeight:1}}>{s.val}</div>
+            <div style={{fontSize:12,color:"var(--t2)",marginTop:6,fontWeight:500}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      {tourScore!==null&&(
+        <div className="card" style={{padding:"15px",borderTop:"2px solid var(--gold)",display:"flex",alignItems:"center",gap:14}}>
+          <div><div className="serif" style={{fontSize:28,fontWeight:700,color:"var(--gold)"}}>{tourScore}%</div><div style={{fontSize:12,color:"var(--t2)",marginTop:4}}>Score moyen des tournées</div></div>
+          <div style={{marginLeft:"auto",fontSize:12,color:"var(--t3)"}}>{tourHistory.length} tournée{tourHistory.length>1?"s":""}</div>
+        </div>
+      )}
+      {shiftReports?.length>0&&(()=>{
+        const avgRating = Math.round(shiftReports.reduce((a,r)=>a+r.rating,0)/shiftReports.length*10)/10;
+        const avgTraffic = ["faible","moyen","fort"][Math.round(shiftReports.reduce((a,r)=>a+(r.traffic==="fort"?2:r.traffic==="moyen"?1:0),0)/shiftReports.length)];
+        return(
+          <div className="card" style={{padding:"15px",borderTop:"2px solid var(--gold)",display:"flex",alignItems:"center",gap:14}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:2,marginBottom:4}}>
+                {[1,2,3,4,5].map(n=><span key={n} style={{fontSize:18,color:n<=avgRating?"var(--gold)":"var(--t3)"}}>★</span>)}
+              </div>
+              <div style={{fontSize:12,color:"var(--t2)"}}>Note moyenne des journées · Achalandage {avgTraffic}</div>
+            </div>
+            <div style={{textAlign:"right",fontSize:12,color:"var(--t3)"}}>{shiftReports.length} rapport{shiftReports.length>1?"s":""}</div>
+          </div>
+        );
+      })()}
+      <div>
+        <div className="tag" style={{marginBottom:10}}>PAR MEMBRE</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {byUser.map(u=>(
+            <div key={u.id} className="card" style={{padding:"14px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:9}}>
+                <div style={{width:30,height:30,borderRadius:8,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:u.id===1?"#0a0a0d":"white"}}>{initials(u.name)}</div>
+                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{u.name}</div><div style={{fontSize:11,color:"var(--t2)"}}>{u.role}</div></div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:15,fontWeight:700,color:"#2a9d8f"}}>{u.done}<span style={{fontSize:11,color:"var(--t3)",fontWeight:400}}>/{u.total}</span></div>
+                  {u.late>0&&<div style={{fontSize:10,color:"#e63946",fontWeight:600}}>{u.late} en retard</div>}
+                </div>
+              </div>
+              <div style={{height:4,background:"var(--s2)",borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${u.total>0?Math.round(u.done/u.total*100):0}%`,background:"linear-gradient(90deg,var(--gold),#a8853b)",borderRadius:2,transition:"width 1s"}}/>
+              </div>
+              <div style={{fontSize:10,color:"var(--t3)",marginTop:4,textAlign:"right"}}>{u.total>0?Math.round(u.done/u.total*100):0}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="tag" style={{marginBottom:10}}>PAR DÉPARTEMENT</div>
+        <div style={{display:"flex",flexDirection:"column",gap:7}}>
+          {byDept.map(d=>(
+            <div key={d.name} className="card" style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:6}}>{d.name}</div>
+                <div style={{height:4,background:"var(--s2)",borderRadius:2,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${d.total>0?Math.round(d.done/d.total*100):0}%`,background:"linear-gradient(90deg,var(--gold),#a8853b)",borderRadius:2}}/>
+                </div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{d.done}<span style={{fontSize:11,color:"var(--t3)"}}>/{d.total}</span></div>
+                {d.late>0&&<div style={{fontSize:10,color:"#e63946"}}>{d.late} en retard</div>}
+              </div>
+            </div>
+          ))}
+          {byDept.length===0&&<div style={{textAlign:"center",padding:"24px",color:"var(--t3)",fontSize:13}}>Aucune donnée</div>}
+        </div>
+      </div>
+      {/* RAPPORT DE JOURNÉE HISTORIQUE */}
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div className="tag">RAPPORTS DE JOURNÉE</div>
+          <span style={{fontSize:11,color:"var(--t3)"}}>{shiftReports.length} rapport{shiftReports.length!==1?"s":""}</span>
+        </div>
+        {shiftReports.length===0
+          ? <div className="card" style={{padding:"24px",textAlign:"center"}}>
+              <div style={{fontSize:28,marginBottom:8}}>📊</div>
+              <div style={{fontSize:13,color:"var(--t3)"}}>Aucun rapport encore</div>
+              <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>Les rapports apparaîtront ici après chaque journée</div>
+            </div>
+          : <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {shiftReports.slice(0,20).map(r=>{
+                const trafficColor = r.traffic==="fort"?"#e63946":r.traffic==="moyen"?"#f4a261":"#2a9d8f";
+                const trafficLabel = r.traffic==="fort"?"🔴 Fort":r.traffic==="moyen"?"🟡 Moyen":"🟢 Faible";
+                return(
+                  <div key={r.id} className="card" style={{padding:"16px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                      <div>
+                        <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>
+                          {new Date(r.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}
+                        </div>
+                        <div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>Par {r.doneBy} · {ago(r.ts)}</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{display:"flex",gap:3,justifyContent:"flex-end",marginBottom:4}}>
+                          {[1,2,3,4,5].map(n=>(
+                            <span key={n} style={{fontSize:14,color:n<=r.rating?"var(--gold)":"var(--t3)"}}>★</span>
+                          ))}
+                        </div>
+                        <span style={{fontSize:11,fontWeight:700,color:trafficColor}}>{trafficLabel}</span>
+                      </div>
+                    </div>
+                    {r.highlights&&(
+                      <div style={{marginBottom:8,padding:"8px 12px",background:"rgba(42,157,143,0.08)",borderRadius:10,borderLeft:"2px solid #2a9d8f"}}>
+                        <div style={{fontSize:10,fontWeight:700,color:"#2a9d8f",marginBottom:3}}>POINTS POSITIFS</div>
+                        <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{r.highlights}</div>
+                      </div>
+                    )}
+                    {r.incidents&&(
+                      <div style={{marginBottom:8,padding:"8px 12px",background:"rgba(230,57,70,0.07)",borderRadius:10,borderLeft:"2px solid #e63946"}}>
+                        <div style={{fontSize:10,fontWeight:700,color:"#e63946",marginBottom:3}}>INCIDENTS</div>
+                        <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{r.incidents}</div>
+                      </div>
+                    )}
+                    {r.notes&&(
+                      <div style={{padding:"8px 12px",background:"var(--s2)",borderRadius:10}}>
+                        <div style={{fontSize:10,fontWeight:700,color:"var(--t3)",marginBottom:3}}>NOTES</div>
+                        <div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5}}>{r.notes}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ─── TASK DETAIL MODAL ────────────────────────────────────────────
 function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onComment,onDelete,onEdit,onPin,onArchive,onClose}){
   const [comment,setComment]=useState("");
   const [completionNote,setNote]=useState("");
   const [completionPhoto,setPhoto]=useState(null);
   const [confirmDel,setConfirmDel]=useState(false);
   const fileRef=useRef(); const bottomRef=useRef();
-  const p=getPri(task.priority); const assigned=getUser(task.assignedTo); const createdBy=getUser(task.createdBy); const s=STATUS_META[task.status]||{label:task.status,color:'#888',bg:'#88818',border:'#888'};
+  const p=getPri(task.priority); const assigned=getUser(task.assignedTo); const createdBy=getUser(task.createdBy); const s=STATUS_META[task.status]||{label:task.status,color:"#888",bg:"#88818",border:"#888"};
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date()&&task.status!=="done";
   const canEdit=isOwner||me.id===task.createdBy||me.id===task.assignedTo;
-  const canComplete=true; // All users can complete any task
-  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{const c=await compressImage(ev.target.result);setPhoto(c||ev.target.result);};r.readAsDataURL(f);};
+  const canComplete=true;
+  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setPhoto(ev.target.result);r.readAsDataURL(f);};
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain",flex:1,minHeight:0,padding:"4px 18px 80px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",flex:1,padding:"4px 18px 16px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               <span className="pill" style={{background:p?.bg,color:p?.color,border:`1px solid ${p?.border}`}}>{p?.label}</span>
@@ -1385,7 +1407,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
             <div style={{fontSize:12,color:"var(--t3)"}}>Par {createdBy?.name} · {ago(task.createdAt)}</div>
           </div>
           {task.description&&<div style={{fontSize:14,color:"var(--t2)",lineHeight:1.7,padding:"12px 14px",background:"var(--s2)",borderRadius:12}}>{task.description}</div>}
-          {task.photo&&<div style={{borderRadius:14,overflow:"hidden",flexShrink:0,height:160}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>}
+          {task.photo&&<div style={{borderRadius:14,overflow:"hidden"}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/></div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {[
               {label:"ASSIGNÉ À",val:<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:20,height:20,borderRadius:6,background:assigned?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:assigned?.id===1?"#0a0a0d":"white"}}>{initials(assigned?.name||"?")}</div><span>{assigned?.name}</span></div>},
@@ -1449,18 +1471,16 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
         </div>
       )}
     </div>
-  </div>
-    </div>
   );
 }
 
 // ─── NEW/EDIT TASK MODAL ──────────────────────────────────────────
-function TaskFormModal({initial,users,onSave,onClose,title,tourConfig}){
+function TaskFormModal({initial,users,onSave,onClose,title}){
   const [form,setForm]=useState(initial);
   const fileRef=useRef();
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const toggleDay=d=>setForm(p=>({...p,customDays:p.customDays?.includes(d)?p.customDays.filter(x=>x!==d):[...(p.customDays||[]),d]}));
-  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{const c=await compressImage(ev.target.result);set("photo")(c||ev.target.result);};r.readAsDataURL(f);};
+  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>set("photo")(ev.target.result);r.readAsDataURL(f);};
   const handleSave=()=>{if(!form.title.trim()){alert("Veuillez entrer un titre");return;}onSave(form);};
   return(
     <div className="overlay" onClick={onClose}>
@@ -1475,7 +1495,7 @@ function TaskFormModal({initial,users,onSave,onClose,title,tourConfig}){
             {title==="Nouvelle tâche"?"Publier la tâche":"Sauvegarder"}
           </button>
         </div>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <FL label="TITRE *"><input className="field" value={form.title} onChange={e=>set("title")(e.target.value)} placeholder="Ex: Vérifier les prix du circulaire"/></FL>
           <FL label="DESCRIPTION"><textarea className="field" value={form.description} onChange={e=>set("description")(e.target.value)} placeholder="Détails..." rows={2} style={{resize:"none"}}/></FL>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1483,7 +1503,7 @@ function TaskFormModal({initial,users,onSave,onClose,title,tourConfig}){
             <FL label="PRIORITÉ"><select className="field" value={form.priority} onChange={e=>set("priority")(e.target.value)}>{PRIORITIES.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></FL>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <FL label="DÉPARTEMENT"><select className="field" value={form.department} onChange={e=>set("department")(e.target.value)}>{[...((tourConfig?.order)||DEPARTMENTS)].map(d=><option key={d} value={d}>{d}</option>)}</select></FL>
+            <FL label="DÉPARTEMENT"><select className="field" value={form.department} onChange={e=>set("department")(e.target.value)}>{DEPARTMENTS.map(d=><option key={d} value={d}>{d}</option>)}</select></FL>
             <FL label="STATUT"><select className="field" value={form.status} onChange={e=>set("status")(e.target.value)}>{Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></FL>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1532,13 +1552,13 @@ function EditTaskModal({task,users,onSave,onClose}){
 // ─── USER MODALS ──────────────────────────────────────────────────
 function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
   const [form,setForm]=useState({...initial});
-  const [confirmDel,setConfirmDel]=useState(false);
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
+  const [confirmDel,setConfirmDel]=useState(false);
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{title}</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -1590,6 +1610,7 @@ function EditUserModal({user,me,isOwner,onSave,onDelete,onClose}){return <UserFo
 
 // ─── STORE PROFILE MODAL ──────────────────────────────────────────
 function StoreProfileModal({store,onSave,onClose}){
+  const [form,setForm]=useState({...store});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const fileRef=useRef();
   const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>set("logo")(ev.target.result);r.readAsDataURL(f);};
@@ -1597,7 +1618,7 @@ function StoreProfileModal({store,onSave,onClose}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>Profil du magasin</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -1637,7 +1658,7 @@ function NotifsModal({notifs,onClose}){
           <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>Notifications</div>
           <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
         </div>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{overflowY:"auto",flex:1,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
           {notifs.length===0
             ? <div style={{textAlign:"center",padding:"32px",color:"var(--t3)",fontSize:14}}>Aucune notification</div>
             : notifs.map(n=>(
@@ -1663,7 +1684,7 @@ function SwitchUserModal({users,me,onSwitch,onClose}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
           <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)",marginBottom:4}}>Changer de compte</div>
           {users.map(u=>(
             <button key={u.id} className="btn" onClick={()=>onSwitch(u)}
@@ -1713,6 +1734,7 @@ const REMINDER_OPTIONS = [
 function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEditEvent,onDeleteAnnouncement,onNewAnnouncement}){
   const [view,setView]=useState("calendar");
   const [calDate,setCalDate]=useState(new Date());
+  const [selectedDay,setSelectedDay]=useState(null);
 
   const year=calDate.getFullYear(); const month=calDate.getMonth();
   const firstDay=new Date(year,month,1).getDay();
@@ -1759,10 +1781,10 @@ function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEdi
             <div style={{fontSize:14,fontWeight:700,color:"var(--text)",textTransform:"capitalize"}}>{calDate.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div>
             <button className="btn btn-ghost" onClick={()=>setCalDate(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{width:32,height:32,borderRadius:9,fontSize:16}}>›</button>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:8}}>
             {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
             {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
             {Array(daysInMonth).fill(null).map((_,i)=>{
               const day=i+1;
@@ -1776,7 +1798,7 @@ function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEdi
                     background:isSel?"var(--gold)":isToday?"var(--gold-dim)":"transparent",
                     border:isToday&&!isSel?"1px solid var(--gold-b)":"1px solid transparent"}}>
                   <span style={{fontSize:12,fontWeight:isToday?700:400,color:isSel?"#0a0a0d":isToday?"var(--gold)":"var(--text)",marginBottom:3}}>{day}</span>
-                  <div style={{display:"flex",flexDirection:"column",gap:6,width:"100%",padding:"0 2px"}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:1,width:"100%",padding:"0 2px"}}>
                     {dayEvents.slice(0,2).map((ev,ei)=>(
                       <div key={ei} style={{height:4,borderRadius:2,background:isSel?"rgba(10,10,13,0.4)":ev.color,width:"100%"}}/>
                     ))}
@@ -1874,6 +1896,7 @@ function EventCard({event,getUser,onEdit,showDate,past}){
 // ─── EVENT FORM MODAL ─────────────────────────────────────────────
 function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
   const [form,setForm]=useState({...initial});
+  const [confirmDel,setConfirmDel]=useState(false);
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const toggleMember=id=>setForm(p=>({...p,members:p.members?.includes(id)?p.members.filter(x=>x!==id):[...(p.members||[]),id]}));
   const toggleDay=d=>setForm(p=>({...p,customDays:p.customDays?.includes(d)?p.customDays.filter(x=>x!==d):[...(p.customDays||[]),d]}));
@@ -1890,7 +1913,7 @@ function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
             {onDelete?"Sauvegarder":"Créer l'événement"}
           </button>
         </div>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <FL label="TITRE *"><input className="field" value={form.title||""} onChange={e=>set("title")(e.target.value)} placeholder="Ex: Réunion direction"/></FL>
           <FL label="DESCRIPTION / ORDRE DU JOUR"><textarea className="field" value={form.description||""} onChange={e=>set("description")(e.target.value)} placeholder="Points à discuter..." rows={2} style={{resize:"none"}}/></FL>
 
@@ -1984,14 +2007,14 @@ function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
 }
 
 // ─── ANNOUNCEMENT MODAL ───────────────────────────────────────────
-function AnnouncementModal({me,users,onSave,onClose,tourConfig}){
+function AnnouncementModal({me,users,onSave,onClose}){
   const [text,setText]=useState("");
   const [dept,setDept]=useState("all");
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📢 Nouvelle annonce</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -2001,7 +2024,7 @@ function AnnouncementModal({me,users,onSave,onClose,tourConfig}){
           </FL>
           <FL label="DESTINATAIRES">
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["all",...((tourConfig?.order)||DEPARTMENTS)].map(d=>(
+              {["all",...DEPARTMENTS].map(d=>(
                 <button key={d} className="btn" onClick={()=>setDept(d)}
                   style={{padding:"7px 13px",borderRadius:20,fontSize:12,whiteSpace:"nowrap",
                     background:dept===d?"var(--gold)":"var(--s2)",color:dept===d?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
@@ -2066,7 +2089,7 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
   const handleFile = e => {
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
-    r.onload=async ev=>{const c=await compressImage(ev.target.result);onAdd(selectedDept, label||"Semaine du "+new Date().toLocaleDateString("fr-CA",{day:"numeric",month:"long"}), c||ev.target.result); setLabel(""); setShowAdd(false);};
+    r.onload=ev=>{ onAdd(selectedDept, label||"Semaine du "+new Date().toLocaleDateString("fr-CA",{day:"numeric",month:"long"}), ev.target.result); setLabel(""); setShowAdd(false); };
     r.readAsDataURL(f);
   };
 
@@ -2284,7 +2307,7 @@ function SettingsModal({lang,setLang,themeColor,setThemeColor,dark,setDark,onClo
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:20}}>
+        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>⚙ {T(lang,"settings")}</div>
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
@@ -2353,13 +2376,16 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
   const [showNewFolder,setShowNewFolder] = useState(false);
   const [newFolderName,setNewFolderName] = useState("");
   const [renamingId,setRenamingId] = useState(null);
+  const [renameVal,setRenameVal] = useState("");
   const [caption,setCaption] = useState("");
+  const [selectedPhoto,setSelectedPhoto] = useState(null);
   const fileRef = useRef();
 
   const handleFile = e => {
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
-    r.onload=async ev=>{const c=await compressImage(ev.target.result);onAddPhoto(selectedFolder,c||ev.target.result,caption||"Sans titre");setCaption("");};r.readAsDataURL(f);
+    r.onload=ev=>{ onAddPhoto(selectedFolder,ev.target.result,caption||"Sans titre"); setCaption(""); };
+    r.readAsDataURL(f);
   };
 
   const currentFolder = gallery.find(f=>f.id===selectedFolder);
@@ -2381,9 +2407,6 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
           )}
           {selectedFolder!==null&&selectedFolder!==0&&(
             <button className="btn btn-gold" onClick={()=>fileRef.current?.click()} style={{padding:"8px 14px",borderRadius:11,fontSize:13}}>+ Photo</button>
-          )}
-          {selectedFolder!==null&&selectedFolder!==0&&displayPhotos.length>0&&(
-            <button className="btn btn-danger" onClick={()=>{displayPhotos.filter(p=>p.id).forEach(p=>onDeletePhoto(selectedFolder,p.id));}} style={{padding:"8px 10px",borderRadius:11,fontSize:12}}>Tout suppr.</button>
           )}
         </div>
       </div>
@@ -2425,7 +2448,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
                 <div key={folder.id} className="card card-tap" onClick={()=>setSelectedFolder(folder.id)}
                   style={{padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
                   {/* PREVIEW THUMBNAILS */}
-                  <div style={{display:"flex",gap:6,flexShrink:0}}>
+                  <div style={{display:"flex",gap:3,flexShrink:0}}>
                     {preview.length>0
                       ? preview.map((p,i)=><img key={i} src={p.photo} alt="" style={{width:i===0?48:32,height:i===0?48:32,borderRadius:8,objectFit:"cover",border:"1px solid var(--border)"}}/>)
                       : <div style={{width:48,height:48,borderRadius:12,background:"var(--s2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📁</div>
@@ -2487,9 +2510,8 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
             : viewMode==="grid"
               ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                   {displayPhotos.map((p,i)=>(
-                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1"}}>
-                      <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}/>
-                      {p.id&&selectedFolder!==0&&<button onClick={e=>{e.stopPropagation();onDeletePhoto(selectedFolder,p.id);}} style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.7)",color:"white",fontSize:12,border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                    <div key={p.id||i} style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1",cursor:"pointer"}} onClick={()=>setSelectedPhoto(p)}>
+                      <img loading="lazy" onError={e=>{e.target.style.display="none";}} src={p.photo} alt={p.caption||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
                     </div>
                   ))}
                 </div>
@@ -2526,6 +2548,140 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
 }
 
 // ─── SHIFT REPORT MODAL ───────────────────────────────────────────
+function ShiftReportModal({me,onSave,onClose}){
+  const [form,setForm] = useState({
+    shift: SHIFTS[0], date: todayStr(),
+    traffic:"moyen", rating:4, incidents:"", highlights:"", notes:""
+  });
+  const set = k => v => setForm(p=>({...p,[k]:v}));
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
+        <div className="handle"/>
+        <div style={{padding:"4px 18px 12px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📊 Rapport de shift</div>
+            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+          </div>
+          <button className="btn btn-gold" onClick={()=>onSave({...form,doneBy:me.name})} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15}}>
+            Soumettre le rapport
+          </button>
+        </div>
+        <div style={{overflowY:"auto",flex:1,padding:"16px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <FL label="QUART">
+              <select className="field" value={form.shift} onChange={e=>set("shift")(e.target.value)}>
+                {SHIFTS.map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
+            </FL>
+            <FL label="DATE">
+              <input type="date" className="field" value={form.date} onChange={e=>set("date")(e.target.value)}/>
+            </FL>
+          </div>
+
+          <FL label="ACHALANDAGE">
+            <div style={{display:"flex",gap:8}}>
+              {[{id:"faible",label:"🟢 Faible"},{id:"moyen",label:"🟡 Moyen"},{id:"fort",label:"🔴 Fort"}].map(t=>(
+                <button key={t.id} className="btn" onClick={()=>set("traffic")(t.id)}
+                  style={{flex:1,padding:"12px",borderRadius:12,fontSize:13,fontWeight:600,
+                    background:form.traffic===t.id?"var(--gold)":"var(--s2)",
+                    color:form.traffic===t.id?"#0a0a0d":"var(--t2)",
+                    border:"1px solid var(--border)"}}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </FL>
+
+          <FL label="NOTE GÉNÉRALE DU SHIFT">
+            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+              {[1,2,3,4,5].map(n=>(
+                <button key={n} className="btn" onClick={()=>set("rating")(n)}
+                  style={{width:50,height:50,borderRadius:12,fontSize:20,
+                    background:form.rating>=n?"var(--gold)":"var(--s2)",
+                    color:form.rating>=n?"#0a0a0d":"var(--t3)",
+                    border:"1px solid var(--border)"}}>
+                  ★
+                </button>
+              ))}
+            </div>
+            <div style={{textAlign:"center",fontSize:13,color:"var(--gold)",marginTop:6,fontWeight:600}}>
+              {["","Très difficile","Difficile","Correct","Bien","Excellent !"][form.rating]}
+            </div>
+          </FL>
+
+          <FL label="POINTS POSITIFS">
+            <textarea className="field" value={form.highlights} onChange={e=>set("highlights")(e.target.value)}
+              placeholder="Ex: Bonne équipe aujourd'hui, livraison à l'heure..." rows={2} style={{resize:"none"}}/>
+          </FL>
+
+          <FL label="INCIDENTS / PROBLÈMES">
+            <textarea className="field" value={form.incidents} onChange={e=>set("incidents")(e.target.value)}
+              placeholder="Ex: Bris d'équipement, conflit client, manque de stock..." rows={2} style={{resize:"none"}}/>
+          </FL>
+
+          <FL label="NOTES ADDITIONNELLES">
+            <textarea className="field" value={form.notes} onChange={e=>set("notes")(e.target.value)}
+              placeholder="Autres observations..." rows={2} style={{resize:"none"}}/>
+          </FL>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TEMPLATES MODAL ──────────────────────────────────────────────
+function TemplatesModal({templates,onApply,onClose,lang}){
+  const [selected,setSelected] = useState(null);
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
+        <div className="handle"/>
+        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📋 Templates de tâches</div>
+            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
+          </div>
+          <div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5}}>Applique un template pour créer plusieurs tâches d'un coup.</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {templates.map((t,i)=>(
+              <div key={i} className="card" style={{padding:"14px",borderColor:selected===i?"var(--gold-b)":"var(--border)",cursor:"pointer"}} onClick={()=>setSelected(selected===i?null:i)}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:selected===i?12:0}}>
+                  <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{t.name}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:11,color:"var(--t3)"}}>{t.tasks.length} tâches</span>
+                    <span style={{color:"var(--t3)",fontSize:16}}>{selected===i?"▲":"▼"}</span>
+                  </div>
+                </div>
+                {selected===i&&(
+                  <>
+                    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+                      {t.tasks.map((task,j)=>{
+                        const p=PRIORITIES.find(pr=>pr.id===task.priority);
+                        return(
+                          <div key={j} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--s2)",borderRadius:9}}>
+                            <div style={{width:6,height:6,borderRadius:"50%",background:p?.color,flexShrink:0}}/>
+                            <span style={{fontSize:13,color:"var(--text)",flex:1}}>{task.title}</span>
+                            <span style={{fontSize:10,color:"var(--t3)"}}>{task.department}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button className="btn btn-gold" onClick={()=>onApply(t)} style={{width:"100%",padding:"13px",borderRadius:12,fontSize:14}}>
+                      Appliquer ce template
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── GLOBAL SEARCH MODAL ──────────────────────────────────────────
 function GlobalSearchModal({query,setQuery,tasks,events,announcements,notes,me,getUser,getPri,onTask,onClose}){
   const q = query.toLowerCase().trim();
   const results = q.length<2 ? [] : [
@@ -2545,7 +2701,7 @@ function GlobalSearchModal({query,setQuery,tasks,events,announcements,notes,me,g
           style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:16,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}/>
         <button className="btn" onClick={onClose} style={{background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t2)",borderRadius:9,padding:"6px 12px",fontSize:13}}>Fermer</button>
       </div>
-      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}} onClick={e=>e.stopPropagation()}>
+      <div style={{flex:1,overflowY:"auto",padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}} onClick={e=>e.stopPropagation()}>
         {q.length<2
           ? <div style={{textAlign:"center",padding:"48px 20px",color:"var(--t3)",fontSize:14}}>Tapez au moins 2 caractères pour chercher</div>
           : results.length===0
@@ -2588,24 +2744,23 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
             <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
           </div>
         </div>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{overflowY:"auto",flex:1,padding:"12px 18px 32px",display:"flex",flexDirection:"column",gap:8}}>
           {notifs.length===0
             ? <div style={{textAlign:"center",padding:"40px",color:"var(--t3)",fontSize:14}}>
                 <div style={{fontSize:32,marginBottom:10}}>🔔</div>
                 Aucune notification
               </div>
             : notifs.map(n=>(
-              <div key={n.id} onClick={()=>onClickNotif&&onClickNotif(n)} style={{display:"flex",gap:10,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`,cursor:"pointer"}}>
+              <div key={n.id} style={{display:"flex",gap:12,padding:"13px 14px",background:n.read?"var(--s2)":"var(--s1)",borderRadius:14,border:"1px solid var(--border)",borderLeft:`3px solid ${typeColor(n.type)}`}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                     <div style={{fontSize:10,fontWeight:700,color:typeColor(n.type),letterSpacing:"0.5px"}}>{typeLabel(n.type).toUpperCase()}</div>
-                    {!n.read&&<div style={{width:7,height:7,borderRadius:"50%",background:"var(--gold)"}}/>}
+                    {!n.read&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--gold)"}}/>}
                   </div>
                   <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:2}}>{n.text}</div>
-                  <div style={{fontSize:12,color:"var(--t2)",marginBottom:4}}>{n.sub}</div>
+                  <div style={{fontSize:12,color:"var(--t2)",fontStyle:"italic",marginBottom:4}}>"{n.sub}"</div>
                   <div style={{fontSize:11,color:"var(--t3)"}}>{ago(n.ts)}</div>
                 </div>
-                <button onClick={e=>{e.stopPropagation();onDeleteNotif&&onDeleteNotif(n.id);}} style={{width:28,height:28,borderRadius:8,flexShrink:0,alignSelf:"flex-start",background:"var(--s2)",border:"1px solid var(--border)",color:"var(--t3)",fontSize:13,cursor:"pointer"}}>×</button>
               </div>
             ))
           }
@@ -2615,13 +2770,13 @@ function NotifsModalV2({notifs,onClose,onClearAll,onMarkAllRead}){
   );
 }
 
-function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onChangePin,onClose}){
+function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfile,onExportPDF,onSearch,onSOS,onClose}){
   const [showSwitch,setShowSwitch] = useState(false);
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"flex",alignItems:"center",gap:14,padding:"16px",background:"var(--s2)",borderRadius:16,border:"1px solid var(--border)",marginBottom:4}}>
             <div style={{width:48,height:48,borderRadius:13,background:me.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:me.id===1?"#0a0a0d":"white",flexShrink:0}}>{initials(me.name)}</div>
             <div>
@@ -2633,8 +2788,7 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
             {icon:"🔍", label:"Recherche globale",              action:onSearch},
             {icon:"⚙",  label:"Paramètres",                    action:onSettings},
             ...(isOwner?[{icon:"🏪", label:"Profil du magasin", action:onStoreProfile}]:[]),
-            
-          {icon:"🔐", label:"Changer mon NIP",                  action:onChangePin},
+            {icon:"📄", label:"Exporter en PDF",                action:onExportPDF},
             {icon:"🆘", label:"Alerte urgence (SOS)",           action:onSOS, danger:true},
           ].map(item=>(
             <button key={item.label} className="btn" onClick={item.action}
@@ -2646,14 +2800,14 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
               {item.label}
             </button>
           ))}
-          {isOwner&&<button className="btn" onClick={()=>setShowSwitch(p=>!p)}
+          <button className="btn" onClick={()=>setShowSwitch(p=>!p)}
             style={{width:"100%",padding:"14px 16px",borderRadius:13,justifyContent:"flex-start",gap:14,
               background:"var(--gold-dim)",border:"1px solid var(--gold-b)",color:"var(--gold)",fontSize:14,fontWeight:600}}>
             <span style={{fontSize:18}}>👤</span>
             Changer de compte
             <span style={{marginLeft:"auto"}}>{showSwitch?"▲":"▼"}</span>
-          </button>}
-          {isOwner&&showSwitch&&(
+          </button>
+          {showSwitch&&(
             <div style={{display:"flex",flexDirection:"column",gap:7,paddingLeft:8}}>
               {users.map(u=>(
                 <button key={u.id} className="btn" onClick={()=>onSwitchUser(u)}
@@ -2678,31 +2832,34 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
 }
 
 // ─── PIN LOGIN SCREEN ─────────────────────────────────────────────
-function PinLoginScreen({users,onLogin,onJoinRequest}){
-  const [sel,setSel]=useState(null);
-  const [pin,setPin]=useState("");
-  const [err,setErr]=useState(false);
-  const ini=n=>n.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-  const handlePin=d=>{
-    if(pin.length>=4)return;
-    const p=pin+d;setPin(p);setErr(false);
+function PinLoginScreen({users, onLogin, onJoinRequest}){
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(false);
+  const initials = name => name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+  const handlePin = digit => {
+    if(pin.length>=4) return;
+    const p = pin+digit;
+    setPin(p); setError(false);
     if(p.length===4){
-      if(p===(sel.pin||"1111")){setTimeout(()=>onLogin(sel),200);}
-      else{setTimeout(()=>{setPin("");setErr(true);},400);}
+      if(p===(selectedUser.pin||"1111")){setTimeout(()=>onLogin(selectedUser),200);}
+      else{setTimeout(()=>{setPin("");setError(true);},400);}
     }
   };
+
   return(
-    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700&display=swap');`}</style>
+    <div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'DM Sans',sans-serif"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}`}</style>
       <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:"#C9A84C",marginBottom:4}}>GroceryOps</div>
-      {!sel?(
+      {!selectedUser?(
         <>
-          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:36,fontFamily:"'DM Sans',sans-serif"}}>Qui es-tu ?</div>
+          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:36}}>Qui es-tu ?</div>
           <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:320}}>
-            {users.length===0&&<div style={{textAlign:"center",color:"rgba(237,232,223,0.3)",fontSize:13,padding:20}}>Chargement...</div>}
             {users.map(u=>(
-              <button key={u.id} onClick={()=>setSel(u)} style={{padding:"16px 18px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:12,cursor:"pointer",width:"100%",fontFamily:"'DM Sans',sans-serif"}}>
-                <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#0a0a0d",flexShrink:0}}>{ini(u.name)}</div>
+              <button key={u.id} onClick={()=>setSelectedUser(u)}
+                style={{padding:"16px 18px",borderRadius:16,background:"#141418",border:`1.5px solid ${u.color}40`,display:"flex",alignItems:"center",gap:12,cursor:"pointer",width:"100%"}}>
+                <div style={{width:44,height:44,borderRadius:12,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#0a0a0d",flexShrink:0}}>{initials(u.name)}</div>
                 <div style={{textAlign:"left",flex:1}}>
                   <div style={{fontSize:15,fontWeight:600,color:"#ede8df"}}>{u.name}</div>
                   <div style={{fontSize:12,color:"rgba(237,232,223,0.4)",marginTop:1}}>{u.role}</div>
@@ -2715,25 +2872,28 @@ function PinLoginScreen({users,onLogin,onJoinRequest}){
         </>
       ):(
         <>
-          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:28,fontFamily:"'DM Sans',sans-serif"}}>Entrez votre NIP</div>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28,padding:"12px 18px",background:"#141418",borderRadius:14,border:`1px solid ${sel.color}40`}}>
-            <div style={{width:36,height:36,borderRadius:10,background:sel.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#0a0a0d"}}>{ini(sel.name)}</div>
-            <div style={{fontSize:14,fontWeight:600,color:"#ede8df",fontFamily:"'DM Sans',sans-serif"}}>{sel.name}</div>
+          <div style={{fontSize:14,color:"rgba(237,232,223,0.4)",marginBottom:28}}>Entrez votre NIP</div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28,padding:"12px 18px",background:"#141418",borderRadius:14,border:`1px solid ${selectedUser.color}40`}}>
+            <div style={{width:36,height:36,borderRadius:10,background:selectedUser.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#0a0a0d"}}>{initials(selectedUser.name)}</div>
+            <div style={{fontSize:14,fontWeight:600,color:"#ede8df"}}>{selectedUser.name}</div>
           </div>
           <div style={{display:"flex",gap:16,marginBottom:8}}>
-            {[0,1,2,3].map(i=><div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(err?"#e63946":"#C9A84C"):"rgba(237,232,223,0.15)",transition:"background .15s"}}/>)}
+            {[0,1,2,3].map(i=><div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(error?"#e63946":"#C9A84C"):"rgba(237,232,223,0.15)",transition:"background .15s"}}/>)}
           </div>
-          {err&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>NIP incorrect</div>}
+          {error&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>NIP incorrect — réessaie</div>}
           <div style={{height:20}}/>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
             {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
-              <button key={i} onClick={()=>{if(d==="⌫"){setPin(p=>p.slice(0,-1));setErr(false);}else if(d!=="")handlePin(String(d));}}
-                style={{height:64,borderRadius:14,background:d===""?"transparent":"#141418",border:d===""?"none":"1px solid rgba(237,232,223,0.08)",fontSize:d==="⌫"?20:22,fontWeight:600,color:"#ede8df",cursor:d===""?"default":"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+              <button key={i} onClick={()=>{if(d==="⌫"){setPin(p=>p.slice(0,-1));setError(false);}else if(d!=="")handlePin(String(d));}}
+                style={{height:64,borderRadius:14,background:d===""?"transparent":"#141418",border:d===""?"none":"1px solid rgba(237,232,223,0.08)",fontSize:d==="⌫"?20:22,fontWeight:600,color:"#ede8df",cursor:d===""?"default":"pointer"}}>
                 {d}
               </button>
             ))}
           </div>
-          <button onClick={()=>{setSel(null);setPin("");setErr(false);}} style={{marginTop:24,background:"transparent",border:"none",color:"rgba(237,232,223,0.3)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>← Retour</button>
+          <button onClick={()=>{setSelectedUser(null);setPin("");setError(false);}}
+            style={{marginTop:24,background:"transparent",border:"none",color:"rgba(237,232,223,0.3)",fontSize:13,cursor:"pointer"}}>
+            ← Changer de compte
+          </button>
         </>
       )}
     </div>
@@ -2746,15 +2906,15 @@ function JoinRequestForm({onSend}){
   const [name,setName]=useState("");
   const [role,setRole]=useState("");
   const [sent,setSent]=useState(false);
-  if(sent)return(<div style={{marginTop:8,padding:16,background:"rgba(42,157,143,0.1)",borderRadius:14,textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}><div style={{fontSize:13,color:"#2a9d8f",fontWeight:600}}>✓ Demande envoyée !</div></div>);
-  if(!show)return(<button onClick={()=>setShow(true)} style={{marginTop:8,padding:14,borderRadius:14,background:"transparent",border:"1.5px dashed rgba(237,232,223,0.15)",color:"rgba(237,232,223,0.35)",fontSize:13,cursor:"pointer",width:"100%",fontFamily:"'DM Sans',sans-serif"}}>+ Demander l'accès</button>);
+  if(sent)return(<div style={{marginTop:8,padding:"16px",background:"rgba(42,157,143,0.1)",borderRadius:14,border:"1px solid rgba(42,157,143,0.2)",textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}><div style={{fontSize:20,marginBottom:6}}>✓</div><div style={{fontSize:13,color:"#2a9d8f",fontWeight:600}}>Demande envoyée !</div></div>);
+  if(!show)return(<button onClick={()=>setShow(true)} style={{marginTop:8,padding:"14px",borderRadius:14,background:"transparent",border:"1.5px dashed rgba(237,232,223,0.15)",color:"rgba(237,232,223,0.35)",fontSize:13,cursor:"pointer",width:"100%"}}>+ Demander l'accès</button>);
   return(
-    <div style={{marginTop:8,padding:16,background:"#141418",borderRadius:14,border:"1px solid rgba(237,232,223,0.1)",display:"flex",flexDirection:"column",gap:10,fontFamily:"'DM Sans',sans-serif"}}>
+    <div style={{marginTop:8,padding:"16px",background:"#141418",borderRadius:14,border:"1px solid rgba(237,232,223,0.1)",display:"flex",flexDirection:"column",gap:10}}>
       <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ton nom complet" style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none"}}/>
       <input value={role} onChange={e=>setRole(e.target.value)} placeholder="Ton poste" style={{padding:"12px 14px",borderRadius:10,background:"#0a0a0d",border:"1px solid rgba(237,232,223,0.1)",color:"#ede8df",fontSize:14,outline:"none"}}/>
       <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>setShow(false)} style={{flex:1,padding:12,borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer"}}>Annuler</button>
-        <button onClick={async()=>{if(!name.trim())return;await onSend(name.trim(),role.trim()||"Employé");setSent(true);}} style={{flex:2,padding:12,borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none"}}>Envoyer</button>
+        <button onClick={()=>setShow(false)} style={{flex:1,padding:"12px",borderRadius:10,background:"transparent",border:"1px solid rgba(237,232,223,0.1)",color:"rgba(237,232,223,0.4)",fontSize:13,cursor:"pointer"}}>Annuler</button>
+        <button onClick={async()=>{if(!name.trim())return;await onSend(name.trim(),role.trim()||"Employé");setSent(true);}} style={{flex:2,padding:"12px",borderRadius:10,background:"#C9A84C",color:"#0a0a0d",fontSize:13,fontWeight:700,cursor:"pointer",border:"none"}}>Envoyer</button>
       </div>
     </div>
   );
@@ -2762,65 +2922,46 @@ function JoinRequestForm({onSend}){
 
 // ─── TOUR DETAIL MODAL ────────────────────────────────────────────
 function TourDetailModal({tour,isOwner,onClose,onDelete}){
-  const [conf,setConf]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(false);
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",height:"85vh",display:"flex",flexDirection:"column"}}>
-        
-        {/* HANDLE */}
-        <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 8px",flexShrink:0}}/>
-        
-        {/* HEADER - fixed */}
-        <div style={{padding:"0 18px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
+      <div className="slide-up" onClick={e=>e.stopPropagation()} style={{background:"var(--s1)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",maxHeight:"88vh"}}>
+        <div style={{width:40,height:4,borderRadius:2,background:"var(--border)",margin:"12px auto 0",flexShrink:0}}/>
+        <div style={{padding:"12px 18px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div>
-              <div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div>
-              <div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div>
-            </div>
-            <button onClick={onClose} style={{width:34,height:34,borderRadius:10,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:20,cursor:"pointer",flexShrink:0}}>×</button>
+            <div><div className="tag" style={{marginBottom:3}}>TOURNÉE · {tour.date}</div><div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>{tour.shift}</div></div>
+            <button className="btn btn-outline" onClick={onClose} style={{width:34,height:34,borderRadius:10,fontSize:18}}>×</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
             {[{l:"PAR",v:tour.doneBy},{l:"SCORE",v:`${tour.score}/${tour.total}`},{l:"DURÉE",v:tour.duration||"—"},{l:"HEURE",v:tour.startTime||"—"}].map(x=>(
               <div key={x.l} style={{background:"var(--s2)",borderRadius:10,padding:"8px 10px"}}>
-                <div style={{fontSize:9,fontWeight:700,color:"var(--t3)",marginBottom:4,letterSpacing:"0.5px"}}>{x.l}</div>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:"1px",color:"var(--t3)",marginBottom:4}}>{x.l}</div>
                 <div style={{fontSize:11,fontWeight:600,color:"var(--gold)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{x.v}</div>
               </div>
             ))}
           </div>
         </div>
-
-        {/* SCROLLABLE CONTENT */}
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"14px 18px 40px",display:"flex",flexDirection:"column",gap:10,minHeight:0}}>
-          
-          <div className="tag">PROBLÈMES SIGNALÉS ({tour.issues?.length||0})</div>
-          
-          {(!tour.issues||!tour.issues.length)
-            ? <div style={{textAlign:"center",padding:"24px 0",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
-            : tour.issues.map((issue,i)=>(
-                <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
-                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
-                  <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
-                  {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
-                  {issue.photo&&<img loading="lazy" onError={e=>{e.target.style.display="none";}} src={issue.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:10,display:"block"}}/>}
-                </div>
-              ))
+        <div style={{overflowY:"auto",flex:1,padding:"14px 18px 24px",display:"flex",flexDirection:"column",gap:10}}>
+          <div className="tag">PROBLÈMES ({tour.issues?.length||0})</div>
+          {(!tour.issues||tour.issues.length===0)
+            ?<div style={{textAlign:"center",padding:"24px",color:"var(--t2)",fontSize:13}}>✓ Aucun problème signalé</div>
+            :tour.issues.map((issue,i)=>(
+              <div key={i} style={{padding:"12px 14px",background:"rgba(230,57,70,0.07)",borderRadius:12,borderLeft:"3px solid #e63946"}}>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{issue.item}</div>
+                <div style={{fontSize:11,color:"var(--t3)",marginBottom:6}}>{issue.dept}</div>
+                {issue.note&&<div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5,marginBottom:8}}>{issue.note}</div>}
+                {issue.photo&&<img loading="lazy" onError={e=>{e.target.style.display="none";}} src={issue.photo} alt="" style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,display:"block"}}/>}
+              </div>
+            ))
           }
-
-          {/* DELETE BUTTON - always visible for owner */}
-          {isOwner&&(
-            <div style={{marginTop:8}}>
-              {!conf
-                ? <button onClick={()=>setConf(true)} style={{width:"100%",padding:"14px",borderRadius:12,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",color:"#e63946",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
-                    🗑 Supprimer cette tournée
-                  </button>
-                : <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:16,display:"flex",flexDirection:"column",gap:10}}>
-                    <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>Supprimer cette tournée ?</div>
-                    <div style={{display:"flex",gap:8}}>
-                      <button onClick={()=>setConf(false)} style={{flex:1,padding:"12px",borderRadius:11,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Annuler</button>
-                      <button onClick={()=>onDelete(tour)} style={{flex:1,padding:"12px",borderRadius:11,background:"#e63946",color:"white",fontSize:14,fontWeight:700,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif"}}>Supprimer</button>
-                    </div>
-                  </div>
-              }
+          {isOwner&&!confirmDel&&<button className="btn btn-danger" onClick={()=>setConfirmDel(true)} style={{width:"100%",padding:"13px",borderRadius:12,fontSize:14,marginTop:8}}>Supprimer cette tournée</button>}
+          {isOwner&&confirmDel&&(
+            <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:"16px",display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+              <div style={{fontSize:13,color:"var(--text)",textAlign:"center",fontWeight:600}}>Supprimer cette tournée ?</div>
+              <div style={{display:"flex",gap:8}}>
+                <button className="btn btn-ghost" onClick={()=>setConfirmDel(false)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14}}>Annuler</button>
+                <button className="btn btn-danger" onClick={()=>onDelete(tour)} style={{flex:1,padding:"12px",borderRadius:11,fontSize:14,fontWeight:700}}>Supprimer</button>
+              </div>
             </div>
           )}
         </div>
@@ -2828,58 +2969,64 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
     </div>
   );
 }
+
+// ─── HOME CALENDAR ────────────────────────────────────────────────
 function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEvent}){
   const [calMonth,setCalMonth]=useState(new Date());
-  const [selDay,setSelDay]=useState(null);
+  const [selectedDay,setSelectedDay]=useState(null);
   const [showForm,setShowForm]=useState(false);
-  const [editEv,setEditEv]=useState(null);
+  const [editingEvent,setEditingEvent]=useState(null);
   const [confirmDel,setConfirmDel]=useState(null);
   const year=calMonth.getFullYear(),month=calMonth.getMonth();
-  const firstDay=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();
+  const firstDay=new Date(year,month,1).getDay(),daysInMonth=new Date(year,month+1,0).getDate();
   const today=new Date();
-  const byDay={};
-  (events||[]).forEach(e=>{if(!e.date)return;const[ey,em,ed]=e.date.split("-").map(Number);if(ey===year&&em===month+1){if(!byDay[ed])byDay[ed]=[];byDay[ed].push(e);}});
-  const selEvents=selDay?(byDay[selDay]||[]):[];
-  const upcoming=(events||[]).filter(e=>e.date&&e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date));
+  const eventsByDay={};
+  events.forEach(e=>{if(!e.date)return;const[ey,em,ed]=e.date.split("-").map(Number);if(ey===year&&em===month+1){if(!eventsByDay[ed])eventsByDay[ed]=[];eventsByDay[ed].push(e);}});
+  const selEvents=selectedDay?(eventsByDay[selectedDay]||[]):[];
+  const upcoming=[...events].filter(e=>e.date&&e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date));
   return(
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div className="card" style={{padding:16}}>
+      <div className="card" style={{padding:"16px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div><div className="tag" style={{marginBottom:3}}>CALENDRIER</div><div className="serif" style={{fontSize:18,fontWeight:700,color:themeColor,textTransform:"capitalize"}}>{calMonth.toLocaleDateString("fr-CA",{month:"long",year:"numeric"})}</div></div>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()-1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>‹</button>
             <button className="btn btn-ghost" onClick={()=>setCalMonth(m=>{const n=new Date(m);n.setMonth(n.getMonth()+1);return n;})} style={{width:30,height:30,borderRadius:9,fontSize:16}}>›</button>
-            <button onClick={()=>{setEditEv(null);setShowForm(true);}} style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>+ Ajouter</button>
+            <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}} style={{height:30,padding:"0 12px",borderRadius:9,background:themeColor,color:"#0a0a0d",fontSize:12,fontWeight:700,border:"none"}}>+ Ajouter</button>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:4}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
           {["D","L","M","M","J","V","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:9,color:"var(--t3)",fontWeight:700,padding:"3px 0"}}>{d}</div>)}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
           {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
-          {Array(days).fill(null).map((_,i)=>{
-            const day=i+1,de=byDay[day]||[];
-            const isT=day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
-            const isS=selDay===day;
-            return(<div key={day} onClick={()=>setSelDay(isS?null:day)} style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",background:isS?themeColor:isT?`${themeColor}20`:"transparent"}}>
-              <span style={{fontSize:12,fontWeight:isT||isS?700:400,color:isS?"#0a0a0d":isT?themeColor:"var(--text)"}}>{day}</span>
-              <div style={{display:"flex",gap:6,marginTop:2}}>{de.slice(0,3).map((ev,ei)=><div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isS?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>)}</div>
-            </div>);
+          {Array(daysInMonth).fill(null).map((_,i)=>{
+            const day=i+1,dayEvents=eventsByDay[day]||[];
+            const isToday=day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
+            const isSel=selectedDay===day;
+            return(
+              <div key={day} onClick={()=>setSelectedDay(isSel?null:day)} style={{borderRadius:8,padding:"4px 2px",minHeight:38,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",background:isSel?themeColor:isToday?`${themeColor}20`:"transparent"}}>
+                <span style={{fontSize:12,fontWeight:isToday||isSel?700:400,color:isSel?"#0a0a0d":isToday?themeColor:"var(--text)"}}>{day}</span>
+                <div style={{display:"flex",gap:2,marginTop:2}}>
+                  {dayEvents.slice(0,3).map((ev,ei)=><div key={ei} style={{width:5,height:5,borderRadius:"50%",background:isSel?"rgba(0,0,0,0.4)":ev.color||themeColor}}/>)}
+                </div>
+              </div>
+            );
           })}
         </div>
-        {selDay&&(
+        {selectedDay&&(
           <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div className="tag">{new Date(year,month,selDay).toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
-              <button onClick={()=>{setEditEv(null);setShowForm(true);}} style={{padding:"4px 10px",borderRadius:8,background:`${themeColor}20`,color:themeColor,border:`1px solid ${themeColor}40`,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>+ Événement</button>
+              <div className="tag">{new Date(year,month,selectedDay).toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
+              <button className="btn" onClick={()=>{setEditingEvent(null);setShowForm(true);}} style={{padding:"4px 10px",borderRadius:8,background:`${themeColor}20`,color:themeColor,border:`1px solid ${themeColor}40`,fontSize:11,fontWeight:700}}>+ Événement</button>
             </div>
-            {selEvents.length===0?<div style={{textAlign:"center",padding:12,color:"var(--t3)",fontSize:12}}>Aucun événement</div>
+            {selEvents.length===0?<div style={{textAlign:"center",padding:"12px",color:"var(--t3)",fontSize:12}}>Aucun événement</div>
               :selEvents.map((e,i)=>(
                 <div key={i} style={{padding:"10px 12px",background:"var(--s2)",borderRadius:11,borderLeft:`3px solid ${e.color||themeColor}`,display:"flex",alignItems:"flex-start",gap:8}}>
-                  <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div><div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime}—{e.endTime}</div></div>
-                  <div style={{display:"flex",gap:6}}>
-                    <button onClick={()=>{setEditEv(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,background:"var(--s2)",border:"1px solid var(--border)",fontSize:12,cursor:"pointer"}}>✏️</button>
-                    <button onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:12,cursor:"pointer"}}>×</button>
+                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:2}}>{e.title}</div><div style={{fontSize:11,color:e.color||themeColor,fontWeight:600}}>{e.startTime} — {e.endTime}</div></div>
+                  <div style={{display:"flex",gap:5}}>
+                    <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>✏️</button>
+                    <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:28,height:28,borderRadius:7,fontSize:12,padding:0}}>×</button>
                   </div>
                 </div>
               ))
@@ -2888,7 +3035,7 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
         )}
       </div>
       {upcoming.length>0&&(
-        <div className="card" style={{padding:14}}>
+        <div className="card" style={{padding:"14px"}}>
           <div className="tag" style={{marginBottom:10}}>PROCHAINS ÉVÉNEMENTS</div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {upcoming.slice(0,5).map((e,i)=>(
@@ -2897,61 +3044,17 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
                   <div style={{fontSize:11,color:"var(--t3)",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"short",day:"numeric",month:"short"})} · {e.startTime}</div>
                 </div>
-                <div style={{display:"flex",gap:6}}>
-                  <button onClick={()=>{setEditEv(e);setShowForm(true);}} style={{width:26,height:26,borderRadius:7,background:"var(--s2)",border:"1px solid var(--border)",fontSize:11,cursor:"pointer"}}>✏️</button>
-                  <button onClick={()=>setConfirmDel(e)} style={{width:26,height:26,borderRadius:7,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",color:"#e63946",fontSize:11,cursor:"pointer"}}>×</button>
+                <div style={{display:"flex",gap:4}}>
+                  <button className="btn btn-ghost" onClick={()=>{setEditingEvent(e);setShowForm(true);}} style={{width:26,height:26,borderRadius:7,fontSize:11,padding:0}}>✏️</button>
+                  <button className="btn btn-danger" onClick={()=>setConfirmDel(e)} style={{width:26,height:26,borderRadius:7,fontSize:11,padding:0}}>×</button>
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
-      {showForm&&<EventFormModal title={editEv?"Modifier":"Nouvel événement"} initial={editEv||{title:"",description:"",date:selDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}} users={users||[]} me={(users||[])[0]||{id:1}} onSave={e=>{if(!e.title?.trim())return;editEv?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditEv(null);}} onDelete={editEv?e=>{onDeleteEvent(e.id);setShowForm(false);setEditEv(null);}:undefined} onClose={()=>{setShowForm(false);setEditEv(null);}}/>}
-      {confirmDel&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}><div style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}><div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div><div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}"</div><div style={{display:"flex",gap:8}}><button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:12,borderRadius:12,background:"var(--s2)",border:"1px solid var(--border)",color:"var(--text)",cursor:"pointer"}}>Annuler</button><button onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:12,borderRadius:12,background:"#e63946",color:"white",fontWeight:700,cursor:"pointer",border:"none"}}>Supprimer</button></div></div></div>}
+      {showForm&&<EventFormModal title={editingEvent?"Modifier":"Nouvel événement"} initial={editingEvent||{title:"",description:"",date:selectedDay?`${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:todayStr(),startTime:"09:00",endTime:"10:00",members:[],color:"#3b82f6",category:"",recurrence:"none",customDays:[],reminder:"60"}} users={users} me={users[0]||{id:1}} onSave={e=>{if(!e.title?.trim())return;editingEvent?onEditEvent(e):onNewEvent(e);setShowForm(false);setEditingEvent(null);}} onDelete={editingEvent?e=>{onDeleteEvent(e.id);setShowForm(false);setEditingEvent(null);}:undefined} onClose={()=>{setShowForm(false);setEditingEvent(null);}}/>}
+      {confirmDel&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}><div style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}><div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div><div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}"</div><div style={{display:"flex",gap:8}}><button className="btn btn-ghost" onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12}}>Annuler</button><button className="btn btn-danger" onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:"12px",borderRadius:12}}>Supprimer</button></div></div></div>}
     </div>
   );
-}
-
-function ChangePinModal({me,onSave,onClose}){
-  const [step,setStep]=useState("current");
-  const [cur,setCur]=useState("");
-  const [nw,setNw]=useState("");
-  const [conf,setConf]=useState("");
-  const [err,setErr]=useState("");
-  const handleDigit=d=>{
-    setErr("");
-    if(step==="current"){const p=cur+d;setCur(p);if(p.length===4){if(p===(me.pin||"1111")){setTimeout(()=>{setStep("new");setCur("");},300);}else{setTimeout(()=>{setCur("");setErr("NIP incorrect");},400);}}}
-    else if(step==="new"){const p=nw+d;setNw(p);if(p.length===4)setTimeout(()=>setStep("confirm"),300);}
-    else{const p=conf+d;setConf(p);if(p.length===4){if(p===nw){onSave(p);}else{setTimeout(()=>{setConf("");setErr("Les NIPs ne correspondent pas");},400);}}}
-  };
-  const del=()=>{setErr("");if(step==="current")setCur(p=>p.slice(0,-1));else if(step==="new")setNw(p=>p.slice(0,-1));else setConf(p=>p.slice(0,-1));};
-  const val=step==="current"?cur:step==="new"?nw:conf;
-  const titles={current:"NIP actuel",new:"Nouveau NIP",confirm:"Confirmer"};
-  return(
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
-        <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 40px",display:"flex",flexDirection:"column",alignItems:"center"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",marginBottom:24}}>
-            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>🔐 Changer mon NIP</div>
-            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-          </div>
-          <div style={{fontSize:15,fontWeight:600,color:"var(--text)",marginBottom:6}}>{titles[step]}</div>
-          <div style={{display:"flex",gap:14,marginBottom:8,marginTop:16}}>
-            {[0,1,2,3].map(i=><div key={i} style={{width:14,height:14,borderRadius:"50%",background:val.length>i?"var(--gold)":"var(--s2)",border:"1.5px solid var(--border)",transition:"background .15s"}}/>)}
-          </div>
-          {err&&<div style={{fontSize:12,color:"#e63946",marginBottom:8,fontWeight:600}}>{err}</div>}
-          <div style={{height:20}}/>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,width:240}}>
-            {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i)=>(
-              <button key={i} onClick={()=>{if(d==="⌫")del();else if(d!=="")handleDigit(String(d));}}
-                style={{height:60,borderRadius:13,background:d===""?"transparent":"var(--s2)",border:d===""?"none":"1px solid var(--border)",fontSize:d==="⌫"?18:20,fontWeight:600,color:"var(--text)",cursor:d===""?"default":"pointer"}}>
-                {d}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+}try{localStorage.removeItem(draftKey);}catch(e){} 
