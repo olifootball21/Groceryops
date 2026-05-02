@@ -1350,7 +1350,7 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
 }
 
 // ─── STATS TAB ────────────────────────────────────────────────────
-function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onComment,onDelete,onEdit,onPin,onClose}){
+function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onComment,onDelete,onEdit,onPin,onArchive,onClose}){
   const [comment,setComment]=useState("");
   const [completionNote,setNote]=useState("");
   const [completionPhoto,setPhoto]=useState(null);
