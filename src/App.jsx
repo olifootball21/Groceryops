@@ -324,7 +324,7 @@ export default function App() {
     setActive(p=>p?.id===taskId?{...p,status,completedAt:status==='done'?now:null}:p);
     try{
       await sb.update('tasks',taskId,{status,completed_at:status==='done'?new Date().toISOString():null,...(photo?{photo}:{})});
-      if(status==='done'&&note){const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text:'✓ '+note});if(r?.[0]){const c={id:r[0].id,userId:me.id,text:'✓ '+note,ts:now};setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...t.comments,c],...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...p.comments,c]}:p);}}
+      if(status==='done'&&note){const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text:'✓ '+note});if(r?.[0]){const c={id:r[0].id,userId:me.id,text:'✓ '+note,ts:now};setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:now,comments:[...(t.comments||[]),c],...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:now,comments:[...(p.comments||[]),c]}:p);}}
       else{setTasks(p=>p.map(t=>t.id===taskId?{...t,status,completedAt:status==='done'?now:null,...(photo?{photo}:{})}:t));setActive(p=>p?.id===taskId?{...p,status,completedAt:status==='done'?now:null}:p);}
       if(status==='done'){
         const t=tasks.find(x=>x.id===taskId);
@@ -354,7 +354,7 @@ export default function App() {
   
   const addComment = async (taskId,text) => {
     if(!text.trim()) return;
-    try{const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text});if(r?.[0]){const c={id:r[0].id,userId:me.id,text,ts:new Date(r[0].created_at).getTime()};setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...t.comments,c]}:t));setActive(p=>p?{...p,comments:[...p.comments,c]}:p);const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});}}catch(e){console.error(e);}
+    try{const r=await sb.insert('comments',{task_id:taskId,user_id:me.id,text});if(r?.[0]){const c={id:r[0].id,userId:me.id,text,ts:new Date(r[0].created_at).getTime()};setTasks(p=>p.map(t=>t.id===taskId?{...t,comments:[...(t.comments||[]),c]}:t));setActive(p=>p?{...p,comments:[...(p.comments||[]),c]}:p);const mentioned=users.filter(u=>text.toLowerCase().includes("@"+u.name.toLowerCase().split(" ")[0]));mentioned.forEach(u=>{if(u.id!==me.id)pushNotif(`${me.name} vous a mentionné`,text.slice(0,60),"mention");});}}catch(e){console.error(e);}
   };
 
   const createGalleryFolder=async name=>{if(!name.trim())return;try{const r=await sb.insert('gallery_folders',{name:name.trim(),created_by:me.id});if(r?.[0])setGallery(p=>[{id:r[0].id,name:name.trim(),createdBy:me.id,ts:Date.now(),photos:[]},...p]);pushToast(T(lang,'folderCreated'));}catch(e){pushToast('Erreur','warn');}};
@@ -901,7 +901,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
           <span style={{fontSize:11,color:"var(--t3)"}}>· {task.department}</span>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {(task.comments?.length||0)>0&&<span style={{fontSize:11,color:"var(--t3)"}}>💬 {task.comments.length}</span>}
+          {(task.comments?.length||0)>0&&<span style={{fontSize:11,color:"var(--t3)"}}>💬 {task.comments?.length||0}</span>}
           {task.dueDate&&<span style={{fontSize:11,color:overdue?"#e63946":"var(--t3)",fontWeight:overdue?700:400}}>{overdue?"⚠ ":""}{new Date(task.dueDate).toLocaleDateString("fr-CA",{month:"short",day:"numeric"})}{task.dueTime?" "+task.dueTime:""}</span>}
         </div>
       </div>
@@ -1416,9 +1416,9 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
           )}
           {task.status==="done"&&<div style={{background:"rgba(42,157,143,0.08)",border:"1px solid rgba(42,157,143,0.2)",borderRadius:12,padding:"11px 14px",fontSize:13,color:"#2a9d8f",fontWeight:600}}>Complété · {ago(task.completedAt)}</div>}
           <div>
-            <div className="tag" style={{marginBottom:12}}>COMMENTAIRES ({task.comments.length})</div>
+            <div className="tag" style={{marginBottom:12}}>COMMENTAIRES ({task.comments?.length||0})</div>
             <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
-              {task.comments.map(c=>{const u=getUser(c.userId);return(
+              {(task.comments||[]).map(c=>{const u=getUser(c.userId);return(
                 <div key={c.id} style={{display:"flex",gap:10}}>
                   <div style={{width:28,height:28,borderRadius:8,background:u?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:u?.id===1?"#0a0a0d":"white",flexShrink:0}}>{initials(u?.name||"?")}</div>
                   <div style={{flex:1}}>
