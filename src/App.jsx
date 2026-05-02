@@ -154,78 +154,44 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
 
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
-  const [dark, setDark]           = useState(true);
-  const [lang, setLang]           = useState("fr");
-  const [themeColor, setThemeColor] = useState("#C9A84C");
-  const [gallery, setGallery] = useState([]);
-  const [users, setUsers]         = useState(INIT_USERS);
-  const [tasks, setTasks]         = useState(INIT_TASKS);
-  const [store, setStore]         = useState(INIT_STORE);
-  const [tourConfig, setTourConfig] = useState(INIT_TOUR_CONFIG);
+  const [dark, setDark]               = useState(true);
+  const [lang, setLang]               = useState("fr");
+  const [themeColor, setThemeColor]   = useState("#C9A84C");
+  const [gallery, setGallery]         = useState([]);
+  const [users, setUsers]             = useState(INIT_USERS);
+  const [me, setMe]                   = useState(INIT_USERS[0]||{id:1,name:"Olivier",role:"Propriétaire",color:"#C9A84C",isOwner:true,pin:"1111"});
+  const [loginUser, setLoginUser]     = useState(null);
+  const [tasks, setTasks]             = useState(INIT_TASKS);
+  const [store, setStore]             = useState(INIT_STORE);
+  const [tourConfig, setTourConfig]   = useState(INIT_TOUR_CONFIG);
   const [tourHistory, setTourHistory] = useState([]);
-  const [events, setEvents] = useState([]);
+  const [events, setEvents]           = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [showUrgency, setShowUrgency]   = useState(false);
-  const [shiftReports, setShiftReports] = useState([]);
+  const [showUrgency, setShowUrgency] = useState(false);
   const [showGlobalSearch, setGlobalSearch] = useState(false);
-  const [globalQuery, setGlobalQuery]   = useState("");
-
-  const TASK_TEMPLATES = [
-    { name:"Ouverture magasin", tasks:[
-      {title:"Vérifier les caisses", department:"Service", priority:"urgent"},
-      {title:"Allumer les lumières et systèmes", department:"Général", priority:"urgent"},
-      {title:"Vérifier températures réfrigérateurs", department:"Viande", priority:"urgent"},
-      {title:"Mettre les spéciaux en place", department:"Épicerie", priority:"high"},
-      {title:"Vérifier l'entrée et le stationnement", department:"Vestibule", priority:"normal"},
-    ]},
-    { name:"Fermeture magasin", tasks:[
-      {title:"Compter les caisses", department:"Service", priority:"urgent"},
-      {title:"Vérifier les réfrigérateurs fermés", department:"Viande", priority:"urgent"},
-      {title:"Nettoyer les allées principales", department:"Épicerie", priority:"high"},
-      {title:"Sortir les poubelles", department:"Général", priority:"normal"},
-      {title:"Vérifier les portes et alarmes", department:"Général", priority:"urgent"},
-    ]},
-    { name:"Inspection complète", tasks:[
-      {title:"Vérifier les dates d'expiration", department:"Épicerie", priority:"urgent"},
-      {title:"Inspection boucherie/viande", department:"Viande", priority:"urgent"},
-      {title:"Inspection poissonnerie", department:"Poisson", priority:"urgent"},
-      {title:"Vérifier affichages des prix", department:"Épicerie", priority:"high"},
-      {title:"Inspection propreté générale", department:"Général", priority:"high"},
-    ]},
-  ];
-  const [schedules, setSchedules] = useState({
-    "Viande":        [{id:1, label:"Semaine du 21 avril", photo:null, ts:Date.now()-86400000}],
-    "Boulangerie":   [{id:2, label:"Semaine du 21 avril", photo:null, ts:Date.now()-86400000}],
-    "Épicerie":      [],
-    "Fruits & Légumes":[],
-    "PAM":           [],
-    "Poisson":       [],
-    "Service":       [],
-    "Charcuterie":   [],
-  });
-  const [scheduleDepts, setScheduleDepts] = useState(["Viande","Boulangerie","Épicerie","Fruits & Légumes","PAM","Poisson","Service","Charcuterie"]);
-  const [notes, setNotes] = useState({});  // keyed by userId
-  const [archivedTasks, setArchivedTasks] = useState([]);
-  const [taskSort, setTaskSort] = useState("date");
-  const [me, setMe]               = useState(INIT_USERS[0]);
-  const [tab, setTab]             = useState("home");
-  const [taskFilter, setTaskFilter] = useState("all");
-  const [seenTasks, setSeenTasks] = useState(new Set([1,2,3]));
-  const [notifs, setNotifs] = useState([]);
-  const [modal, setModal]         = useState(null);
-  const [activeTask, setActive]   = useState(null);
-  const [editUser, setEditUser]   = useState(null);
-  const [editTaskData, setEditTaskData] = useState(null);
-  const [activeTour, setActiveTour] = useState(null);
-  const [toast, setToast]         = useState(null);
-  const [ready, setReady]         = useState(false);
-  const [loginUser, setLoginUser] = useState(null);
+  const [globalQuery, setGlobalQuery] = useState("");
+  const [ready, setReady]             = useState(false);
   const [joinRequests, setJoinRequests] = useState([]);
   const [selectedTour, setSelectedTour] = useState(null);
+  const [notifs, setNotifs]           = useState([]);
+  const [archivedTasks, setArchivedTasks] = useState([]);
+  const [scheduleDepts, setScheduleDepts] = useState([]);
+  const [schedules, setSchedules]     = useState({});
+  const [notes, setNotes]             = useState({});
+  const [modal, setModal]             = useState(null);
+  const [active, setActive]           = useState(null);
+  const [tab, setTab]                 = useState("home");
+  const [toast, setToast]             = useState(null);
+  const [taskFilter, setTaskFilter]   = useState("active");
+  const [taskSort, setTaskSort]       = useState("date");
+  const [seenTasks, setSeenTasks]     = useState(new Set());
+  const [editUser, setEditUser]       = useState(null);
+  const [editTaskData, setEditTaskData] = useState(null);
+  const [activeTour, setActiveTour]   = useState(null);
 
-  const isOwner = me.isOwner;
+  const isOwner = me?.isOwner||false;
 
-  // Load data from Supabase on mount
+    // Load data from Supabase on mount
   useEffect(()=>{
     (async()=>{
       try{
@@ -473,24 +439,6 @@ export default function App() {
 
   // Reminders disabled
 
-  const saveShiftReport = report => {
-    setShiftReports(p=>[{...report, id:Date.now(), createdBy:me.id, ts:Date.now()},...p]);
-    pushNotif(`Rapport de shift — ${report.shift}`, `${me.name} · Note: ${report.rating}/5`, "report");
-    pushToast("Rapport sauvegardé !");
-    setModal(null);
-  };
-
-  const applyTemplate = template => {
-    template.tasks.forEach((t,i) => {
-      setTimeout(()=>{
-        const task = {...t, id:Date.now()+i, createdBy:me.id, assignedTo:users[0]?.id, status:"todo", comments:[], createdAt:Date.now(), dueDate:todayStr(), dueTime:"", photo:null, recurrence:"none", customDays:[], pinned:false, description:""};
-        setTasks(p=>[task,...p]);
-      }, i*50);
-    });
-    pushToast(`Template "${template.name}" appliqué !`);
-    setModal(null);
-  };
-
   const [savingEvent, setSavingEvent] = useState(false);
   const createEvent=async data=>{if(savingEvent)return;setSavingEvent(true);try{const r=await sb.insert('events',{title:data.title,description:data.description,date:data.date,start_time:data.startTime,end_time:data.endTime,color:data.color,category:data.category,recurrence:data.recurrence,custom_days:data.customDays,reminder:data.reminder,members:data.members,created_by:me.id});if(r?.[0])setEvents(p=>[{...r[0],startTime:r[0].start_time,endTime:r[0].end_time,createdBy:me.id,customDays:r[0].custom_days||[],members:r[0].members||[]},...p]);pushNotif(`Nouvel événement: ${data.title}`,`${data.date}`,'event');pushToast('Événement créé !');setModal(null);setSavingEvent(false);}catch(e){setSavingEvent(false);pushToast('Erreur','warn');}};  
   const [savingEditEvent, setSavingEditEvent] = useState(false);
@@ -522,10 +470,11 @@ export default function App() {
     pinned:tasks.filter(t=>t.pinned&&t.status!=="done").length,
   };
 
-  const [showPDFInfo, setShowPDFInfo] = useState(false);
+
   const exportPDF = () => { setShowPDFInfo(true); };
 
   const css = makeCSS(dark, themeColor);
+
 
   if(!ready)return(<div style={{minHeight:"100vh",background:"#0a0a0d",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap');@keyframes spin{to{transform:rotate(360deg);}}`}</style><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:44,fontWeight:700,color:"#C9A84C"}}>GroceryOps</div><div style={{width:36,height:36,borderRadius:"50%",border:"3px solid rgba(201,168,76,0.2)",borderTopColor:"#C9A84C",animation:"spin 1s linear infinite"}}/></div>);
 
@@ -575,7 +524,7 @@ export default function App() {
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
-        {tab==="stats" && <StatsTab tasks={tasks} users={users} tourHistory={tourHistory} shiftReports={shiftReports} tourConfig={tourConfig}/>}
+        {tab==="stats" && <div style={{padding:24,textAlign:"center",color:"var(--t2)"}}>Stats retirées</div>}
         {tab==="gallery"  && <GalleryTab gallery={gallery} allAppPhotos={allAppPhotos} me={me} getUser={getUser} lang={lang} themeColor={themeColor} onCreateFolder={createGalleryFolder} onDeleteFolder={deleteGalleryFolder} onAddPhoto={addPhotoToFolder} onDeletePhoto={deletePhotoFromFolder} onRenameFolder={renameGalleryFolder}/>}
         {tab==="schedule" && <ScheduleTab schedules={schedules} scheduleDepts={scheduleDepts} me={me} isOwner={isOwner} onAdd={addSchedulePhoto} onDelete={deleteSchedulePhoto} onAddDept={addScheduleDept} onRemoveDept={removeScheduleDept} onRenameDept={renameScheduleDept}/>}
         {tab==="notes"    && <NotesTab notes={notes} me={me} onSave={saveNote}/>}
@@ -641,12 +590,12 @@ export default function App() {
           onSwitchUser={u=>{setMe(u);setModal(null);pushToast(`Connecté — ${u.name}`);}}
           onSettings={()=>setModal("settings")}
           onStoreProfile={()=>setModal("storeProfile")}
-          onExportPDF={()=>{setShowPDFInfo(true);setModal(null);}}
+          
           onSearch={()=>{setGlobalSearch(true);setModal(null);}}
           onSOS={()=>{setShowUrgency(true);setModal(null);}} onChangePin={()=>{setModal("changePin");}}
           onClose={()=>setModal(null)}
         />}
-      {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
+      
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={async s=>{try{const ex=await sb.get("store_profile");if(ex?.length)await sb.update("store_profile",ex[0].id,{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});else await sb.insert("store_profile",{name:s.name,number:s.number,address:s.address||"",logo:s.logo||null});setStore(s);setModal(null);pushToast("Profil mis à jour !");}catch(e){pushToast("Erreur","warn");}}} onClose={()=>setModal(null)}/>}
       {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={async c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");try{const ex=await sb.get("app_settings","key=eq.tour_config");if(ex?.length)await sb.update("app_settings",ex[0].id,{value:JSON.stringify(c)});else await sb.insert("app_settings",{key:"tour_config",value:JSON.stringify(c)});}catch(e){console.error(e)}}} onClose={()=>setModal(null)}/>}
@@ -1076,7 +1025,6 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
   const draftKey = `groceryops_tour_${shift}_${me?.id}`;
   const savedDraft = (() => { try{ return JSON.parse(localStorage.getItem(draftKey)||'null'); }catch(e){return null;} })();
   const [checks,setChecks]   = useState(savedDraft?.checks||{});
-  const [notes,setNotes]     = useState(savedDraft?.notes||{});
   const [photos,setPhotos]   = useState(savedDraft?.photos||{});
   const [currentDept,setCurrentDept] = useState(savedDraft?.currentDept||config.order[0]);
   const fileRef = useRef();
@@ -1400,164 +1348,6 @@ function TeamTab({users,me,isOwner,onAdd,onEdit,tasks,joinRequests,onApprove,onR
 }
 
 // ─── STATS TAB ────────────────────────────────────────────────────
-function StatsTab({tasks,users,tourHistory,shiftReports,tourConfig}){
-  const [period,setPeriod]=useState(7);
-  const since=Date.now()-period*86400000;
-  const inPeriod=tasks.filter(t=>t.createdAt>=since);
-  const completed=tasks.filter(t=>t.completedAt&&t.completedAt>=since);
-  const rate=tasks.length>0?Math.round((tasks.filter(t=>t.status==="done").length/tasks.length)*100):0;
-  const late=tasks.filter(t=>t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date());
-  const byUser=users.map(u=>({...u,done:tasks.filter(t=>t.assignedTo===u.id&&t.status==="done").length,total:tasks.filter(t=>t.assignedTo===u.id).length,late:tasks.filter(t=>t.assignedTo===u.id&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).sort((a,b)=>b.done-a.done);
-  const byDept=[...((tourConfig?.order)||DEPARTMENTS)].map(d=>({name:d,total:tasks.filter(t=>t.department===d).length,done:tasks.filter(t=>t.department===d&&t.status==="done").length,late:tasks.filter(t=>t.department===d&&t.status!=="done"&&t.dueDate&&new Date(t.dueDate)<new Date()).length})).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
-  const tourScore=tourHistory.length>0?Math.round(tourHistory.reduce((acc,t)=>acc+(t.score/t.total*100),0)/tourHistory.length):null;
-  return(
-    <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:16}}>
-      <div><div className="tag" style={{marginBottom:4}}>PERFORMANCE</div><div className="serif" style={{fontSize:22,fontWeight:700,color:"var(--gold)"}}>Statistiques</div></div>
-      <div style={{display:"flex",gap:8}}>
-        {[7,14,30].map(d=>(
-          <button key={d} className="btn" onClick={()=>setPeriod(d)} style={{flex:1,padding:"9px",borderRadius:12,fontSize:13,fontWeight:600,background:period===d?"var(--gold)":"var(--s2)",color:period===d?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
-            {d}j
-          </button>
-        ))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        {[
-          {label:"Créées",val:inPeriod.length,color:"var(--gold)"},
-          {label:"Complétées",val:completed.length,color:"#2a9d8f"},
-          {label:"Taux",val:`${rate}%`,color:"var(--gold)"},
-          {label:"En retard",val:late.length,color:"#e63946"},
-        ].map(s=>(
-          <div key={s.label} className="card" style={{padding:"15px",borderTop:`2px solid ${s.color}`}}>
-            <div className="serif" style={{fontSize:30,fontWeight:700,color:s.color,lineHeight:1}}>{s.val}</div>
-            <div style={{fontSize:12,color:"var(--t2)",marginTop:6,fontWeight:500}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      {tourScore!==null&&(
-        <div className="card" style={{padding:"15px",borderTop:"2px solid var(--gold)",display:"flex",alignItems:"center",gap:14}}>
-          <div><div className="serif" style={{fontSize:28,fontWeight:700,color:"var(--gold)"}}>{tourScore}%</div><div style={{fontSize:12,color:"var(--t2)",marginTop:4}}>Score moyen des tournées</div></div>
-          <div style={{marginLeft:"auto",fontSize:12,color:"var(--t3)"}}>{tourHistory.length} tournée{tourHistory.length>1?"s":""}</div>
-        </div>
-      )}
-      {shiftReports?.length>0&&(()=>{
-        const avgRating = Math.round(shiftReports.reduce((a,r)=>a+r.rating,0)/shiftReports.length*10)/10;
-        const avgTraffic = ["faible","moyen","fort"][Math.round(shiftReports.reduce((a,r)=>a+(r.traffic==="fort"?2:r.traffic==="moyen"?1:0),0)/shiftReports.length)];
-        return(
-          <div className="card" style={{padding:"15px",borderTop:"2px solid var(--gold)",display:"flex",alignItems:"center",gap:14}}>
-            <div style={{flex:1}}>
-              <div style={{display:"flex",gap:6,marginBottom:4}}>
-                {[1,2,3,4,5].map(n=><span key={n} style={{fontSize:18,color:n<=avgRating?"var(--gold)":"var(--t3)"}}>★</span>)}
-              </div>
-              <div style={{fontSize:12,color:"var(--t2)"}}>Note moyenne des journées · Achalandage {avgTraffic}</div>
-            </div>
-            <div style={{textAlign:"right",fontSize:12,color:"var(--t3)"}}>{shiftReports.length} rapport{shiftReports.length>1?"s":""}</div>
-          </div>
-        );
-      })()}
-      <div>
-        <div className="tag" style={{marginBottom:10}}>PAR MEMBRE</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {byUser.map(u=>(
-            <div key={u.id} className="card" style={{padding:"14px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:9}}>
-                <div style={{width:30,height:30,borderRadius:8,background:u.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:u.id===1?"#0a0a0d":"white"}}>{initials(u.name)}</div>
-                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{u.name}</div><div style={{fontSize:11,color:"var(--t2)"}}>{u.role}</div></div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:15,fontWeight:700,color:"#2a9d8f"}}>{u.done}<span style={{fontSize:11,color:"var(--t3)",fontWeight:400}}>/{u.total}</span></div>
-                  {u.late>0&&<div style={{fontSize:10,color:"#e63946",fontWeight:600}}>{u.late} en retard</div>}
-                </div>
-              </div>
-              <div style={{height:4,background:"var(--s2)",borderRadius:2,overflow:"hidden"}}>
-                <div style={{height:"100%",width:`${u.total>0?Math.round(u.done/u.total*100):0}%`,background:"linear-gradient(90deg,var(--gold),#a8853b)",borderRadius:2,transition:"width 1s"}}/>
-              </div>
-              <div style={{fontSize:10,color:"var(--t3)",marginTop:4,textAlign:"right"}}>{u.total>0?Math.round(u.done/u.total*100):0}%</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div>
-        <div className="tag" style={{marginBottom:10}}>PAR DÉPARTEMENT</div>
-        <div style={{display:"flex",flexDirection:"column",gap:7}}>
-          {byDept.map(d=>(
-            <div key={d.name} className="card" style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:6}}>{d.name}</div>
-                <div style={{height:4,background:"var(--s2)",borderRadius:2,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${d.total>0?Math.round(d.done/d.total*100):0}%`,background:"linear-gradient(90deg,var(--gold),#a8853b)",borderRadius:2}}/>
-                </div>
-              </div>
-              <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{d.done}<span style={{fontSize:11,color:"var(--t3)"}}>/{d.total}</span></div>
-                {d.late>0&&<div style={{fontSize:10,color:"#e63946"}}>{d.late} en retard</div>}
-              </div>
-            </div>
-          ))}
-          {byDept.length===0&&<div style={{textAlign:"center",padding:"24px",color:"var(--t3)",fontSize:13}}>Aucune donnée</div>}
-        </div>
-      </div>
-      {/* RAPPORT DE JOURNÉE HISTORIQUE */}
-      <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <div className="tag">RAPPORTS DE JOURNÉE</div>
-          <span style={{fontSize:11,color:"var(--t3)"}}>{shiftReports.length} rapport{shiftReports.length!==1?"s":""}</span>
-        </div>
-        {shiftReports.length===0
-          ? <div className="card" style={{padding:"24px",textAlign:"center"}}>
-              <div style={{fontSize:28,marginBottom:8}}>📊</div>
-              <div style={{fontSize:13,color:"var(--t3)"}}>Aucun rapport encore</div>
-              <div style={{fontSize:11,color:"var(--t3)",marginTop:4}}>Les rapports apparaîtront ici après chaque journée</div>
-            </div>
-          : <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {shiftReports.slice(0,20).map(r=>{
-                const trafficColor = r.traffic==="fort"?"#e63946":r.traffic==="moyen"?"#f4a261":"#2a9d8f";
-                const trafficLabel = r.traffic==="fort"?"🔴 Fort":r.traffic==="moyen"?"🟡 Moyen":"🟢 Faible";
-                return(
-                  <div key={r.id} className="card" style={{padding:"16px"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                      <div>
-                        <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>
-                          {new Date(r.date+"T12:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}
-                        </div>
-                        <div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>Par {r.doneBy} · {ago(r.ts)}</div>
-                      </div>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{display:"flex",gap:6,justifyContent:"flex-end",marginBottom:4}}>
-                          {[1,2,3,4,5].map(n=>(
-                            <span key={n} style={{fontSize:14,color:n<=r.rating?"var(--gold)":"var(--t3)"}}>★</span>
-                          ))}
-                        </div>
-                        <span style={{fontSize:11,fontWeight:700,color:trafficColor}}>{trafficLabel}</span>
-                      </div>
-                    </div>
-                    {r.highlights&&(
-                      <div style={{marginBottom:8,padding:"8px 12px",background:"rgba(42,157,143,0.08)",borderRadius:10,borderLeft:"2px solid #2a9d8f"}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"#2a9d8f",marginBottom:3}}>POINTS POSITIFS</div>
-                        <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{r.highlights}</div>
-                      </div>
-                    )}
-                    {r.incidents&&(
-                      <div style={{marginBottom:8,padding:"8px 12px",background:"rgba(230,57,70,0.07)",borderRadius:10,borderLeft:"2px solid #e63946"}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"#e63946",marginBottom:3}}>INCIDENTS</div>
-                        <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{r.incidents}</div>
-                      </div>
-                    )}
-                    {r.notes&&(
-                      <div style={{padding:"8px 12px",background:"var(--s2)",borderRadius:10}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"var(--t3)",marginBottom:3}}>NOTES</div>
-                        <div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5}}>{r.notes}</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-        }
-      </div>
-    </div>
-  );
-}
-
-// ─── TASK DETAIL MODAL ────────────────────────────────────────────
 function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onComment,onDelete,onEdit,onPin,onClose}){
   const [comment,setComment]=useState("");
   const [completionNote,setNote]=useState("");
@@ -1737,9 +1527,7 @@ function EditTaskModal({task,users,onSave,onClose}){
 
 // ─── USER MODALS ──────────────────────────────────────────────────
 function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
-  const [form,setForm]=useState({...initial});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
-  const [confirmDel,setConfirmDel]=useState(false);
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
@@ -1796,7 +1584,6 @@ function EditUserModal({user,me,isOwner,onSave,onDelete,onClose}){return <UserFo
 
 // ─── STORE PROFILE MODAL ──────────────────────────────────────────
 function StoreProfileModal({store,onSave,onClose}){
-  const [form,setForm]=useState({...store});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const fileRef=useRef();
   const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>set("logo")(ev.target.result);r.readAsDataURL(f);};
@@ -1920,7 +1707,6 @@ const REMINDER_OPTIONS = [
 function CommTab({events,announcements,users,me,isOwner,getUser,onNewEvent,onEditEvent,onDeleteAnnouncement,onNewAnnouncement}){
   const [view,setView]=useState("calendar");
   const [calDate,setCalDate]=useState(new Date());
-  const [selectedDay,setSelectedDay]=useState(null);
 
   const year=calDate.getFullYear(); const month=calDate.getMonth();
   const firstDay=new Date(year,month,1).getDay();
@@ -2081,8 +1867,6 @@ function EventCard({event,getUser,onEdit,showDate,past}){
 
 // ─── EVENT FORM MODAL ─────────────────────────────────────────────
 function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
-  const [form,setForm]=useState({...initial});
-  const [confirmDel,setConfirmDel]=useState(false);
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const toggleMember=id=>setForm(p=>({...p,members:p.members?.includes(id)?p.members.filter(x=>x!==id):[...(p.members||[]),id]}));
   const toggleDay=d=>setForm(p=>({...p,customDays:p.customDays?.includes(d)?p.customDays.filter(x=>x!==d):[...(p.customDays||[]),d]}));
@@ -2401,7 +2185,6 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
 // ─── NOTES TAB ────────────────────────────────────────────────────
 function NotesTab({notes,me,onSave}){
   const myNotes = notes[me.id]||"";
-  const [text,setText] = useState(myNotes);
   const [saved,setSaved] = useState(true);
 
   useEffect(()=>{ setText(notes[me.id]||""); setSaved(true); },[me.id,notes]);
@@ -2562,9 +2345,7 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
   const [showNewFolder,setShowNewFolder] = useState(false);
   const [newFolderName,setNewFolderName] = useState("");
   const [renamingId,setRenamingId] = useState(null);
-  const [renameVal,setRenameVal] = useState("");
   const [caption,setCaption] = useState("");
-  const [selectedPhoto,setSelectedPhoto] = useState(null);
   const fileRef = useRef();
 
   const handleFile = e => {
@@ -2737,140 +2518,6 @@ function GalleryTab({gallery,allAppPhotos,me,getUser,lang,onCreateFolder,onDelet
 }
 
 // ─── SHIFT REPORT MODAL ───────────────────────────────────────────
-function ShiftReportModal({me,onSave,onClose}){
-  const [form,setForm] = useState({
-    shift: SHIFTS[0], date: todayStr(),
-    traffic:"moyen", rating:4, incidents:"", highlights:"", notes:""
-  });
-  const set = k => v => setForm(p=>({...p,[k]:v}));
-  return(
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
-        <div className="handle"/>
-        <div style={{padding:"4px 18px 12px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📊 Rapport de shift</div>
-            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-          </div>
-          <button className="btn btn-gold" onClick={()=>onSave({...form,doneBy:me.name})} style={{width:"100%",padding:"15px",borderRadius:13,fontSize:15}}>
-            Soumettre le rapport
-          </button>
-        </div>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:1,minHeight:0,padding:"16px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <FL label="QUART">
-              <select className="field" value={form.shift} onChange={e=>set("shift")(e.target.value)}>
-                {SHIFTS.map(s=><option key={s} value={s}>{s}</option>)}
-              </select>
-            </FL>
-            <FL label="DATE">
-              <input type="date" className="field" value={form.date} onChange={e=>set("date")(e.target.value)}/>
-            </FL>
-          </div>
-
-          <FL label="ACHALANDAGE">
-            <div style={{display:"flex",gap:8}}>
-              {[{id:"faible",label:"🟢 Faible"},{id:"moyen",label:"🟡 Moyen"},{id:"fort",label:"🔴 Fort"}].map(t=>(
-                <button key={t.id} className="btn" onClick={()=>set("traffic")(t.id)}
-                  style={{flex:1,padding:"12px",borderRadius:12,fontSize:13,fontWeight:600,
-                    background:form.traffic===t.id?"var(--gold)":"var(--s2)",
-                    color:form.traffic===t.id?"#0a0a0d":"var(--t2)",
-                    border:"1px solid var(--border)"}}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </FL>
-
-          <FL label="NOTE GÉNÉRALE DU SHIFT">
-            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-              {[1,2,3,4,5].map(n=>(
-                <button key={n} className="btn" onClick={()=>set("rating")(n)}
-                  style={{width:50,height:50,borderRadius:12,fontSize:20,
-                    background:form.rating>=n?"var(--gold)":"var(--s2)",
-                    color:form.rating>=n?"#0a0a0d":"var(--t3)",
-                    border:"1px solid var(--border)"}}>
-                  ★
-                </button>
-              ))}
-            </div>
-            <div style={{textAlign:"center",fontSize:13,color:"var(--gold)",marginTop:6,fontWeight:600}}>
-              {["","Très difficile","Difficile","Correct","Bien","Excellent !"][form.rating]}
-            </div>
-          </FL>
-
-          <FL label="POINTS POSITIFS">
-            <textarea className="field" value={form.highlights} onChange={e=>set("highlights")(e.target.value)}
-              placeholder="Ex: Bonne équipe aujourd'hui, livraison à l'heure..." rows={2} style={{resize:"none"}}/>
-          </FL>
-
-          <FL label="INCIDENTS / PROBLÈMES">
-            <textarea className="field" value={form.incidents} onChange={e=>set("incidents")(e.target.value)}
-              placeholder="Ex: Bris d'équipement, conflit client, manque de stock..." rows={2} style={{resize:"none"}}/>
-          </FL>
-
-          <FL label="NOTES ADDITIONNELLES">
-            <textarea className="field" value={form.notes} onChange={e=>set("notes")(e.target.value)}
-              placeholder="Autres observations..." rows={2} style={{resize:"none"}}/>
-          </FL>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── TEMPLATES MODAL ──────────────────────────────────────────────
-function TemplatesModal({templates,onApply,onClose,lang}){
-  const [selected,setSelected] = useState(null);
-  return(
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet slide-up" onClick={e=>e.stopPropagation()}>
-        <div className="handle"/>
-        <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"4px 18px 32px",display:"flex",flexDirection:"column",gap:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div className="serif" style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>📋 Templates de tâches</div>
-            <button className="btn btn-outline" onClick={onClose} style={{width:32,height:32,borderRadius:10,fontSize:18}}>×</button>
-          </div>
-          <div style={{fontSize:13,color:"var(--t2)",lineHeight:1.5}}>Applique un template pour créer plusieurs tâches d'un coup.</div>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {templates.map((t,i)=>(
-              <div key={i} className="card" style={{padding:"14px",borderColor:selected===i?"var(--gold-b)":"var(--border)",cursor:"pointer"}} onClick={()=>setSelected(selected===i?null:i)}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:selected===i?12:0}}>
-                  <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{t.name}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:11,color:"var(--t3)"}}>{t.tasks.length} tâches</span>
-                    <span style={{color:"var(--t3)",fontSize:16}}>{selected===i?"▲":"▼"}</span>
-                  </div>
-                </div>
-                {selected===i&&(
-                  <>
-                    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
-                      {t.tasks.map((task,j)=>{
-                        const p=PRIORITIES.find(pr=>pr.id===task.priority);
-                        return(
-                          <div key={j} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--s2)",borderRadius:9}}>
-                            <div style={{width:6,height:6,borderRadius:"50%",background:p?.color,flexShrink:0}}/>
-                            <span style={{fontSize:13,color:"var(--text)",flex:1}}>{task.title}</span>
-                            <span style={{fontSize:10,color:"var(--t3)"}}>{task.department}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <button className="btn btn-gold" onClick={()=>onApply(t)} style={{width:"100%",padding:"13px",borderRadius:12,fontSize:14}}>
-                      Appliquer ce template
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── GLOBAL SEARCH MODAL ──────────────────────────────────────────
 function GlobalSearchModal({query,setQuery,tasks,events,announcements,notes,me,getUser,getPri,onTask,onClose}){
   const q = query.toLowerCase().trim();
   const results = q.length<2 ? [] : [
@@ -2978,7 +2625,7 @@ function AccountMenuModal({me,users,isOwner,onSwitchUser,onSettings,onStoreProfi
             {icon:"🔍", label:"Recherche globale",              action:onSearch},
             {icon:"⚙",  label:"Paramètres",                    action:onSettings},
             ...(isOwner?[{icon:"🏪", label:"Profil du magasin", action:onStoreProfile}]:[]),
-            {icon:"📄", label:"Exporter en PDF",                action:onExportPDF},
+            
           {icon:"🔐", label:"Changer mon NIP",                  action:onChangePin},
             {icon:"🆘", label:"Alerte urgence (SOS)",           action:onSOS, danger:true},
           ].map(item=>(
@@ -3174,11 +2821,9 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
   );
 }
 function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEvent}){
-  const [calMonth,setCalMonth]=useState(new Date());
   const [selDay,setSelDay]=useState(null);
   const [showForm,setShowForm]=useState(false);
   const [editEv,setEditEv]=useState(null);
-  const [confirmDel,setConfirmDel]=useState(null);
   const year=calMonth.getFullYear(),month=calMonth.getMonth();
   const firstDay=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();
   const today=new Date();
@@ -3261,8 +2906,6 @@ function ChangePinModal({me,onSave,onClose}){
   const [step,setStep]=useState("current");
   const [cur,setCur]=useState("");
   const [nw,setNw]=useState("");
-  const [conf,setConf]=useState("");
-  const [err,setErr]=useState("");
   const handleDigit=d=>{
     setErr("");
     if(step==="current"){const p=cur+d;setCur(p);if(p.length===4){if(p===(me.pin||"1111")){setTimeout(()=>{setStep("new");setCur("");},300);}else{setTimeout(()=>{setCur("");setErr("NIP incorrect");},400);}}}
