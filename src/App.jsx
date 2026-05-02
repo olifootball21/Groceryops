@@ -458,7 +458,7 @@ export default function App() {
 
       {/* CONTENT */}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,position:"relative",zIndex:1}}>
-        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent}/>}
+        {tab==="home"  && <HomeTab stats={stats} me={me} store={store} tasks={tasks} announcements={announcements} events={events} users={users} lang={lang} themeColor={themeColor} getUser={getUser} getPri={getPri} onNew={()=>setModal("newTask")} onGoTo={f=>{if(f==="tour"||f==="comm"||f==="notes"||f==="gallery"){setTab(f);}else{setTaskFilter(f||"active");setTab("tasks");}}} onTask={openTask} onNewEvent={createEvent} onEditEvent={editEvent} onDeleteEvent={deleteEvent} onDeleteAnn={deleteAnnouncement} isOwner={isOwner}/>}
         {tab==="tasks" && <TasksTab tasks={tasks} archivedTasks={archivedTasks} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onTask={openTask} onNew={()=>setModal("newTask")} initFilter={taskFilter} seenTasks={seenTasks} taskSort={taskSort} setTaskSort={setTaskSort}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
@@ -1407,7 +1407,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
             <div style={{fontSize:12,color:"var(--t3)"}}>Par {createdBy?.name} · {ago(task.createdAt)}</div>
           </div>
           {task.description&&<div style={{fontSize:14,color:"var(--t2)",lineHeight:1.7,padding:"12px 14px",background:"var(--s2)",borderRadius:12}}>{task.description}</div>}
-          {task.photo&&<div style={{borderRadius:14,overflow:"hidden"}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",display:"block"}}/></div>}
+          {task.photo&&<div style={{borderRadius:14,overflow:"hidden",flexShrink:0,height:180}}><img loading="lazy" onError={e=>{e.target.style.display="none";}} src={task.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {[
               {label:"ASSIGNÉ À",val:<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:20,height:20,borderRadius:6,background:assigned?.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:assigned?.id===1?"#0a0a0d":"white"}}>{initials(assigned?.name||"?")}</div><span>{assigned?.name}</span></div>},
@@ -3057,4 +3057,4 @@ function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEv
       {confirmDel&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDel(null)}><div style={{background:"var(--s1)",borderRadius:20,padding:24,width:"100%",maxWidth:300,border:"1px solid var(--border)"}} onClick={e=>e.stopPropagation()}><div className="serif" style={{fontSize:18,fontWeight:700,marginBottom:8,color:"var(--text)"}}>Supprimer ?</div><div style={{fontSize:13,color:"var(--t2)",marginBottom:20}}>"{confirmDel.title}"</div><div style={{display:"flex",gap:8}}><button className="btn btn-ghost" onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12}}>Annuler</button><button className="btn btn-danger" onClick={()=>{onDeleteEvent(confirmDel.id);setConfirmDel(null);}} style={{flex:1,padding:"12px",borderRadius:12}}>Supprimer</button></div></div></div>}
     </div>
   );
-}try{localStorage.removeItem(draftKey);}catch(e){} 
+}
