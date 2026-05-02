@@ -525,7 +525,7 @@ export default function App() {
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Supprimée","warn");}catch(e){console.error(e)}}}/>}
         {tab==="tour"  && <TourTab tourHistory={tourHistory} tourConfig={tourConfig} me={me} isOwner={isOwner} lang={lang} onSelectTour={t=>setSelectedTour(t)} onStart={(shift)=>{setActiveTour({shift,startTime:Date.now()});setModal("doTour");}} onEditConfig={()=>setModal("tourConfig")}/>}
         {tab==="team"  && <TeamTab users={users} me={me} isOwner={isOwner} onAdd={()=>setModal("newUser")} onEdit={u=>{setEditUser(u);setModal("editUser");}} tasks={tasks} joinRequests={joinRequests} onApprove={approveRequest} onReject={rejectRequest}/>}
-        {tab==="stats" && <div style={{padding:24,textAlign:"center",color:"var(--t2)"}}>Stats retirées</div>}
+        {tab==="stats" && <div/>
         {tab==="gallery"  && <GalleryTab gallery={gallery} allAppPhotos={allAppPhotos} me={me} getUser={getUser} lang={lang} themeColor={themeColor} onCreateFolder={createGalleryFolder} onDeleteFolder={deleteGalleryFolder} onAddPhoto={addPhotoToFolder} onDeletePhoto={deletePhotoFromFolder} onRenameFolder={renameGalleryFolder}/>}
         {tab==="schedule" && <ScheduleTab schedules={schedules} scheduleDepts={scheduleDepts} me={me} isOwner={isOwner} onAdd={addSchedulePhoto} onDelete={deleteSchedulePhoto} onAddDept={addScheduleDept} onRemoveDept={removeScheduleDept} onRenameDept={renameScheduleDept}/>}
         {tab==="notes"    && <NotesTab notes={notes} me={me} onSave={saveNote}/>}
@@ -543,7 +543,7 @@ export default function App() {
           {id:"gallery", label:T(lang,"gallery"),  icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>},
           {id:"notes",   label:T(lang,"notes"),    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},
           {id:"comm",    label:T(lang,"comm"),     icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>},
-          {id:"stats",   label:T(lang,"stats"),    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>},
+          // stats tab removed
         ].map(({id,label,icon,badge})=>(
           <button key={id} className="nav-tab" onClick={()=>{setTab(id);if(id!=="tasks")setTaskFilter("all");}}
             style={{color:tab===id?"var(--gold)":"var(--t3)",position:"relative",flex:1}}>
