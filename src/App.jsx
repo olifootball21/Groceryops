@@ -563,7 +563,7 @@ export default function App() {
       {/* MODALS */}
       {modal==="newTask"      && <NewTaskModal    users={users} onSave={createTask} onClose={()=>setModal(null)}/>}
       {modal==="editTask"     && editTaskData && <EditTaskModal task={editTaskData} users={users} onSave={editTask} onClose={()=>{setModal(null);setEditTaskData(null);}}/>}
-      {modal==="taskDetail"   && activeTask && <TaskDetailModal task={activeTask} users={users} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onStatus={updateStatus} onComment={addComment} onDelete={deleteTask} onArchive={archiveTask} onEdit={t=>{setEditTaskData(t);setModal("editTask");}} onPin={togglePin} onClose={()=>{setModal(null);setActive(null);}}/>}
+      {modal==="taskDetail"   && active && <TaskDetailModal task={active} users={users} me={me} getUser={getUser} getPri={getPri} isOwner={isOwner} onStatus={updateStatus} onComment={addComment} onDelete={deleteTask} onArchive={archiveTask} onEdit={t=>{setEditTaskData(t);setModal("editTask");}} onPin={togglePin} onClose={()=>{setModal(null);setActive(null);}}/>}
       {modal==="newUser"      && <NewUserModal    onSave={createUser} onClose={()=>setModal(null)}/>}
       {modal==="editUser"     && editUser && <EditUserModal user={editUser} me={me} isOwner={isOwner} onSave={updateUser} onDelete={deleteUser} onClose={()=>{setModal(null);setEditUser(null);}}/>}
       {modal==="notifs"       && <NotifsModalV2   notifs={notifs} onClose={()=>setModal(null)} onClearAll={clearAllNotifs} onMarkAllRead={markAllRead} onDeleteNotif={deleteNotif} onClickNotif={n=>{clickNotif(n);setModal(null);}}/>}
@@ -1448,6 +1448,8 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
           </div>
         </div>
       )}
+    </div>
+  </div>
     </div>
   );
 }
