@@ -267,12 +267,18 @@ export default function App() {
   },[]);
 
   const isSaving = useRef(false);
+  const isHidden = useRef(false);
+  useEffect(()=>{
+    const onVis=()=>{isHidden.current=document.hidden;};
+    document.addEventListener('visibilitychange',onVis);
+    return()=>document.removeEventListener('visibilitychange',onVis);
+  },[]);
 
   // Poll every 8s - pause during saves
   useEffect(()=>{
     if(!ready)return;
     const poll=async()=>{
-      if(isSaving.current)return; // skip poll during saves
+      if(isSaving.current||isHidden.current)return; // skip poll during saves or when hidden
       try{
         const [T2,C2,A2]=await Promise.all([sb.get("tasks","archived=eq.false&order=created_at.desc"),sb.get("comments","order=created_at"),sb.get("announcements","order=created_at.desc")]);
         if(T2?.length){setTasks(prev=>{
@@ -463,7 +469,7 @@ export default function App() {
     setTasks(p=>p.filter(t=>t.id!==tid)); setModal(null); setActive(null); pushToast('Supprimée','warn');
     try{await sb.del('tasks',tid);}catch(e){pushToast('Erreur (non supprimé)','warn');}};
 
-  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');const pts=(tour.issues||[]).filter(i=>i.photo);if(pts.length>0){try{const fn="Photos Tournées";const gf=await sb.get('gallery_folders');let tf=gf?.find(f=>f.name===fn);if(!tf){const nf=await sb.insert('gallery_folders',{name:fn,created_by:me.id});tf=nf?.[0];if(tf)setGallery(p=>[{id:tf.id,name:fn,createdBy:me.id,ts:Date.now(),photos:[]},...p]);}if(tf?.id){for(const iss of pts){const cap=`${tour.date} · ${tour.shift} · ${iss.item}`;const pr=await sb.insert('gallery_photos',{folder_id:tf.id,photo:iss.photo,caption:cap,added_by:me.id});if(pr?.[0])setGallery(p=>p.map(f=>f.id===tf.id?{...f,photos:[{id:pr[0].id,photo:iss.photo,caption:cap,addedBy:me.id,ts:Date.now()},...f.photos]}:f));}}}catch(e){console.error(e);}}pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};;
+  const saveTour=async tour=>{try{const r=await sb.insert('tour_history',{shift:tour.shift,date:tour.date,done_by:tour.doneBy,score:tour.score,total:tour.total,duration:tour.duration,start_time:tour.startTime,issues:(tour.issues||[]).map(i=>({...i,photo:null}))});if(r?.[0])setTourHistory(p=>[{...tour,id:r[0].id},...p]);pushNotif(`Tournée ${tour.shift}`,`Score: ${tour.score}/${tour.total}`,'done');const pts=(tour.issues||[]).filter(i=>i.photo);if(pts.length>0){try{const fn="Photos Tournées";const gf=await sb.get('gallery_folders');let tf=gf?.find(f=>f.name===fn);if(!tf){const nf=await sb.insert('gallery_folders',{name:fn,created_by:me.id});tf=nf?.[0];if(tf)setGallery(p=>[{id:tf.id,name:fn,createdBy:me.id,ts:Date.now(),photos:[]},...p]);}if(tf?.id){for(const iss of pts){const cap=`${tour.date} · ${tour.shift} · ${iss.item}`;const pr=await sb.insert('gallery_photos',{folder_id:tf.id,photo:iss.photo,caption:cap,added_by:me.id});if(pr?.[0])setGallery(p=>p.map(f=>f.id===tf.id?{...f,photos:[{id:pr[0].id,photo:iss.photo,caption:cap,addedBy:me.id,ts:Date.now()},...f.photos]}:f));}}}catch(e){console.error(e);}}try{localStorage.removeItem(draftKey);}catch(e){} pushToast('Tournée sauvegardée !');setActiveTour(null);setModal(null);}catch(e){pushToast('Erreur','warn');}};;
 
   // Reminders disabled
 
@@ -505,6 +511,9 @@ export default function App() {
   const rejectRequest=async req=>{try{await sb.update("join_requests",req.id,{status:"rejected"});setJoinRequests(p=>p.map(x=>x.id===req.id?{...x,status:"rejected"}:x));}catch(e){console.error(e)}};
   const getUser = id=>users.find(u=>u.id===id)||{id:0,name:"Utilisateur supprimé",role:"",color:"#666",isOwner:false};
   const getPri  = id=>PRIORITIES.find(p=>p.id===id)||{id:"normal",label:"Normale",color:"#666"};
+  // Cache common filters
+  const activeTasks = tasks.filter(t=>t.status!=="done");
+  const urgentTasks = tasks.filter(t=>t.priority==="urgent"&&t.status!=="done");
   const stats = {
     todo:tasks.filter(t=>t.status==="todo").length,
     inprogress:tasks.filter(t=>t.status==="inprogress").length,
@@ -1063,12 +1072,23 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
     ...(config.deptItems[dept]||[]).map(item=>({dept,item,key:`${dept}__spec__${item}`})),
   ]);
 
-  const [checks,setChecks]   = useState({});
-  const [notes,setNotes]     = useState({});
-  const [photos,setPhotos]   = useState({});
-  const [currentDept,setCurrentDept] = useState(config.order[0]);
+  // Restore saved progress from localStorage
+  const draftKey = `groceryops_tour_${shift}_${me?.id}`;
+  const savedDraft = (() => { try{ return JSON.parse(localStorage.getItem(draftKey)||'null'); }catch(e){return null;} })();
+  const [checks,setChecks]   = useState(savedDraft?.checks||{});
+  const [notes,setNotes]     = useState(savedDraft?.notes||{});
+  const [photos,setPhotos]   = useState(savedDraft?.photos||{});
+  const [currentDept,setCurrentDept] = useState(savedDraft?.currentDept||config.order[0]);
   const fileRef = useRef();
   const [photoTarget,setPhotoTarget] = useState(null);
+
+  // Auto-save progress to localStorage
+  useEffect(()=>{
+    try{
+      // Don't save photos (too heavy) - just checks and notes
+      localStorage.setItem(draftKey, JSON.stringify({checks,notes,currentDept,ts:Date.now()}));
+    }catch(e){}
+  },[checks,notes,currentDept]);
   const [activeIssue,setActiveIssue] = useState(null);
   const [photoLoading,setPhotoLoading] = useState(false);
 
@@ -1101,6 +1121,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
       <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
         {/* HEADER */}
         <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+          {savedDraft&&<div style={{background:"rgba(42,157,143,0.12)",border:"1px solid rgba(42,157,143,0.3)",borderRadius:10,padding:"7px 12px",marginBottom:10,fontSize:12,color:"#2a9d8f",fontWeight:600}}>↩ Reprise de ta tournée — progression restaurée !</div>}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
               <div className="tag" style={{marginBottom:3}}>TOURNÉE</div>
