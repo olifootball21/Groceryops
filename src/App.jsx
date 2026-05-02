@@ -708,7 +708,7 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
 }
 
 function MiniTaskCard({task,getUser,getPri,onClick}){
-  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status];
+  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status]||{label:task.status,color:'#888',bg:'#88818',border:'#888'};
   return(
     <div className="card card-tap" onClick={onClick} style={{padding:"13px 15px",display:"flex",gap:10,alignItems:"center",borderLeft:`3px solid ${p?.color}`}}>
       <div style={{flex:1,minWidth:0}}>
@@ -877,7 +877,7 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
 }
 
 function TaskCard({task,getUser,getPri,onClick,unseen}){
-  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status];
+  const p=getPri(task.priority); const u=getUser(task.assignedTo); const s=STATUS_META[task.status]||{label:task.status,color:'#888',bg:'#88818',border:'#888'};
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date()&&task.status!=="done";
   return(
     <div className="card card-tap" onClick={onClick} style={{padding:"15px",borderLeft:`3px solid ${p?.color}`}}>
@@ -901,7 +901,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
           <span style={{fontSize:11,color:"var(--t3)"}}>· {task.department}</span>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {task.comments.length>0&&<span style={{fontSize:11,color:"var(--t3)"}}>💬 {task.comments.length}</span>}
+          {(task.comments?.length||0)>0&&<span style={{fontSize:11,color:"var(--t3)"}}>💬 {task.comments.length}</span>}
           {task.dueDate&&<span style={{fontSize:11,color:overdue?"#e63946":"var(--t3)",fontWeight:overdue?700:400}}>{overdue?"⚠ ":""}{new Date(task.dueDate).toLocaleDateString("fr-CA",{month:"short",day:"numeric"})}{task.dueTime?" "+task.dueTime:""}</span>}
         </div>
       </div>
@@ -1356,7 +1356,7 @@ function TaskDetailModal({task,users,me,getUser,getPri,isOwner,onStatus,onCommen
   const [completionPhoto,setPhoto]=useState(null);
   const [confirmDel,setConfirmDel]=useState(false);
   const fileRef=useRef(); const bottomRef=useRef();
-  const p=getPri(task.priority); const assigned=getUser(task.assignedTo); const createdBy=getUser(task.createdBy); const s=STATUS_META[task.status];
+  const p=getPri(task.priority); const assigned=getUser(task.assignedTo); const createdBy=getUser(task.createdBy); const s=STATUS_META[task.status]||{label:task.status,color:'#888',bg:'#88818',border:'#888'};
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date()&&task.status!=="done";
   const canEdit=isOwner||me.id===task.createdBy||me.id===task.assignedTo;
   const canComplete=true; // All users can complete any task
