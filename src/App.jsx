@@ -188,6 +188,7 @@ export default function App() {
   const [editUser, setEditUser]       = useState(null);
   const [editTaskData, setEditTaskData] = useState(null);
   const [activeTour, setActiveTour]   = useState(null);
+  const [showPDFInfo, setShowPDFInfo] = useState(false);
 
   const isOwner = me?.isOwner||false;
 
@@ -1026,6 +1027,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
   const savedDraft = (() => { try{ return JSON.parse(localStorage.getItem(draftKey)||'null'); }catch(e){return null;} })();
   const [checks,setChecks]   = useState(savedDraft?.checks||{});
   const [photos,setPhotos]   = useState(savedDraft?.photos||{});
+  const [notes,setNotes]     = useState(savedDraft?.notes||{});
   const [currentDept,setCurrentDept] = useState(savedDraft?.currentDept||config.order[0]);
   const fileRef = useRef();
   const [photoTarget,setPhotoTarget] = useState(null);
@@ -1527,6 +1529,8 @@ function EditTaskModal({task,users,onSave,onClose}){
 
 // ─── USER MODALS ──────────────────────────────────────────────────
 function UserFormModal({title,initial,onSave,onDelete,onClose,showDelete}){
+  const [form,setForm]=useState({...initial});
+  const [confirmDel,setConfirmDel]=useState(false);
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   return(
     <div className="overlay" onClick={onClose}>
@@ -1867,6 +1871,7 @@ function EventCard({event,getUser,onEdit,showDate,past}){
 
 // ─── EVENT FORM MODAL ─────────────────────────────────────────────
 function EventFormModal({title,initial,users,me,onSave,onDelete,onClose}){
+  const [form,setForm]=useState({...initial});
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const toggleMember=id=>setForm(p=>({...p,members:p.members?.includes(id)?p.members.filter(x=>x!==id):[...(p.members||[]),id]}));
   const toggleDay=d=>setForm(p=>({...p,customDays:p.customDays?.includes(d)?p.customDays.filter(x=>x!==d):[...(p.customDays||[]),d]}));
@@ -2185,6 +2190,7 @@ function ScheduleTab({schedules,scheduleDepts,me,isOwner,onAdd,onDelete,onAddDep
 // ─── NOTES TAB ────────────────────────────────────────────────────
 function NotesTab({notes,me,onSave}){
   const myNotes = notes[me.id]||"";
+  const [text,setText] = useState(myNotes);
   const [saved,setSaved] = useState(true);
 
   useEffect(()=>{ setText(notes[me.id]||""); setSaved(true); },[me.id,notes]);
@@ -2821,9 +2827,11 @@ function TourDetailModal({tour,isOwner,onClose,onDelete}){
   );
 }
 function HomeCalendar({events,users,themeColor,onNewEvent,onEditEvent,onDeleteEvent}){
+  const [calMonth,setCalMonth]=useState(new Date());
   const [selDay,setSelDay]=useState(null);
   const [showForm,setShowForm]=useState(false);
   const [editEv,setEditEv]=useState(null);
+  const [confirmDel,setConfirmDel]=useState(null);
   const year=calMonth.getFullYear(),month=calMonth.getMonth();
   const firstDay=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();
   const today=new Date();
@@ -2906,6 +2914,8 @@ function ChangePinModal({me,onSave,onClose}){
   const [step,setStep]=useState("current");
   const [cur,setCur]=useState("");
   const [nw,setNw]=useState("");
+  const [conf,setConf]=useState("");
+  const [err,setErr]=useState("");
   const handleDigit=d=>{
     setErr("");
     if(step==="current"){const p=cur+d;setCur(p);if(p.length===4){if(p===(me.pin||"1111")){setTimeout(()=>{setStep("new");setCur("");},300);}else{setTimeout(()=>{setCur("");setErr("NIP incorrect");},400);}}}
