@@ -906,9 +906,9 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(5px)",zIndex:50,display:"flex",flexDirection:"column"}}>
-      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column"}}>
+      <div style={{flex:1,background:"var(--s1)",display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
         {/* HEADER */}
-        <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+        <div style={{padding:"10px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
               <div className="tag" style={{marginBottom:3}}>TOURNÉE</div>
@@ -931,7 +931,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
               const allDone=dDone===dItems.length;
               return(
                 <button key={d} className="btn" onClick={()=>setCurrentDept(d)}
-                  style={{padding:"5px 11px",borderRadius:20,fontSize:11,whiteSpace:"nowrap",flexShrink:0,
+                  style={{padding:"4px 9px",borderRadius:20,fontSize:10,whiteSpace:"nowrap",flexShrink:0,
                     background:currentDept===d?"var(--gold)":allDone?"rgba(42,157,143,0.1)":"var(--s2)",
                     color:currentDept===d?"#0a0a0d":allDone?"#2a9d8f":"var(--t2)",
                     border:`1px solid ${currentDept===d?"transparent":allDone?"rgba(42,157,143,0.3)":"var(--border)"}`}}>
@@ -943,7 +943,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* ITEMS */}
-        <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain",padding:"10px 14px 20px",display:"flex",flexDirection:"column",gap:8}}>
           <div className="tag" style={{marginBottom:4}}>{currentDept}</div>
           {deptItems.map(({item,key})=>{
             const status=checks[key];
@@ -985,7 +985,7 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* FOOTER */}
-        <div style={{padding:"12px 16px 32px",borderTop:"1px solid var(--border)",flexShrink:0}}>
+        <div style={{padding:"10px 16px 24px",borderTop:"1px solid var(--border)",flexShrink:0}}>
           <button className="btn btn-gold" onClick={handleSave} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15}}>
             Terminer la tournée · {pct}% complété
           </button>
