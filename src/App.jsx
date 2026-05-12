@@ -943,13 +943,13 @@ function DoTourModal({shift,startTime,config,me,onSave,onClose,onCreateTask,user
         </div>
 
         {/* ITEMS */}
-        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain",padding:"14px 16px 30px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{flex:1,overflowY:"scroll",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain",padding:"14px 16px 30px",display:"flex",flexDirection:"column",gap:8,minHeight:0}}>
           <div className="tag" style={{marginBottom:4}}>{currentDept}</div>
           {deptItems.map(({item,key})=>{
             const status=checks[key];
             return(
-              <div key={key} style={{background:"var(--s2)",borderRadius:14,border:`1px solid ${status==="ok"?"rgba(42,157,143,0.3)":status==="issue"?"rgba(230,57,70,0.3)":"var(--border)"}`,overflow:"hidden"}}>
-                <div style={{padding:"13px 14px",display:"flex",alignItems:"center",gap:12}}>
+              <div key={key} style={{background:"var(--s2)",borderRadius:14,border:`1px solid ${status==="ok"?"rgba(42,157,143,0.3)":status==="issue"?"rgba(230,57,70,0.3)":"var(--border)"}`,overflow:"hidden",flexShrink:0}}>
+                <div style={{padding:"13px 14px",display:"flex",alignItems:"center",gap:12,minHeight:52}}>
                   <div style={{flex:1,fontSize:14,color:"var(--text)",fontWeight:500}}>{item}</div>
                   <div style={{display:"flex",gap:6}}>
                     <button className="btn" onClick={()=>setChecks(p=>({...p,[key]:p[key]==="ok"?undefined:"ok"}))}
