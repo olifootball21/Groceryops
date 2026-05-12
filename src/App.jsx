@@ -53,12 +53,6 @@ const INIT_USERS = [
 ];
 
 const INIT_TASKS = [];
-const INIT_TASKS_OLD = [
-  { id:1, title:"Prix circulaire à vérifier", description:"Confirmer que tous les prix du circulaire sont affichés correctement.", assignedTo:2, createdBy:1, priority:"urgent", status:"todo", department:"Épicerie", dueDate:"2026-04-24", dueTime:"09:00", photo:null, comments:[{id:1,userId:1,text:"Priorité absolue pour demain matin!",ts:Date.now()-3600000}], createdAt:Date.now()-7200000, recurrence:"none", pinned:true },
-  { id:2, title:"Nettoyage réfrigérateurs viande", description:"Nettoyage complet et désinfection des surfaces.", assignedTo:3, createdBy:1, priority:"high", status:"inprogress", department:"Viande", dueDate:"2026-04-23", dueTime:"", photo:null, comments:[], createdAt:Date.now()-86400000, recurrence:"weekly", pinned:false },
-  { id:3, title:"Commander emballages boulangerie", description:"Stock bas — commander boîtes et sacs.", assignedTo:2, createdBy:2, priority:"normal", status:"done", department:"Boulangerie", dueDate:"2026-04-22", dueTime:"", photo:null, comments:[{id:2,userId:2,text:"Commande placée ✓",ts:Date.now()-1800000}], createdAt:Date.now()-172800000, completedAt:Date.now()-3600000, recurrence:"monthly", pinned:false },
-];
-
 const INIT_STORE = { name:"Mon IGA", number:"IGA-001", address:"123 rue Principale, Montréal", logo:null };
 
 const INIT_TOUR_CONFIG = {
@@ -268,8 +262,10 @@ export default function App() {
     if(!ready)return;
     const poll=async()=>{
       try{
-        const T=await sb.get("tasks","archived=eq.false&order=created_at.desc");
-        const C=await sb.get("comments","order=created_at");
+        const [T,C]=await Promise.all([
+          sb.get("tasks","archived=eq.false&order=created_at.desc"),
+          sb.get("comments","order=created_at"),
+        ]);
         if(T?.length){setTasks(prev=>{const ids=new Set(prev.map(t=>t.id));const mapped=T.map(t=>({...t,assignedTo:t.assigned_to,createdBy:t.created_by,dueDate:t.due_date,dueTime:t.due_time,customDays:t.custom_days||[],pinned:t.pinned||false,createdAt:new Date(t.created_at).getTime(),completedAt:t.completed_at?new Date(t.completed_at).getTime():null,comments:(C||[]).filter(c=>c.task_id===t.id).map(c=>({id:c.id,userId:c.user_id,text:c.text,ts:new Date(c.created_at).getTime()}))}));mapped.forEach(t=>{if(!ids.has(t.id))pushNotif("Nouvelle tâche",t.title,"task");});return mapped;});}
         const A=await sb.get("announcements","order=created_at.desc");
         if(A?.length){setAnnouncements(prev=>{const ids=new Set(prev.map(a=>a.id));const mapped=A.map(a=>({...a,createdBy:a.created_by,ts:new Date(a.created_at).getTime()}));mapped.forEach(a=>{if(!ids.has(a.id))pushNotif("Nouvelle annonce",a.text.slice(0,60),"announce");});return mapped;});}
@@ -624,20 +620,6 @@ function HomeTab({stats,me,store,tasks,announcements,events,users,lang,themeColo
           </button>
         ))}
       </div>
-
-      {announcements?.length>0&&(
-        <div className="fade-in">
-          <div className="tag" style={{marginBottom:10}}>ANNONCES</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {announcements.slice(0,3).map(a=>(
-              <div key={a.id} style={{padding:"12px 14px",background:"rgba(244,162,97,0.08)",border:"1px solid rgba(244,162,97,0.2)",borderRadius:12,borderLeft:"3px solid #f4a261"}}>
-                <div style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{a.text}</div>
-                <div style={{fontSize:11,color:"var(--t3)",marginTop:5}}>{a.dept==="all"?"Toute l'équipe":a.dept} · {ago(a.ts)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       <HomeCalendar events={events||[]} users={users||[]} themeColor={themeColor} onNewEvent={onNewEvent} onEditEvent={onEditEvent} onDeleteEvent={onDeleteEvent}/>
 
       <button className="btn btn-gold fade-in" onClick={onNew} style={{width:"100%",padding:"16px",borderRadius:14,fontSize:15,marginBottom:8}}>
@@ -737,6 +719,12 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
           </div>
         : filtered.map(t=><TaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)} unseen={!seenTasks?.has(t.id)}/>)
       }
+      {tab==="done"&&archivedTasks.length>0&&(
+        <div style={{marginTop:8}}>
+          <div className="tag" style={{marginBottom:8,color:"var(--t3)"}}>ARCHIVÉES ({archivedTasks.length})</div>
+          {archivedTasks.map(t=><TaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)} unseen={false}/>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -775,7 +763,7 @@ function TaskCard({task,getUser,getPri,onClick,unseen}){
 }
 
 // ─── TOUR TAB ─────────────────────────────────────────────────────
-function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig}){
+function TourTab({tourHistory,tourConfig,me,isOwner,onStart,onEditConfig,onSelectTour}){
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -1244,7 +1232,15 @@ function TaskFormModal({initial,users,onSave,onClose,title}){
   const fileRef=useRef();
   const set=k=>v=>setForm(p=>({...p,[k]:v}));
   const toggleDay=d=>setForm(p=>({...p,customDays:p.customDays?.includes(d)?p.customDays.filter(x=>x!==d):[...(p.customDays||[]),d]}));
-  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>set("photo")(ev.target.result);r.readAsDataURL(f);};
+  const handleFile=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{
+    const img=new Image();img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      const ratio=Math.min(800/img.width,800/img.height,1);
+      canvas.width=Math.round(img.width*ratio);canvas.height=Math.round(img.height*ratio);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      set("photo")(canvas.toDataURL('image/jpeg',0.65));
+    };img.src=ev.target.result;
+  };r.readAsDataURL(f);};
   const handleSave=()=>{if(!form.title.trim()){alert("Veuillez entrer un titre");return;}onSave(form);};
   return(
     <div className="overlay" onClick={onClose}>
