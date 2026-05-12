@@ -4,6 +4,7 @@ const SURL="https://sbokqrubrarsngkhuxwt.supabase.co",SKEY="eyJhbGciOiJIUzI1NiIs
 const sb={
   get:async(t,q="")=>{const r=await fetch(`${SURL}/rest/v1/${t}?${q}&limit=500`,{headers:H});return r.ok?r.json():[];},
   insert:async(t,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}`,{method:"POST",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
+  upsert:async(t,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}`,{method:"POST",headers:{...H,Prefer:"return=representation","on-conflict":"key"},body:JSON.stringify(d)});return r.ok?r.json():[];},
   update:async(t,id,d)=>{const r=await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"PATCH",headers:{...H,Prefer:"return=representation"},body:JSON.stringify(d)});return r.ok?r.json():[];},
   del:async(t,id)=>{await fetch(`${SURL}/rest/v1/${t}?id=eq.${id}`,{method:"DELETE",headers:H});},
 };
@@ -148,7 +149,13 @@ export default function App() {
   const [users, setUsers]         = useState(INIT_USERS);
   const [tasks, setTasks]         = useState(INIT_TASKS);
   const [store, setStore]         = useState(INIT_STORE);
-  const [tourConfig, setTourConfig] = useState(INIT_TOUR_CONFIG);
+  const [tourConfig, setTourConfig] = useState(()=>{
+    try{
+      const saved=localStorage.getItem('groceryops_tour_config');
+      if(saved) return JSON.parse(saved);
+    }catch(e){}
+    return INIT_TOUR_CONFIG;
+  });
   const [tourHistory, setTourHistory] = useState([]);
   const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -195,8 +202,8 @@ export default function App() {
   const [taskSort, setTaskSort] = useState("date");
   const [me, setMe]               = useState(INIT_USERS[0]);
   const [tab, setTab]             = useState("home");
-  const [taskFilter, setTaskFilter] = useState("all");
-  const [seenTasks, setSeenTasks] = useState(new Set([1,2,3]));
+  const [taskFilter, setTaskFilter] = useState("active");
+  const [seenTasks, setSeenTasks] = useState(new Set());
   const [notifs, setNotifs] = useState([]);
   const [modal, setModal]         = useState(null);
   const [activeTask, setActive]   = useState(null);
@@ -238,6 +245,15 @@ export default function App() {
         if(GF?.length){setGallery(GF.map(f=>({id:f.id,name:f.name,createdBy:f.created_by,ts:new Date(f.created_at).getTime(),photos:(GP||[]).filter(p=>p.folder_id===f.id).map(p=>({id:p.id,photo:p.photo,caption:p.caption,addedBy:p.added_by,ts:new Date(p.created_at).getTime()}))})));}
         // Join requests
         try{const JR=await sb.get("join_requests","order=created_at.desc");if(JR?.length)setJoinRequests(JR);}catch(e){}
+        // Tour config - load from Supabase
+        try{
+          const TC=await sb.get("app_settings","key=eq.tour_config");
+          if(TC?.length&&TC[0].value){
+            const cfg=JSON.parse(TC[0].value);
+            setTourConfig(cfg);
+            try{localStorage.setItem('groceryops_tour_config',JSON.stringify(cfg));}catch(e){}
+          }
+        }catch(e){}
       }catch(e){console.error("Load error:",e);}
       setReady(true);
     };
@@ -471,7 +487,7 @@ export default function App() {
           {id:"notes",   label:T(lang,"notes"),    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},
           {id:"comm",    label:T(lang,"comm"),     icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>},
         ].map(({id,label,icon,badge})=>(
-          <button key={id} className="nav-tab" onClick={()=>{setTab(id);if(id!=="tasks")setTaskFilter("all");}}
+          <button key={id} className="nav-tab" onClick={()=>{setTab(id);if(id==="tasks")setTaskFilter("active");else setTaskFilter("active");}}
             style={{color:tab===id?"var(--gold)":"var(--t3)",position:"relative",flex:1}}>
             <div style={{marginBottom:3}}>{icon}</div>
             {badge>0&&<span style={{position:"absolute",top:0,right:"15%",width:15,height:15,borderRadius:"50%",background:"var(--danger)",border:`2px solid ${dark?"#0a0a0d":"#f7f5f0"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:"white"}}>{badge}</span>}
@@ -510,7 +526,16 @@ export default function App() {
       {modal==="templates"    && <TemplatesModal templates={TASK_TEMPLATES} onApply={applyTemplate} onClose={()=>setModal(null)} lang={lang}/>}
       {modal==="settings"     && <SettingsModal lang={lang} setLang={setLang} themeColor={themeColor} setThemeColor={setThemeColor} dark={dark} setDark={setDark} onClose={()=>setModal(null)}/>}
       {modal==="storeProfile"   && <StoreProfileModal store={store} onSave={s=>{setStore(s);setModal(null);pushToast("Profil mis à jour !");}} onClose={()=>setModal(null)}/>}
-      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={c=>{setTourConfig(c);setModal(null);pushToast("Liste de tournée mise à jour !");}} onClose={()=>setModal(null)}/>}
+      {modal==="tourConfig"   && <TourConfigModal config={tourConfig} onSave={async c=>{
+              setTourConfig(c);
+              try{localStorage.setItem('groceryops_tour_config',JSON.stringify(c));}catch(e){}
+              try{
+                const ex=await sb.get("app_settings","key=eq.tour_config");
+                if(ex?.length) await fetch(`${SURL}/rest/v1/app_settings?key=eq.tour_config`,{method:"PATCH",headers:{...H,Prefer:"return=representation"},body:JSON.stringify({value:JSON.stringify(c)})});
+                else await sb.insert("app_settings",{key:"tour_config",value:JSON.stringify(c)});
+              }catch(e){}
+              setModal(null);pushToast("Liste de tournée mise à jour !");
+            }} onClose={()=>setModal(null)}/>}
       {selectedTour&&<TourDetailModal tour={selectedTour} isOwner={isOwner} onClose={()=>setSelectedTour(null)} onDelete={async t=>{try{await sb.del("tour_history",t.id);setTourHistory(p=>p.filter(x=>x.id!==t.id));setSelectedTour(null);pushToast("Tournée supprimée","warn");}catch(e){pushToast("Erreur","warn");}}}/>}
       {modal==="doTour"       && activeTour && <DoTourModal shift={activeTour.shift} startTime={activeTour.startTime} config={tourConfig} me={me} onSave={saveTour} onClose={()=>{setModal(null);setActiveTour(null);}} onCreateTask={createTask} users={users}/>}
 
@@ -637,7 +662,7 @@ function MiniTaskCard({task,getUser,getPri,onClick}){
 
 // ─── TASKS TAB ────────────────────────────────────────────────────
 function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort}){
-  const [filter,setFilter]   = useState(initFilter==="urgent"||initFilter==="pinned"?"all":initFilter==="done"?"done":initFilter||"active");
+  const [filter,setFilter]   = useState(initFilter==="urgent"||initFilter==="pinned"?"all":initFilter==="done"?"done":initFilter==="active"?"active":initFilter||"active");
   const [priFilter,setPri]   = useState(initFilter==="urgent"?"urgent":"all");
   const [deptFilter,setDept] = useState("all");
   const [search,setSearch]   = useState("");
