@@ -662,45 +662,34 @@ function MiniTaskCard({task,getUser,getPri,onClick}){
 
 // ─── TASKS TAB ────────────────────────────────────────────────────
 function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,initFilter,seenTasks,taskSort,setTaskSort}){
-  const [filter,setFilter]   = useState(initFilter==="urgent"||initFilter==="pinned"?"all":initFilter==="done"?"done":initFilter==="active"?"active":initFilter||"active");
-  const [priFilter,setPri]   = useState(initFilter==="urgent"?"urgent":"all");
-  const [deptFilter,setDept] = useState("all");
-  const [search,setSearch]   = useState("");
-  const [showPinned,setPinned] = useState(initFilter==="pinned");
+  const [tab,setTab] = useState(initFilter==="done"?"done":initFilter==="inprogress"?"inprogress":"todo");
+  const [search,setSearch] = useState("");
 
   useEffect(()=>{
-    if(initFilter==="urgent"){setFilter("all");setPri("urgent");setPinned(false);}
-    else if(initFilter==="pinned"){setFilter("all");setPri("all");setPinned(true);}
-    else{setFilter(initFilter||"all");setPri("all");setPinned(false);}
+    if(initFilter==="done") setTab("done");
+    else if(initFilter==="inprogress") setTab("inprogress");
+    else if(initFilter==="urgent"||initFilter==="pinned"||initFilter==="active") setTab("todo");
+    else setTab("todo");
   },[initFilter]);
 
-  const [showFilters,setShowFilters]   = useState(false);
-  const [showArchived,setShowArchived] = useState(false);
-  const hasActiveFilters = filter!=="active"||priFilter!=="all"||deptFilter!=="all"||showPinned||taskSort!=="date";
-  const sortFn = (a,b) => {
-    const pinDiff = (b.pinned?1:0)-(a.pinned?1:0);
-    if(pinDiff!==0) return pinDiff;
-    if(taskSort==="date")     return (b.createdAt||0)-(a.createdAt||0);
-    if(taskSort==="priority") return ["urgent","high","normal","low"].indexOf(a.priority)-["urgent","high","normal","low"].indexOf(b.priority);
-    if(taskSort==="dept")     return (a.department||"").localeCompare(b.department||"");
-    if(taskSort==="assigned") { const ua=getUser(a.assignedTo)?.name||""; const ub=getUser(b.assignedTo)?.name||""; return ua.localeCompare(ub); }
-    return 0;
-  };
-  const sourceList = showArchived ? archivedTasks : tasks;
+  const todoTasks     = tasks.filter(t=>t.status==="todo");
+  const inprogTasks   = tasks.filter(t=>t.status==="inprogress");
+  const doneTasks     = tasks.filter(t=>t.status==="done");
+
+  const newUnseen     = todoTasks.filter(t=>!seenTasks?.has(t.id)).length;
+  const inprogUnseen  = inprogTasks.filter(t=>!seenTasks?.has(t.id)).length;
+  const doneUnseen    = doneTasks.filter(t=>!seenTasks?.has(t.id)).length;
+
+  const sourceList = tab==="todo" ? todoTasks : tab==="inprogress" ? inprogTasks : doneTasks;
+
   const filtered = sourceList.filter(t=>
-    (!showPinned||t.pinned)&&
-    (showArchived||(
-      filter==="all"  ? true :
-      filter==="active" ? t.status!=="done" :
-      t.status===filter
-    ))&&
-    (priFilter==="all"||t.priority===priFilter)&&
-    (deptFilter==="all"||t.department===deptFilter)&&
-    (!search||t.title.toLowerCase().includes(search.toLowerCase())||t.description?.toLowerCase().includes(search.toLowerCase()))
-  ).sort(sortFn);
+    !search||t.title.toLowerCase().includes(search.toLowerCase())||t.description?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const tabColor = tab==="done"?"#2a9d8f":tab==="inprogress"?"#f4a261":"var(--gold)";
 
   return(
-    <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
         <div>
           <div className="tag" style={{marginBottom:4}}>TÂCHES</div>
@@ -709,105 +698,42 @@ function TasksTab({tasks,archivedTasks,me,getUser,getPri,isOwner,onTask,onNew,in
         <button className="btn btn-gold" onClick={onNew} style={{padding:"9px 16px",borderRadius:12,fontSize:13}}>+ Nouvelle</button>
       </div>
 
-            {/* SEARCH + FILTER BUTTON */}
+      {/* 3 TABS */}
       <div style={{display:"flex",gap:8}}>
-        <div style={{position:"relative",flex:1}}>
-          <div style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--t3)",pointerEvents:"none"}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </div>
-          <input className="field" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..." style={{paddingLeft:32,fontSize:14}}/>
-        </div>
-        <button className="btn" onClick={()=>setShowFilters(p=>!p)}
-          style={{width:44,height:44,borderRadius:12,flexShrink:0,
-            background:hasActiveFilters?"var(--gold)":"var(--s2)",
-            color:hasActiveFilters?"#0a0a0d":"var(--t2)",
-            border:`1.5px solid ${hasActiveFilters?"var(--gold)":"var(--border)"}`}}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-        </button>
-        <button className="btn" onClick={()=>setShowArchived(p=>!p)}
-          style={{width:44,height:44,borderRadius:12,flexShrink:0,
-            background:showArchived?"var(--gold)":"var(--s2)",
-            color:showArchived?"#0a0a0d":"var(--t3)",
-            border:"1px solid var(--border)"}}>
-          📦
-        </button>
+        {[
+          {id:"todo",      label:"À faire",   count:todoTasks.length,   unseen:newUnseen,    color:"var(--gold)"},
+          {id:"inprogress",label:"En cours",  count:inprogTasks.length, unseen:inprogUnseen, color:"#f4a261"},
+          {id:"done",      label:"Complété",  count:doneTasks.length,   unseen:doneUnseen,   color:"#2a9d8f"},
+        ].map(t=>(
+          <button key={t.id} className="btn" onClick={()=>setTab(t.id)}
+            style={{flex:1,padding:"10px 6px",borderRadius:13,flexDirection:"column",gap:4,position:"relative",
+              background:tab===t.id?t.color:"var(--s2)",
+              color:tab===t.id?"#0a0a0d":"var(--t2)",
+              border:`1.5px solid ${tab===t.id?t.color:"var(--border)"}`}}>
+            <span style={{fontSize:13,fontWeight:700}}>{t.label}</span>
+            <span style={{fontSize:18,fontWeight:800,lineHeight:1}}>{t.count}</span>
+            {t.unseen>0&&<span style={{position:"absolute",top:-5,right:-5,width:18,height:18,borderRadius:"50%",background:"#e63946",border:"2px solid var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:"white"}}>{t.unseen}</span>}
+          </button>
+        ))}
       </div>
 
-      {/* FILTER PANEL */}
-      {showFilters&&(
-        <div style={{background:"var(--s2)",borderRadius:16,padding:"16px",border:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:14}}>
-          <div>
-            <div className="tag" style={{marginBottom:8}}>STATUT</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {[{id:"active",label:"Actives"},{id:"todo",label:"À faire"},{id:"inprogress",label:"En cours"},{id:"done",label:"Complétées"},{id:"all",label:"Toutes"}].map(f=>(
-                <button key={f.id} className="btn" onClick={()=>{setFilter(f.id);setPri("all");setPinned(false);}}
-                  style={{padding:"6px 13px",borderRadius:20,fontSize:12,
-                    background:filter===f.id&&priFilter==="all"&&!showPinned?"var(--gold)":"var(--s1)",
-                    color:filter===f.id&&priFilter==="all"&&!showPinned?"#0a0a0d":"var(--t2)",
-                    border:"1px solid var(--border)"}}>
-                  {f.label}
-                </button>
-              ))}
-              <button className="btn" onClick={()=>{setPinned(p=>!p);setFilter("all");setPri("all");}}
-                style={{padding:"6px 13px",borderRadius:20,fontSize:12,
-                  background:showPinned?"var(--gold)":"var(--s1)",color:showPinned?"#0a0a0d":"var(--t2)",border:"1px solid var(--border)"}}>
-                ★ Épinglées
-              </button>
-            </div>
-          </div>
-          <div>
-            <div className="tag" style={{marginBottom:8}}>PRIORITÉ</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {[{id:"all",label:"Toutes"},...PRIORITIES].map(p=>(
-                <button key={p.id||"all"} className="btn" onClick={()=>{setPri(p.id||"all");setFilter("all");setPinned(false);}}
-                  style={{padding:"6px 13px",borderRadius:20,fontSize:12,
-                    background:priFilter===(p.id||"all")?"var(--gold)":"var(--s1)",
-                    color:priFilter===(p.id||"all")?"#0a0a0d":"var(--t2)",
-                    border:"1px solid var(--border)"}}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="tag" style={{marginBottom:8}}>DÉPARTEMENT</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["all",...DEPARTMENTS].map(d=>(
-                <button key={d} className="btn" onClick={()=>setDept(d)}
-                  style={{padding:"5px 11px",borderRadius:20,fontSize:11,
-                    background:deptFilter===d?"var(--gold)":"var(--s1)",
-                    color:deptFilter===d?"#0a0a0d":"var(--t3)",
-                    border:"1px solid var(--border)"}}>
-                  {d==="all"?"Tous":d}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="tag" style={{marginBottom:8}}>TRIER PAR</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {[{id:"date",label:"Date"},{id:"priority",label:"Priorité"},{id:"dept",label:"Département"},{id:"assigned",label:"Assigné"}].map(s=>(
-                <button key={s.id} className="btn" onClick={()=>setTaskSort(s.id)}
-                  style={{padding:"6px 13px",borderRadius:20,fontSize:12,
-                    background:taskSort===s.id?"var(--gold)":"var(--s1)",
-                    color:taskSort===s.id?"#0a0a0d":"var(--t2)",
-                    border:"1px solid var(--border)"}}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button className="btn" onClick={()=>{setFilter("active");setPri("all");setDept("all");setPinned(false);setTaskSort("date");setSearch("");setShowFilters(false);}}
-            style={{width:"100%",padding:"10px",borderRadius:11,fontSize:13,background:"var(--s1)",border:"1px solid var(--border)",color:"var(--t2)"}}>
-            Réinitialiser
-          </button>
+      {/* SEARCH */}
+      <div style={{position:"relative"}}>
+        <div style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--t3)",pointerEvents:"none"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </div>
-      )}
+        <input className="field" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..." style={{paddingLeft:32,fontSize:14}}/>
+      </div>
 
+      {/* TASK LIST */}
       {filtered.length===0
         ? <div style={{textAlign:"center",padding:"48px 20px",color:"var(--t3)"}}>
-            <div style={{fontSize:28,marginBottom:8}}>—</div>
-            <div style={{fontSize:14}}>{showArchived?"Aucune tâche archivée":"Aucune tâche trouvée"}</div>
+            <div style={{fontSize:32,marginBottom:8}}>
+              {tab==="todo"?"📋":tab==="inprogress"?"⏳":"✅"}
+            </div>
+            <div style={{fontSize:14}}>
+              {tab==="todo"?"Aucune tâche à faire":tab==="inprogress"?"Aucune tâche en cours":"Aucune tâche complétée"}
+            </div>
           </div>
         : filtered.map(t=><TaskCard key={t.id} task={t} getUser={getUser} getPri={getPri} onClick={()=>onTask(t)} unseen={!seenTasks?.has(t.id)}/>)
       }
